@@ -77,9 +77,9 @@ export const RESEAU_CODES: Record<string, string> = {
 // FRAIS APPLIQUÉS
 // Transfert/recharge uniquement : +0 FCFA fixes
 // Retrait/payout               : 3% du montant
-// Abonnement premium           : aucun frais (100 FCFA tout inclus)
+// Abonnement premium           : aucun frais
 // ─────────────────────────────────────────────
-
+export const FRAIS_PAIEMENT = 0; // FCFA fixes
 export const TAUX_RETRAIT   = 0.03; // 3%
 
 export function calcFraisPaiement(_montant: number): number {
