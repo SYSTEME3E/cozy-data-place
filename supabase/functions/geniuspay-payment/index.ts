@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     const errorUrl   = `${appUrl}/payment/callback?status=failed&type=${type}&user_id=${user_id}`;
 
     // ✅ FIX : frais calculés correctement selon le type
-    // Abonnement premium → pas de frais réseau (100 FCFA = prix fixe tout inclus)
+    // Abonnement premium → pas de frais réseau
     // Recharge/dépôt → frais de 100 FCFA s'appliquent
     const frais = type === "abonnement_premium" ? 0 : amount - (amount_net ?? amount);
 
