@@ -1,15 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AppLayout from "@/components/AppLayout";
 import {
   Send, Plus, History, Globe,
   ArrowDownLeft, ArrowUpRight, X, Check, AlertCircle,
   Download, Phone, Search, ChevronDown, Loader2,
-  BadgeCheck, Lock, ExternalLink
+  BadgeCheck, Lock, ExternalLink, RefreshCw
 } from "lucide-react";
 import { initPayment, initPayout } from "@/lib/Moneroo";
 import { getNexoraUser } from "@/lib/nexora-auth";
+import { supabase } from "@/lib/supabase"; // ← assure-toi que ce chemin est correct
 
 const LOGO_URL = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
+
+// ─── STORAGE KEY (uniquement pour la recharge en attente de redirect) ───
+const STORAGE_KEY_PENDING = "nexora_pending_recharge";
 
 // ─── PAYS ACTIFS (24 pays) ───
 const ACTIVE_COUNTRIES = [
@@ -39,7 +43,6 @@ const ACTIVE_COUNTRIES = [
   { code: "ZM", flag: "🇿🇲", name: "Zambie",         currency: "ZMW", networks: ["MTN MoMo", "Airtel Money"] },
 ];
 
-// ─── PLUS DE PAYS BIENTÔT ───
 const COMING_SOON: { code: string; flag: string; name: string }[] = [];
 
 // ─── TYPES ───
@@ -47,6 +50,7 @@ type ActiveCountry = typeof ACTIVE_COUNTRIES[0];
 type Transaction = {
   id: string;
   type: "depot" | "transfert";
+  // montant = ce qui est CRÉDITÉ sur le compte (amount - frais pour les recharges)
   montant: number;
   frais: number;
   date: string;
@@ -61,6 +65,42 @@ type Transaction = {
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const calcFrais = (montant: number) => Math.round(montant * 0.03);
 const generateRef = (type: "DEP" | "TRF") => `${type}-${Date.now().toString().slice(-8)}`;
+
+// ─────────────────────────────────────────────
+// MAPPER : ligne Supabase → Transaction UI
+// ─────────────────────────────────────────────
+function mapSupabaseRow(row: any): Transaction {
+  const meta = typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata ?? {});
+  const isRecharge = row.type === "recharge_transfert";
+
+  // ✅ CORRECTION CLÉ :
+  // Pour une recharge : amount = montant total débité au client (crédité + frais)
+  //   → montant crédité sur le compte = amount - frais
+  // Pour un transfert : amount = montant envoyé (frais déjà déduits du solde)
+  const frais    = row.frais ?? 0;
+  const montant  = isRecharge ? Math.max(0, (row.amount ?? 0) - frais) : (row.amount ?? 0);
+
+  let status: "success" | "pending" | "failed";
+  if (row.status === "completed") status = "success";
+  else if (row.status === "pending") status = "pending";
+  else status = "failed"; // failed, cancelled, etc.
+
+  return {
+    id:        row.id,
+    type:      isRecharge ? "depot" : "transfert",
+    montant,
+    frais,
+    date:      row.created_at
+                 ? new Date(row.created_at).toLocaleString("fr-FR")
+                 : "—",
+    pays:      meta.pays      ?? undefined,
+    flag:      meta.pays_flag ?? undefined,
+    reseau:    meta.reseau    ?? undefined,
+    telephone: meta.telephone ?? undefined,
+    status,
+    reference: row.moneroo_id ?? row.id?.slice(0, 8).toUpperCase() ?? "—",
+  };
+}
 
 // ─────────────────────────────────────────────
 // PDF FACTURE
@@ -119,18 +159,16 @@ body{font-family:'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;}
     </div>
     <div class="section-title">Détails de la transaction</div>
     <div class="row"><span class="label">Type d'opération</span><span class="value">${typeLabel}</span></div>
-    <div class="row"><span class="label">Montant</span><span class="value">${fmt(tx.montant)} FCFA</span></div>
+    <div class="row"><span class="label">Montant crédité</span><span class="value">${fmt(tx.montant)} FCFA</span></div>
+    <div class="row"><span class="label">Frais de service</span><span class="value">${fmt(tx.frais)} FCFA</span></div>
+    <div class="row"><span class="label">Total débité</span><span class="value">${fmt(tx.montant + tx.frais)} FCFA</span></div>
     ${tx.type === "transfert" ? `
-    <div class="row"><span class="label">Frais (3%)</span><span class="value">${fmt(tx.frais)} FCFA</span></div>
-    <div class="row"><span class="label">Montant reçu</span><span class="value">${fmt(tx.montant - tx.frais)} FCFA</span></div>
-    <div class="row"><span class="label">Pays destinataire</span><span class="value">${tx.flag} ${tx.pays}</span></div>
-    <div class="row"><span class="label">Réseau</span><span class="value">${tx.reseau}</span></div>
-    <div class="row"><span class="label">Numéro</span><span class="value">${tx.telephone}</span></div>
-    ` : `
-    <div class="row"><span class="label">Frais de recharge</span><span class="value">100 FCFA</span></div>
-    `}
+    <div class="row"><span class="label">Pays destinataire</span><span class="value">${tx.flag ?? ""} ${tx.pays ?? ""}</span></div>
+    <div class="row"><span class="label">Réseau</span><span class="value">${tx.reseau ?? ""}</span></div>
+    <div class="row"><span class="label">Numéro</span><span class="value">${tx.telephone ?? ""}</span></div>
+    ` : ""}
     <div class="total-box">
-      <span>Total débité</span>
+      <span>Crédité sur votre compte</span>
       <span class="amount">${fmt(tx.montant)} FCFA</span>
     </div>
     <div class="status-row">
@@ -220,9 +258,7 @@ function CountrySelector({ selected, onSelect, label }: {
 }
 
 // ─────────────────────────────────────────────
-// MODAL RECHARGE — GENIUSPAY
-// Pays + réseau (auto selon pays) + téléphone + montant
-// Frais fixes : 100 FCFA — redirection GeniusPay
+// MODAL RECHARGE
 // ─────────────────────────────────────────────
 function ModalRecharge({ onClose }: { onClose: () => void }) {
   const [montant, setMontant] = useState("");
@@ -237,10 +273,9 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
   const totalPaye  = montantNum + fraisFixe;
   const valid      = montantNum >= 100 && pays !== null && reseau !== "" && telephone.length >= 8;
 
-  // Quand le pays change, sélectionner automatiquement le premier réseau
   const handlePaysSelect = (p: ActiveCountry) => {
     setPays(p);
-    setReseau(p.networks[0]); // Auto-sélection du premier réseau
+    setReseau(p.networks[0]);
   };
 
   const handleSubmit = async () => {
@@ -248,22 +283,31 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
     setError(null);
     setLoading(true);
     try {
+      // Sauvegarder les infos AVANT la redirection GeniusPay
+      localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify({
+        montant:   montantNum,
+        frais:     fraisFixe,
+        reseau,
+        telephone,
+        pays:      pays?.name ?? "",
+        flag:      pays?.flag ?? "",
+      }));
+
       const result = await initPayment({
         type:   "recharge_transfert",
-        amount: montantNum,
-        metadata: {
-          reseau:    reseau,
-          telephone: telephone,
-          pays:      pays?.name ?? "",
-        },
+        amount: totalPaye, // ✅ on envoie le TOTAL (montant + frais) à GeniusPay
+        metadata: { reseau, telephone, pays: pays?.name ?? "" },
       });
+
       if (!result.success || !result.payment_url) {
+        localStorage.removeItem(STORAGE_KEY_PENDING);
         setError(result.error ?? "Erreur lors de l'initialisation du paiement.");
         setLoading(false);
         return;
       }
       window.location.href = result.payment_url;
     } catch (err: any) {
+      localStorage.removeItem(STORAGE_KEY_PENDING);
       setError(err.message ?? "Erreur réseau. Veuillez réessayer.");
       setLoading(false);
     }
@@ -272,7 +316,6 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 flex items-center gap-4">
           <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
             <Plus className="w-6 h-6 text-white" />
@@ -286,11 +329,9 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-5 space-y-5">
-          {/* Montant */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-muted-foreground">Montant à recharger</label>
+            <label className="text-sm font-semibold text-muted-foreground">Montant à créditer sur votre compte</label>
             <div className="relative">
               <input
                 type="number"
@@ -314,10 +355,8 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Pays */}
           <CountrySelector selected={pays} onSelect={handlePaysSelect} label="Pays de votre réseau" />
 
-          {/* Réseau — s'affiche automatiquement selon le pays */}
           {pays && (
             <div className="space-y-2">
               <label className="text-sm font-semibold text-muted-foreground">Réseau Mobile Money</label>
@@ -335,7 +374,6 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* Téléphone */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground">Votre numéro Mobile Money</label>
             <div className="relative">
@@ -350,12 +388,11 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Récap frais */}
           {montantNum >= 100 && (
             <div className="bg-muted/60 border border-border rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Montant crédité sur votre compte</span>
-                <span className="font-bold text-foreground">{fmt(montantNum)} FCFA</span>
+                <span className="font-bold text-emerald-600">{fmt(montantNum)} FCFA</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Frais de service NEXORA</span>
@@ -363,19 +400,17 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
               </div>
               <div className="h-px bg-border" />
               <div className="flex justify-between font-black">
-                <span>Total débité</span>
-                <span className="text-emerald-600">{fmt(totalPaye)} FCFA</span>
+                <span>Total débité sur votre Mobile Money</span>
+                <span className="text-foreground">{fmt(totalPaye)} FCFA</span>
               </div>
             </div>
           )}
 
-          {/* Info */}
           <div className="flex items-start gap-2 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-xl">
             <BadgeCheck className="w-4 h-4 mt-0.5 shrink-0" />
             <p>Vous serez redirigé vers GeniusPay pour finaliser le paiement. Votre compte sera crédité automatiquement après confirmation.</p>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 dark:bg-red-950/30 p-3 rounded-xl">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -383,7 +418,6 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={!valid || loading}
@@ -400,7 +434,7 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
 }
 
 // ─────────────────────────────────────────────
-// MODAL TRANSFERT — GENIUSPAY PAYOUT
+// MODAL TRANSFERT
 // ─────────────────────────────────────────────
 function ModalTransfert({ onClose, onConfirm, balance }: {
   onClose: () => void;
@@ -420,7 +454,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   const soldeInsuffisant = montantNum > balance;
   const valid = montantNum >= 100 && !soldeInsuffisant && pays !== null && reseau !== "" && telephone.length >= 8;
 
-  // Auto-sélection du premier réseau quand pays change
   const handlePaysSelect = (p: ActiveCountry) => {
     setPays(p);
     setReseau(p.networks[0]);
@@ -436,7 +469,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
         type:             "retrait_transfert",
         amount:           montantNum,
         pays:             pays.name,
-        reseau:           reseau,
+        reseau,
         numero_mobile:    telephone,
         nom_beneficiaire: user?.nom_prenom ?? "Client NEXORA",
         metadata: { pays_code: pays.code, pays_flag: pays.flag },
@@ -456,29 +489,25 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="bg-gradient-to-r from-violet-500 to-indigo-600 p-5 flex items-center gap-4">
           <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
             <Send className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-black text-white">Envoyer de l'argent</h2>
-            <p className="text-xs text-violet-100">Frais : 3% · 5 pays disponibles</p>
+            <p className="text-xs text-violet-100">Frais : 3% · 24 pays disponibles</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors">
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-5 space-y-5">
-          {/* Solde */}
           <div className="flex items-center justify-between p-3 bg-muted/60 rounded-xl">
             <span className="text-sm text-muted-foreground font-semibold">Solde disponible</span>
             <span className="font-black text-foreground">{fmt(balance)} FCFA</span>
           </div>
 
-          {/* Montant */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground">Montant à envoyer</label>
             <div className="relative">
@@ -511,10 +540,8 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             )}
           </div>
 
-          {/* Pays */}
           <CountrySelector selected={pays} onSelect={handlePaysSelect} label="Pays destinataire" />
 
-          {/* Réseau — s'affiche automatiquement selon le pays */}
           {pays && (
             <div className="space-y-2">
               <label className="text-sm font-semibold text-muted-foreground">Réseau Mobile Money</label>
@@ -532,7 +559,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             </div>
           )}
 
-          {/* Téléphone */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground">Numéro du destinataire</label>
             <div className="relative">
@@ -547,7 +573,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             </div>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 dark:bg-red-950/30 p-3 rounded-xl">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -555,7 +580,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             </div>
           )}
 
-          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={!valid || loading}
@@ -575,46 +599,122 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
 // PAGE PRINCIPALE
 // ─────────────────────────────────────────────
 export default function TransfertPage() {
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance]           = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showRecharge, setShowRecharge] = useState(false);
+  const [loadingData, setLoadingData]   = useState(true);
+  const [showRecharge, setShowRecharge]   = useState(false);
   const [showTransfert, setShowTransfert] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg]     = useState<string | null>(null);
   const [filterType, setFilterType] = useState<"all" | "depot" | "transfert">("all");
 
-  // Détecter retour GeniusPay après paiement
+  const showSuccessMsg = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 6000); };
+  const showErrorMsg   = (msg: string) => { setErrorMsg(msg);   setTimeout(() => setErrorMsg(null),   6000); };
+
+  // ─────────────────────────────────────────
+  // CHARGEMENT DEPUIS SUPABASE
+  // ─────────────────────────────────────────
+  const fetchFromSupabase = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const user = getNexoraUser();
+      if (!user?.id) {
+        setLoadingData(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("nexora_transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Supabase error:", error);
+        showErrorMsg("Impossible de charger vos transactions.");
+        setLoadingData(false);
+        return;
+      }
+
+      const txs = (data ?? []).map(mapSupabaseRow);
+      setTransactions(txs);
+
+      // ✅ CALCUL DU SOLDE RÉEL :
+      // Solde = somme des recharges "completed" (montant crédité = amount - frais)
+      //       - somme des transferts "completed" (montant débité = amount total)
+      const totalRecharges  = txs
+        .filter(t => t.type === "depot"     && t.status === "success")
+        .reduce((sum, t) => sum + t.montant, 0);
+
+      const totalTransferts = txs
+        .filter(t => t.type === "transfert" && t.status === "success")
+        .reduce((sum, t) => sum + t.montant, 0);
+
+      setBalance(Math.max(0, totalRecharges - totalTransferts));
+    } catch (err) {
+      console.error("fetchFromSupabase error:", err);
+      showErrorMsg("Erreur lors du chargement des données.");
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  // ─────────────────────────────────────────
+  // AU MONTAGE : détecter retour GeniusPay + charger données
+  // ─────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const type   = params.get("type");
     const status = params.get("status");
-    if (type === "transfert" && status === "success") {
-      showSuccessMsg("Recharge confirmée ! Votre solde sera mis à jour dans quelques instants.");
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (type === "transfert" && status === "failed") {
-      showErrorMsg("Le paiement a été annulé ou a échoué. Veuillez réessayer.");
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
 
-  
+    if (type === "transfert" && status === "success") {
+      // ✅ Nettoyer l'URL avant de recharger depuis Supabase
+      window.history.replaceState({}, "", window.location.pathname);
+      localStorage.removeItem(STORAGE_KEY_PENDING);
+      // Attendre un court délai pour que le webhook Supabase ait le temps de s'enregistrer
+      setTimeout(() => {
+        fetchFromSupabase().then(() => {
+          showSuccessMsg("✅ Recharge confirmée ! Votre solde a été mis à jour.");
+        });
+      }, 1500);
+    } else if (type === "transfert" && status === "failed") {
+      window.history.replaceState({}, "", window.location.pathname);
+      localStorage.removeItem(STORAGE_KEY_PENDING);
+      showErrorMsg("Le paiement a été annulé ou a échoué. Veuillez réessayer.");
+      fetchFromSupabase();
+    } else {
+      fetchFromSupabase();
+    }
+  }, [fetchFromSupabase]);
+
   const totalDepots     = transactions.filter(t => t.type === "depot"     && t.status === "success").reduce((s, t) => s + t.montant, 0);
   const totalTransferts = transactions.filter(t => t.type === "transfert" && t.status === "success").reduce((s, t) => s + t.montant, 0);
   const filtered        = transactions.filter(t => filterType === "all" || t.type === filterType);
 
-  const showSuccessMsg = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 4000); };
-  const showErrorMsg   = (msg: string) => { setErrorMsg(msg);   setTimeout(() => setErrorMsg(null),   5000); };
-
+  // Transfert optimiste (UI immédiate, Supabase est source de vérité)
   const handleTransfert = (montant: number, frais: number, reseau: string, tel: string, pays: ActiveCountry) => {
+    // On décrémente le solde immédiatement (optimiste)
+    setBalance(prev => Math.max(0, prev - montant));
+
     const tx: Transaction = {
-      id: Date.now().toString(), type: "transfert", montant, frais,
-      date: new Date().toLocaleString("fr-FR"), status: "pending",
-      reference: generateRef("TRF"), pays: pays.name, flag: pays.flag, reseau, telephone: tel,
+      id: `local-${Date.now()}`,
+      type: "transfert",
+      montant,
+      frais,
+      date: new Date().toLocaleString("fr-FR"),
+      status: "pending",
+      reference: generateRef("TRF"),
+      pays: pays.name,
+      flag: pays.flag,
+      reseau,
+      telephone: tel,
     };
     setTransactions(prev => [tx, ...prev]);
-    setBalance(prev => prev - montant);
     setShowTransfert(false);
     showSuccessMsg(`${fmt(montant)} FCFA envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
+
+    // Rafraîchir depuis Supabase après 3 secondes
+    setTimeout(() => fetchFromSupabase(), 3000);
   };
 
   return (
@@ -646,26 +746,43 @@ export default function TransfertPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-            
                 <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 rounded-full">
                   <Globe className="w-3 h-3 text-emerald-400" />
                   <span className="text-[10px] text-emerald-400 font-bold">Mobile Money</span>
                 </div>
+                {/* Bouton refresh */}
+                <button
+                  onClick={() => fetchFromSupabase()}
+                  disabled={loadingData}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                  title="Actualiser le solde"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-white ${loadingData ? "animate-spin" : ""}`} />
+                </button>
               </div>
             </div>
             <div className="space-y-1">
               <p className="text-slate-400 text-xs font-semibold">Solde disponible</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white tracking-tight">{fmt(balance)}</span>
-                <span className="text-sm font-bold text-slate-500">FCFA</span>
-              </div>
-              {balance === 0 && <p className="text-xs text-slate-500">Rechargez votre compte pour commencer</p>}
+              {loadingData ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  <span className="text-slate-400 text-sm">Chargement...</span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-white tracking-tight">{fmt(balance)}</span>
+                  <span className="text-sm font-bold text-slate-500">FCFA</span>
+                </div>
+              )}
+              {!loadingData && balance === 0 && (
+                <p className="text-xs text-slate-500">Rechargez votre compte pour commencer</p>
+              )}
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowRecharge(true)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-black rounded-xl transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95">
                 <ArrowDownLeft className="w-4 h-4" /> Recharger
               </button>
-              <button onClick={() => setShowTransfert(true)} disabled={balance === 0} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 hover:border-white/40 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100">
+              <button onClick={() => setShowTransfert(true)} disabled={balance === 0 || loadingData} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 hover:border-white/40 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100">
                 <ArrowUpRight className="w-4 h-4" /> Envoyer
               </button>
             </div>
@@ -680,7 +797,7 @@ export default function TransfertPage() {
               <span className="text-xs font-semibold">Total rechargé</span>
             </div>
             <p className="text-lg font-black text-foreground">{fmt(totalDepots)}</p>
-            <p className="text-[10px] text-muted-foreground">FCFA · +100 FCFA/recharge</p>
+            <p className="text-[10px] text-muted-foreground">FCFA crédités sur votre compte</p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -706,16 +823,20 @@ export default function TransfertPage() {
               </span>
             ))}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2">
-            <Lock className="w-3 h-3" /> Bientôt disponibles
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {COMING_SOON.map(c => (
-              <span key={c.code} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 rounded-full text-[11px] text-muted-foreground">
-                <span className="text-sm">{c.flag}</span><span>{c.name}</span>
-              </span>
-            ))}
-          </div>
+          {COMING_SOON.length > 0 && (
+            <>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-2">
+                <Lock className="w-3 h-3" /> Bientôt disponibles
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {COMING_SOON.map(c => (
+                  <span key={c.code} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 rounded-full text-[11px] text-muted-foreground">
+                    <span className="text-sm">{c.flag}</span><span>{c.name}</span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* ── HISTORIQUE ── */}
@@ -732,7 +853,12 @@ export default function TransfertPage() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {loadingData ? (
+            <div className="flex flex-col items-center py-12 space-y-3">
+              <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+              <p className="text-sm text-muted-foreground">Chargement de vos transactions...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center py-12 space-y-3">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center"><History className="w-7 h-7 text-muted-foreground" /></div>
               <div className="text-center">
@@ -752,13 +878,18 @@ export default function TransfertPage() {
                   </div>
                   <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-foreground truncate">{tx.type === "depot" ? "Recharge" : `${tx.flag} ${tx.pays}`}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tx.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : tx.status === "pending" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                      <span className="font-bold text-sm text-foreground truncate">
+                        {tx.type === "depot" ? "Recharge" : `${tx.flag ?? ""} ${tx.pays ?? ""}`}
+                      </span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        tx.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : tx.status === "pending" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
                         {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      {tx.reseau && <span>{tx.reseau}</span>}
+                      {tx.reseau    && <span>{tx.reseau}</span>}
                       {tx.telephone && <span>{tx.telephone}</span>}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -772,7 +903,11 @@ export default function TransfertPage() {
                       </p>
                       {tx.frais > 0 && <p className="text-[10px] text-muted-foreground">frais {fmt(tx.frais)}</p>}
                     </div>
-                    <button onClick={() => generateInvoicePDF(tx)} title="Télécharger la facture PDF" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                    <button
+                      onClick={() => generateInvoicePDF(tx)}
+                      title="Télécharger la facture PDF"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    >
                       <Download className="w-4 h-4" />
                     </button>
                   </div>
@@ -788,7 +923,7 @@ export default function TransfertPage() {
           <div className="space-y-1">
             <p>NEXORA TRANSFERT — Recharge via GeniusPay (Wave, Orange Money, MTN, Moov).</p>
             <p>Frais de recharge : 100 FCFA. Frais de transfert : 3% déduits du montant envoyé.</p>
-            <p>Disponible au Bénin, Côte d'Ivoire, Togo, Sénégal et Niger. D'autres pays arrivent bientôt.</p>
+            <p>24 pays disponibles en Afrique. D'autres pays arrivent bientôt.</p>
           </div>
         </div>
 
