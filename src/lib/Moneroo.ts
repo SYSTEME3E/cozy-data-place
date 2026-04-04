@@ -1,7 +1,7 @@
 src/lib/Moneroo.ts
 // ─────────────────────────────────────────────────────────────────
 // Client GeniusPay pour le frontend React
-Appelle les Supabase Edge Functions (jamais l’API GeniusPay directement)
+Appelle les Supabase Edge Functions
 // ─────────────────────────────────────────────────────────────────
 
 import { supabase } from « @/integrations/supabase/client « ;
