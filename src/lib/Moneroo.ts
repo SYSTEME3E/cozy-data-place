@@ -23,7 +23,7 @@ export type PayoutType =
 
 export interface InitPaymentParams {
   type: PaymentType;
-  amount: number;           // En FCFA (les 100 FCFA de frais sont ajoutés ici)
+  amount: number;           // En FCFA (aucun frais ajouté)
   currency?: string;
   payment_method?: string;  // "wave" | "orange_money" | "mtn_money" | "moov_money"
   metadata?: Record<string, string>;
@@ -75,15 +75,15 @@ export const RESEAU_CODES: Record<string, string> = {
 
 // ─────────────────────────────────────────────
 // FRAIS APPLIQUÉS
-// Paiement/recharge : +100 FCFA fixes
+// Paiement/recharge : GRATUIT (0 FCFA)
 // Retrait/transfert : 3% du montant
 // ─────────────────────────────────────────────
 
-export const FRAIS_PAIEMENT = 100; // FCFA fixes
+export const FRAIS_PAIEMENT = 0; // GRATUIT
 export const TAUX_RETRAIT   = 0.03; // 3%
 
 export function calcFraisPaiement(_montant: number): number {
-  return FRAIS_PAIEMENT;
+  return 0; // Gratuit
 }
 
 export function calcFraisRetrait(montant: number): number {
@@ -100,8 +100,8 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
   const user = getNexoraUser();
   if (!user) return { success: false, error: "Utilisateur non connecté" };
 
-  // Montant final = montant + 100 FCFA de frais
-  const montantAvecFrais = params.amount + FRAIS_PAIEMENT;
+  // Montant final = montant (recharge gratuite, aucun frais)
+  const montantAvecFrais = params.amount;
 
   try {
     const { data, error } = await supabase.functions.invoke("geniuspay-payment", {
