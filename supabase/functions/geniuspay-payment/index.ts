@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       metadata = {},
     } = body;
 
-    if (!amount || !user_id || !type) {
+    if (amount === undefined || amount === null || !user_id || !type) {
       return new Response(
         JSON.stringify({ success: false, error: "Paramètres manquants" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -52,6 +52,42 @@ Deno.serve(async (req) => {
     // Abonnement premium → pas de frais réseau
     // Recharge/dépôt
     const frais = type === "abonnement_premium" ? 0 : amount - (amount_net ?? amount);
+
+    // Si montant = 0 (abonnement gratuit), on enregistre directement sans passer par GeniusPay
+    if (amount === 0) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase    = createClient(supabaseUrl, supabaseKey);
+
+      await supabase.from("nexora_transactions").insert({
+        user_id,
+        type,
+        amount: 0,
+        frais:  0,
+        currency,
+        status:     "completed",
+        moneroo_id: `free_${Date.now()}`,
+        metadata:   { ...metadata, customer_email: user_email },
+      });
+
+      // Activer le plan premium directement
+      if (type === "abonnement_premium") {
+        await supabase
+          .from("nexora_users")
+          .update({ plan: "premium", plan_updated_at: new Date().toISOString() })
+          .eq("id", user_id);
+      }
+
+      const appUrl2 = req.headers.get("origin") || "https://id-preview--e1f00d63-c07c-428f-86b9-2d9d976dcdff.lovable.app";
+      return new Response(
+        JSON.stringify({
+          success:     true,
+          payment_url: `${appUrl2}/payment/callback?status=success&type=${type}&user_id=${user_id}`,
+          payment_id:  `free_${Date.now()}`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Call GeniusPay API
     const gpResponse = await fetch(`${GENIUSPAY_BASE}/payments`, {
