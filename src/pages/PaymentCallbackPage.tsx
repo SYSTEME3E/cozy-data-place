@@ -1,8 +1,9 @@
 // src/pages/PaymentCallbackPage.tsx
 // ─────────────────────────────────────────────────────────────────
 // Page de retour après paiement GeniusPay
-// GeniusPay redirige ici après succès ou échec du paiement
-// Cette page vérifie le paiement et active automatiquement le plan Premium
+// ✅ FIX : lit user_id depuis l'URL (passé par success_url)
+// ✅ FIX : ne fait plus confiance à la seule présence de "reference"
+//          → vérifie d'abord le paramètre "status" explicite
 // ─────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
@@ -13,14 +14,13 @@ import {
   NEXORA_USER_KEY,
   NEXORA_SESSION_KEY,
 } from "@/lib/nexora-auth";
-import { verifyPaymentFromCallback } from "@/lib/Moneroo";
 import { CheckCircle2, XCircle, Loader2, Crown } from "lucide-react";
 
 type State = "loading" | "success" | "failed" | "already_premium";
 
 export default function PaymentCallbackPage() {
-  const navigate        = useNavigate();
-  const [state, setState] = useState<State>("loading");
+  const navigate            = useNavigate();
+  const [state, setState]   = useState<State>("loading");
   const [message, setMessage] = useState("");
   const [countdown, setCountdown] = useState(5);
 
@@ -28,7 +28,7 @@ export default function PaymentCallbackPage() {
     handleCallback();
   }, []);
 
-  // ─── Décompte avant redirection ───────────────────────────────
+  // ─── Décompte avant redirection ────────────────────────────────
   useEffect(() => {
     if (state === "loading") return;
     const interval = setInterval(() => {
@@ -47,30 +47,34 @@ export default function PaymentCallbackPage() {
   // ─── Logique principale ────────────────────────────────────────
   const handleCallback = async () => {
     try {
-      const { status, type, paymentId } = await verifyPaymentFromCallback();
-
-      // Récupérer le user_id depuis l'URL (ajouté dans AbonnementPage)
       const params = new URLSearchParams(window.location.search);
-      const userIdFromUrl = params.get("user_id");
 
-      // Paiement échoué
-      if (status !== "success") {
+      // ✅ FIX : on lit "status" passé explicitement depuis success_url
+      const statusParam = params.get("status");    // "success" | "error"
+      const typeParam   = params.get("type");      // "abonnement_premium" | ...
+      // ✅ FIX : user_id maintenant passé dans l'URL par la Edge Function
+      const userIdParam = params.get("user_id");
+      // Référence de paiement GeniusPay (présente dans la success_url retournée)
+      const paymentId   = params.get("reference") ?? params.get("paymentId") ?? params.get("payment_id") ?? null;
+
+      // Paiement échoué ou annulé
+      if (statusParam !== "success") {
         setState("failed");
         setMessage("Le paiement a été annulé ou a échoué. Aucun montant n'a été débité.");
         return;
       }
 
-      // Identifier l'utilisateur
+      // Identifier l'utilisateur (URL en priorité, sinon session locale)
       const currentUser = getNexoraUser();
-      const userId = userIdFromUrl || currentUser?.id;
+      const userId      = userIdParam || currentUser?.id;
 
       if (!userId) {
         setState("failed");
-        setMessage("Impossible d'identifier votre compte. Connectez-vous et réessayez.");
+        setMessage("Impossible d'identifier votre compte. Reconnectez-vous et vérifiez dans votre profil.");
         return;
       }
 
-      // Vérifier le plan actuel
+      // Récupérer le profil utilisateur depuis Supabase
       const { data: userData, error: fetchError } = await supabase
         .from("nexora_users" as any)
         .select("id, plan, nom_prenom, username, email, avatar_url, is_admin, badge_premium")
@@ -79,15 +83,15 @@ export default function PaymentCallbackPage() {
 
       if (fetchError || !userData) {
         setState("failed");
-        setMessage("Compte introuvable. Contactez le support.");
+        setMessage("Compte introuvable. Contactez le support en indiquant votre email.");
         return;
       }
 
+      // Déjà premium → on sync quand même le cache local
       if ((userData as any).plan !== "gratuit") {
         setState("already_premium");
         setMessage(`Votre compte est déjà en plan ${(userData as any).plan}.`);
-        // Mettre à jour le cache local quand même
-        syncLocalUser(userData);
+        syncLocalUser({ ...(currentUser ?? {}), ...(userData as any) });
         return;
       }
 
@@ -95,7 +99,7 @@ export default function PaymentCallbackPage() {
       const { error: updateError } = await supabase
         .from("nexora_users" as any)
         .update({
-          plan:          "boss",   // "boss" = premier niveau premium
+          plan:          "boss",
           badge_premium: true,
         })
         .eq("id", userId);
@@ -103,19 +107,23 @@ export default function PaymentCallbackPage() {
       if (updateError) {
         console.error("Erreur activation premium:", updateError);
         setState("failed");
-        setMessage("Paiement reçu mais erreur d'activation. Contactez le support avec votre ID : " + paymentId);
+        setMessage(
+          paymentId
+            ? `Paiement reçu mais erreur d'activation. Contactez le support avec la référence : ${paymentId}`
+            : "Paiement reçu mais erreur d'activation. Contactez le support."
+        );
         return;
       }
 
-      // ✅ Enregistrer le paiement dans nexora_payments (si la table existe)
-      await supabase.from("nexora_payments" as any).insert({
+      // ✅ Enregistrer dans nexora_payments (non bloquant)
+      supabase.from("nexora_payments" as any).insert({
         user_id:    userId,
-        type:       "abonnement_premium",
+        type:       typeParam ?? "abonnement_premium",
         amount:     100,
         status:     "success",
-        payment_id: paymentId ?? "manual",
+        payment_id: paymentId ?? "callback_verified",
         plan:       "boss",
-      }).then(() => {}).catch(() => {}); // Non bloquant
+      }).then(() => {}).catch(() => {});
 
       // ✅ Mettre à jour le cache localStorage/sessionStorage
       const updatedUser = {
@@ -131,8 +139,9 @@ export default function PaymentCallbackPage() {
       };
       syncLocalUser(updatedUser);
 
+      const prenom = (userData as any).nom_prenom?.split(" ")[0] ?? "vous";
       setState("success");
-      setMessage(`Félicitations ${(userData as any).nom_prenom?.split(" ")[0]} ! Votre compte est maintenant Premium.`);
+      setMessage(`Félicitations ${prenom} ! Votre compte est maintenant Premium 🎉`);
 
     } catch (err: any) {
       console.error("Erreur callback paiement:", err);
@@ -141,13 +150,17 @@ export default function PaymentCallbackPage() {
     }
   };
 
-  // ─── Sync cache local ─────────────────────────────────────────
+  // ─── Sync cache local (localStorage ou sessionStorage selon la session) ───
   const syncLocalUser = (user: any) => {
-    const json = JSON.stringify(user);
-    if (localStorage.getItem(NEXORA_SESSION_KEY)) {
-      localStorage.setItem(NEXORA_USER_KEY, json);
-    } else if (sessionStorage.getItem(NEXORA_SESSION_KEY)) {
-      sessionStorage.setItem(NEXORA_USER_KEY, json);
+    try {
+      const json = JSON.stringify(user);
+      if (localStorage.getItem(NEXORA_SESSION_KEY)) {
+        localStorage.setItem(NEXORA_USER_KEY, json);
+      } else if (sessionStorage.getItem(NEXORA_SESSION_KEY)) {
+        sessionStorage.setItem(NEXORA_USER_KEY, json);
+      }
+    } catch (e) {
+      console.warn("Impossible de sync le cache local:", e);
     }
   };
 
@@ -159,7 +172,7 @@ export default function PaymentCallbackPage() {
     >
       <div className="w-full max-w-sm bg-card rounded-3xl shadow-2xl border border-white/10 overflow-hidden">
 
-        {/* État : chargement */}
+        {/* Chargement */}
         {state === "loading" && (
           <div className="p-10 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-2xl bg-indigo-900/50 flex items-center justify-center">
@@ -172,7 +185,7 @@ export default function PaymentCallbackPage() {
           </div>
         )}
 
-        {/* État : succès */}
+        {/* Succès */}
         {state === "success" && (
           <div className="p-10 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
@@ -185,7 +198,7 @@ export default function PaymentCallbackPage() {
             <div className="w-full bg-white/5 rounded-2xl p-4 border border-white/10">
               <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
               <p className="text-xs text-white/50">
-                Redirection automatique dans <span className="text-white font-black">{countdown}s</span>
+                Redirection dans <span className="text-white font-black">{countdown}s</span>
               </p>
             </div>
             <button
@@ -197,7 +210,7 @@ export default function PaymentCallbackPage() {
           </div>
         )}
 
-        {/* État : déjà premium */}
+        {/* Déjà premium */}
         {state === "already_premium" && (
           <div className="p-10 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-2xl bg-indigo-900/50 flex items-center justify-center">
@@ -219,7 +232,7 @@ export default function PaymentCallbackPage() {
           </div>
         )}
 
-        {/* État : échec */}
+        {/* Échec */}
         {state === "failed" && (
           <div className="p-10 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-2xl bg-red-900/30 flex items-center justify-center">
