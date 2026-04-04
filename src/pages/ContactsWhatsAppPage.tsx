@@ -78,6 +78,7 @@ export default function ContactsWhatsAppPage() {
   const navigate  = useNavigate();
   const { toast } = useToast();
   const currentUser = getNexoraUser();
+  const currentUserId = currentUser?.id;
 
   const [contacts,       setContacts]       = useState<ContactEntry[]>([]);
   const [downloadRecord, setDownloadRecord] = useState<DownloadRecord | null>(null);
@@ -89,42 +90,52 @@ export default function ContactsWhatsAppPage() {
   const isPremium = hasNexoraPremium();
 
   // ── Chargement des données ────────────────────────────────────────────────
-  const loadData = useCallback(async () => {
-    if (!currentUser || !isPremium) return;
-    setLoading(true);
-    setError(null);
-
-    try {
-      // 1. Récupérer tous les contacts WhatsApp renseignés
-      const { data: users, error: usersError } = await (supabase as any)
-        .from("nexora_users")
-        .select("id, nom_prenom, whatsapp, plan, created_at")
-        .not("whatsapp", "is", null)
-        .neq("whatsapp", "")
-        .order("created_at", { ascending: true });
-
-      if (usersError) throw usersError;
-
-      // 2. Récupérer l'historique de téléchargement de cet utilisateur
-      const { data: dlRecord } = await (supabase as any)
-        .from("whatsapp_contacts_downloads")
-        .select("last_download_at, last_download_count")
-        .eq("user_id", currentUser.id)
-        .maybeSingle();
-
-      setContacts(users || []);
-      setDownloadRecord(dlRecord || null);
-    } catch (err: any) {
-      setError("Impossible de charger les contacts. Vérifiez votre connexion.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUser, isPremium]);
-
   useEffect(() => {
+    if (!currentUserId || !isPremium) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const { data: users, error: usersError } = await (supabase as any)
+          .from("nexora_users")
+          .select("id, nom_prenom, whatsapp, plan, created_at")
+          .not("whatsapp", "is", null)
+          .neq("whatsapp", "")
+          .order("created_at", { ascending: true });
+
+        if (usersError) throw usersError;
+
+        const { data: dlRecord } = await (supabase as any)
+          .from("whatsapp_contacts_downloads")
+          .select("last_download_at, last_download_count")
+          .eq("user_id", currentUserId)
+          .maybeSingle();
+
+        if (!cancelled) {
+          setContacts(users || []);
+          setDownloadRecord(dlRecord || null);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setError("Impossible de charger les contacts. Vérifiez votre connexion.");
+          console.error(err);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     loadData();
-  }, [loadData]);
+
+    return () => { cancelled = true; };
+  }, [currentUserId, isPremium]);
 
   // ── Calcul des contacts nouveaux vs déjà téléchargés ─────────────────────
   const totalContacts = contacts.length;
