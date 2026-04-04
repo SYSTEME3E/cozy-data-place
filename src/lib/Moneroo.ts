@@ -11,7 +11,6 @@ import { getNexoraUser } from "@/lib/nexora-auth";
 // TYPES
 // ─────────────────────────────────────────────
 
-
 export type PaymentType =
   | "abonnement_premium"
   | "recharge_transfert"
@@ -24,7 +23,7 @@ export type PayoutType =
 
 export interface InitPaymentParams {
   type: PaymentType;
-  amount: number;           // En FCFA
+  amount: number;           // En FCFA (les 100 FCFA de frais sont ajoutés ici)
   currency?: string;
   payment_method?: string;  // "wave" | "orange_money" | "mtn_money" | "moov_money"
   metadata?: Record<string, string>;
@@ -84,9 +83,7 @@ export const RESEAU_CODES: Record<string, string> = {
 export const FRAIS_PAIEMENT = 100; // FCFA fixes (transfert/recharge uniquement)
 export const TAUX_RETRAIT   = 0.03; // 3%
 
-export function calcFraisPaiement(type: PaymentType): number {
-  // L'abonnement n'a pas de frais réseau
-  if (type === "abonnement_premium") return 0;
+export function calcFraisPaiement(_montant: number): number {
   return FRAIS_PAIEMENT;
 }
 
@@ -107,12 +104,11 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
   // ✅ FIX : pas de frais pour l'abonnement premium
   const frais = calcFraisPaiement(params.type);
   const montantAvecFrais = params.amount + frais;
-
   try {
     const { data, error } = await supabase.functions.invoke("geniuspay-payment", {
       body: {
         type:           params.type,
-        amount:         montantAvecFrais,  // 100 FCFA pour abonnement (0 frais ajoutés)
+        amount:         montantAvecFrais,
         amount_net:     params.amount,
         currency:       params.currency ?? "XOF",
         payment_method: params.payment_method,
@@ -120,11 +116,7 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
         user_email:     user.email ?? "",
         user_name:      user.nom_prenom ?? "Client NEXORA",
         user_phone:     "",
-        metadata:       {
-          ...params.metadata ?? {},
-          user_id: user.id,  // ✅ Toujours présent pour la callback
-          type:    params.type,
-        },
+        metadata:       params.metadata ?? {},
       },
     });
 
@@ -225,10 +217,14 @@ export async function verifyPaymentFromCallback(): Promise<{
   const params    = new URLSearchParams(window.location.search);
   const reference = params.get("reference") ?? params.get("paymentId") ?? null;
   const type      = params.get("type");
-  const status    = params.get("status"); // "success" | "failed" passé explicitement par la Edge Function
+  // GeniusPay redirige vers success_url en cas de succès
+  // On détecte le succès via la présence du paramètre "reference" dans l'URL
+  const isSuccess = params.get("status") === "success"
+    || params.get("paymentStatus") === "completed"
+    || (reference !== null && !params.has("error"));
 
   return {
-    status:    status ?? "failed",
+    status:    isSuccess ? "success" : "failed",
     paymentId: reference,
     type,
   };
