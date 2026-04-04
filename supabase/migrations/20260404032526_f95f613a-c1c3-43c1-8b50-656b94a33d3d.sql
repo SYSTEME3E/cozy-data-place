@@ -1,0 +1,1 @@
+ALTER TABLE public.prets ADD COLUMN IF NOT EXISTS nom_preteur text;

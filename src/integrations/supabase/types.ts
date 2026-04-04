@@ -1400,6 +1400,7 @@ export type Database = {
           montant: number
           montant_rembourse: number
           nom_personne: string
+          nom_preteur: string | null
           nom_temoin: string | null
           note: string | null
           objectif: string
@@ -1420,6 +1421,7 @@ export type Database = {
           montant: number
           montant_rembourse?: number
           nom_personne: string
+          nom_preteur?: string | null
           nom_temoin?: string | null
           note?: string | null
           objectif?: string
@@ -1440,6 +1442,7 @@ export type Database = {
           montant?: number
           montant_rembourse?: number
           nom_personne?: string
+          nom_preteur?: string | null
           nom_temoin?: string | null
           note?: string | null
           objectif?: string
