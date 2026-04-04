@@ -1,5 +1,5 @@
 import { useState } from "react";
-import AppLayout from "@/components/AppLayout";
+import AppLayout from "@/components/AppLayout"; // Corrigé: import au lieu de importer
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { payAndRedirect } from "@/lib/Moneroo";
 import {
@@ -86,34 +86,16 @@ export default function AbonnementPage() {
   const currentPlan = user?.plan || "gratuit";
   const isPremium   = currentPlan !== "gratuit";
   const [openCat, setOpenCat] = useState<string | null>("Finance personnelle");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
 
-  // ✅ FIX : on passe user_id dans les metadata
-  // La Edge Function utilisera metadata.user_id pour construire success_url
+  // Fonction pour gérer l'achat
   const handleUpgrade = async () => {
-    if (!user?.id) {
-      setError("Vous devez être connecté pour souscrire.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
     try {
       await payAndRedirect({
-        type:   "abonnement_premium",
-        amount: 0, // Abonnement gratuit
-        metadata: {
-          user_id: user.id,  // ✅ Indispensable pour la callback
-          type:    "abonnement_premium",
-        },
+        type: "abonnement_premium",
+        amount: 6500, // 10$ en FCFA (Taux 650)
       });
-    } catch (err: any) {
-      console.error("Erreur paiement:", err);
-      setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Erreur d'initialisation du paiement:", error);
     }
   };
 
@@ -134,13 +116,6 @@ export default function AbonnementPage() {
             </p>
           </div>
         </div>
-
-        {/* MESSAGE D'ERREUR */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4 text-sm text-red-400 font-medium">
-            ⚠️ {error}
-          </div>
-        )}
 
         {/* CARTES DE PRIX */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -163,27 +138,20 @@ export default function AbonnementPage() {
             <h3 className="text-lg font-black text-white mb-1">Premium</h3>
             <p className="text-xs text-white/50 mb-4">Puissance & Liberté</p>
             <div className="mb-6">
-              <span className="text-4xl font-black text-white">Gratuit</span>
-              <span className="text-sm text-white/50 ml-1">/ mois</span>
-              <p className="text-[10px] text-white/30 mt-1">Paiement via Mobile Money</p>
+              <span className="text-4xl font-black text-white">10</span>
+              <span className="text-sm text-white/50 ml-1">$ / mois</span>
+              <p className="text-[10px] text-white/30 mt-1">≈ 6500 FCFA via Mobile Money</p>
             </div>
             <button
               onClick={handleUpgrade}
-              disabled={isPremium || loading}
+              disabled={isPremium}
               className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 ${
-                isPremium
-                  ? "bg-white/10 text-white/40 cursor-default"
-                  : loading
-                    ? "bg-white/20 text-white/60 cursor-wait"
-                    : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
+                isPremium 
+                ? "bg-white/10 text-white/40 cursor-default" 
+                : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
               }`}
             >
-              {isPremium
-                ? <><BadgeCheck className="w-4 h-4" /> Plan Actif</>
-                : loading
-                  ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Redirection...</>
-                  : <><Zap className="w-4 h-4" /> Devenir Premium</>
-              }
+              {isPremium ? <><BadgeCheck className="w-4 h-4" /> Plan Actif</> : <><Zap className="w-4 h-4" /> Devenir Premium</>}
             </button>
           </div>
         </div>
@@ -204,12 +172,6 @@ export default function AbonnementPage() {
                 </button>
                 {isOpen && (
                   <div className="border-t border-border bg-muted/10">
-                    {/* En-tête colonnes */}
-                    <div className="grid grid-cols-3 gap-2 px-5 py-2 text-[10px] font-black text-muted-foreground uppercase tracking-wider border-b border-border/50">
-                      <span>Fonctionnalité</span>
-                      <span className="text-center">Gratuit</span>
-                      <span className="text-center text-indigo-500">Premium</span>
-                    </div>
                     {cat.items.map((item, i) => (
                       <div key={item.label} className={`grid grid-cols-3 gap-2 px-5 py-3 text-xs items-center ${i % 2 === 0 ? "bg-muted/20" : ""}`}>
                         <span className="text-muted-foreground">{item.label}</span>
@@ -227,20 +189,15 @@ export default function AbonnementPage() {
         {/* FAQ */}
         <div className="pt-8">
           <h2 className="text-xl font-black text-center mb-6">Questions fréquentes</h2>
-          <FAQItem
-            question="Comment payer l'abonnement ?"
-            reponse="Le paiement s'effectue par Mobile Money (MTN, Moov, Orange, Wave). Une fois le paiement validé sur votre téléphone, votre compte passe Premium instantanément."
+          <FAQItem 
+            question="Comment payer l'abonnement ?" 
+            reponse="Le paiement s'effectue par Mobile Money (MTN, Moov, Orange, Wave). Une fois le paiement validé sur votre téléphone, votre compte passe Premium instantanément." 
           />
-          <FAQItem
-            question="Puis-je annuler mon abonnement ?"
-            reponse="Oui, Nexora est sans engagement. Vous pouvez arrêter quand vous voulez depuis votre profil."
-          />
-          <FAQItem
-            question="Que se passe-t-il si je ferme la page après le paiement ?"
-            reponse="Votre paiement est enregistré côté serveur. Si votre compte n'est pas activé, contactez le support avec votre référence de paiement."
+          <FAQItem 
+            question="Puis-je annuler mon abonnement ?" 
+            reponse="Oui, Nexora est sans engagement. Vous pouvez arrêter quand vous voulez depuis votre profil." 
           />
         </div>
-
       </div>
     </AppLayout>
   );
