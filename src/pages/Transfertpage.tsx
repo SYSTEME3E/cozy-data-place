@@ -667,17 +667,20 @@ export default function TransfertPage() {
     const type   = params.get("type");
     const status = params.get("status");
 
-    if (type === "transfert" && status === "success") {
+    // ✅ FIX : GeniusPay retourne type="recharge_transfert", pas "transfert"
+    const isRecharge = type === "recharge_transfert" || type === "transfert";
+
+    if (isRecharge && status === "success") {
       // ✅ Nettoyer l'URL avant de recharger depuis Supabase
       window.history.replaceState({}, "", window.location.pathname);
       localStorage.removeItem(STORAGE_KEY_PENDING);
-      // Attendre un court délai pour que le webhook Supabase ait le temps de s'enregistrer
+      // ✅ Attendre 3s (au lieu de 1.5s) pour laisser le webhook s'enregistrer
       setTimeout(() => {
         fetchFromSupabase().then(() => {
           showSuccessMsg("✅ Recharge confirmée ! Votre solde a été mis à jour.");
         });
-      }, 1500);
-    } else if (type === "transfert" && status === "failed") {
+      }, 3000);
+    } else if (isRecharge && status === "failed") {
       window.history.replaceState({}, "", window.location.pathname);
       localStorage.removeItem(STORAGE_KEY_PENDING);
       showErrorMsg("Le paiement a été annulé ou a échoué. Veuillez réessayer.");
