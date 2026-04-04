@@ -597,6 +597,7 @@ export default function TransfertPage() {
     }
   }, []);
 
+  
   const totalDepots     = transactions.filter(t => t.type === "depot"     && t.status === "success").reduce((s, t) => s + t.montant, 0);
   const totalTransferts = transactions.filter(t => t.type === "transfert" && t.status === "success").reduce((s, t) => s + t.montant, 0);
   const filtered        = transactions.filter(t => filterType === "all" || t.type === filterType);
