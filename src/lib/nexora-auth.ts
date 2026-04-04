@@ -131,7 +131,6 @@ export async function registerUser(data: {
     username: data.username.toLowerCase(),
     email: data.email.toLowerCase(),
     password_hash,
-    password_plain: data.password,
     is_admin: false,
     plan: "gratuit",
     badge_premium: false,
@@ -288,23 +287,8 @@ export function validatePassword(password: string): { valid: boolean; error?: st
 }
 
 // ─── Initialiser l'admin ─────────────────────────────────────────────────────
+// Admin initialization is handled server-side. Do not create admin accounts from client code.
 export async function initAdminUser(): Promise<void> {
-  const { data: admin } = await supabase
-    .from("nexora_users" as any)
-    .select("id")
-    .eq("username", "systeme3m")
-    .maybeSingle();
-
-  if (!admin) {
-    const adminHash = await hashPassword("55237685N");
-    await supabase.from("nexora_users" as any).insert({
-      nom_prenom: "Eric Kpakpo",
-      username: "systeme3m",
-      email: "erickpakpo786@gmail.com",
-      password_hash: adminHash,
-      is_admin: true,
-      plan: "admin",
-      badge_premium: true,
-    });
-  }
+  // No-op: admin accounts must be managed through secure backend functions
+  return;
 }
