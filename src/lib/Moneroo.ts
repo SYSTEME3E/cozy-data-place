@@ -23,7 +23,7 @@ export type PayoutType =
 
 export interface InitPaymentParams {
   type: PaymentType;
-  amount: number;           // En FCFA (les 100 FCFA de frais sont ajoutés ici)
+  amount: number;           // En FCFA
   currency?: string;
   payment_method?: string;  // "wave" | "orange_money" | "mtn_money" | "moov_money"
   metadata?: Record<string, string>;
@@ -75,14 +75,17 @@ export const RESEAU_CODES: Record<string, string> = {
 
 // ─────────────────────────────────────────────
 // FRAIS APPLIQUÉS
-// Paiement/recharge : +100 FCFA fixes
-// Retrait/transfert : 3% du montant
+// Transfert/recharge uniquement : +100 FCFA fixes
+// Retrait/payout               : 3% du montant
+// Abonnement premium           : aucun frais (100 FCFA tout inclus)
 // ─────────────────────────────────────────────
 
-export const FRAIS_PAIEMENT = 100; // FCFA fixes
+export const FRAIS_PAIEMENT = 100; // FCFA fixes (transfert/recharge uniquement)
 export const TAUX_RETRAIT   = 0.03; // 3%
 
-export function calcFraisPaiement(_montant: number): number {
+export function calcFraisPaiement(type: PaymentType): number {
+  // L'abonnement n'a pas de frais réseau
+  if (type === "abonnement_premium") return 0;
   return FRAIS_PAIEMENT;
 }
 
@@ -93,21 +96,22 @@ export function calcFraisRetrait(montant: number): number {
 // ─────────────────────────────────────────────
 // INITIALISER UN PAIEMENT
 // (recharge, abonnement, dépôt)
-// Les 100 FCFA de frais sont ajoutés au montant envoyé à GeniusPay
+// ✅ FIX : les 100 FCFA de frais ne s'appliquent PAS à l'abonnement premium
 // ─────────────────────────────────────────────
 
 export async function initPayment(params: InitPaymentParams): Promise<GeniusPayResult> {
   const user = getNexoraUser();
   if (!user) return { success: false, error: "Utilisateur non connecté" };
 
-  // Montant final = montant + 100 FCFA de frais
-  const montantAvecFrais = params.amount + FRAIS_PAIEMENT;
+  // ✅ FIX : pas de frais pour l'abonnement premium
+  const frais = calcFraisPaiement(params.type);
+  const montantAvecFrais = params.amount + frais;
 
   try {
     const { data, error } = await supabase.functions.invoke("geniuspay-payment", {
       body: {
         type:           params.type,
-        amount:         montantAvecFrais,
+        amount:         montantAvecFrais,  // 100 FCFA pour abonnement (0 frais ajoutés)
         amount_net:     params.amount,
         currency:       params.currency ?? "XOF",
         payment_method: params.payment_method,
@@ -115,7 +119,11 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
         user_email:     user.email ?? "",
         user_name:      user.nom_prenom ?? "Client NEXORA",
         user_phone:     "",
-        metadata:       params.metadata ?? {},
+        metadata:       {
+          ...params.metadata ?? {},
+          user_id: user.id,  // ✅ Toujours présent pour la callback
+          type:    params.type,
+        },
       },
     });
 
@@ -216,14 +224,10 @@ export async function verifyPaymentFromCallback(): Promise<{
   const params    = new URLSearchParams(window.location.search);
   const reference = params.get("reference") ?? params.get("paymentId") ?? null;
   const type      = params.get("type");
-  // GeniusPay redirige vers success_url en cas de succès
-  // On détecte le succès via la présence du paramètre "reference" dans l'URL
-  const isSuccess = params.get("status") === "success"
-    || params.get("paymentStatus") === "completed"
-    || (reference !== null && !params.has("error"));
+  const status    = params.get("status"); // "success" | "failed" passé explicitement par la Edge Function
 
   return {
-    status:    isSuccess ? "success" : "failed",
+    status:    status ?? "failed",
     paymentId: reference,
     type,
   };
