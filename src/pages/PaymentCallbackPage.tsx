@@ -6,6 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+
 const GENIUSPAY_BASE = "https://pay.genius.ci/api/v1/merchant";
 const GENIUSPAY_PK = Deno.env.get("GENIUSPAY_PUBLIC_KEY") || "pk_live_uVvIvcfuyUidaSs67I49yZj8hQbOeXje";
 
