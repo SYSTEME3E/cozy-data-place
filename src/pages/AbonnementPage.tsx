@@ -103,7 +103,7 @@ export default function AbonnementPage() {
     try {
       await payAndRedirect({
         type:   "abonnement_premium",
-        amount: 100, // 100 FCFA / mois
+        amount: 0, // Abonnement gratuit
         metadata: {
           user_id: user.id,  // ✅ Indispensable pour la callback
           type:    "abonnement_premium",
@@ -163,8 +163,8 @@ export default function AbonnementPage() {
             <h3 className="text-lg font-black text-white mb-1">Premium</h3>
             <p className="text-xs text-white/50 mb-4">Puissance & Liberté</p>
             <div className="mb-6">
-              <span className="text-4xl font-black text-white">100</span>
-              <span className="text-sm text-white/50 ml-1">FCFA / mois</span>
+              <span className="text-4xl font-black text-white">Gratuit</span>
+              <span className="text-sm text-white/50 ml-1">/ mois</span>
               <p className="text-[10px] text-white/30 mt-1">Paiement via Mobile Money</p>
             </div>
             <button
