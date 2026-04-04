@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
     // ✅ FIX : frais calculés correctement selon le type
     // Abonnement premium → pas de frais réseau
-    // Recharge/dépôt → frais de 100 FCFA s'appliquent
+    // Recharge/dépôt
     const frais = type === "abonnement_premium" ? 0 : amount - (amount_net ?? amount);
 
     // Call GeniusPay API
