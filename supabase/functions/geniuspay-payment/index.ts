@@ -43,12 +43,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build success/error URLs
+    // ✅ FIX : user_id ajouté dans les URLs pour que PaymentCallbackPage puisse l'identifier
     const appUrl = req.headers.get("origin") || "https://id-preview--e1f00d63-c07c-428f-86b9-2d9d976dcdff.lovable.app";
-    const successUrl = `${appUrl}/payment/callback?status=success&type=${type}`;
-    const errorUrl = `${appUrl}/payment/callback?status=failed&type=${type}`;
+    const successUrl = `${appUrl}/payment/callback?status=success&type=${type}&user_id=${user_id}`;
+    const errorUrl   = `${appUrl}/payment/callback?status=failed&type=${type}&user_id=${user_id}`;
 
-    // Call GeniusPay API - checkout mode (no payment_method → hosted checkout page)
+    // ✅ FIX : frais calculés correctement selon le type
+    // Abonnement premium → pas de frais réseau (100 FCFA = prix fixe tout inclus)
+    // Recharge/dépôt → frais de 100 FCFA s'appliquent
+    const frais = type === "abonnement_premium" ? 0 : amount - (amount_net ?? amount);
+
+    // Call GeniusPay API
     const gpResponse = await fetch(`${GENIUSPAY_BASE}/payments`, {
       method: "POST",
       headers: {
@@ -61,17 +66,17 @@ Deno.serve(async (req) => {
         currency,
         description: `Nexora ${type} - ${user_name}`,
         customer: {
-          name: user_name || "Client Nexora",
+          name:  user_name  || "Client Nexora",
           email: user_email || "",
           phone: user_phone || "",
         },
         success_url: successUrl,
-        error_url: errorUrl,
+        error_url:   errorUrl,
         metadata: {
           ...metadata,
-          nexora_type: type,
+          nexora_type:    type,
           nexora_user_id: user_id,
-          amount_net: String(amount_net ?? amount),
+          amount_net:     String(amount_net ?? amount),
         },
       }),
     });
@@ -86,35 +91,36 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Save transaction in DB
+    // Enregistrer la transaction en base
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase    = createClient(supabaseUrl, supabaseKey);
 
     await supabase.from("nexora_transactions").insert({
       user_id,
       type,
       amount,
-      frais: amount - (amount_net ?? amount),
+      frais,
       currency,
-      status: "pending",
-      moneroo_id: gpData.data.reference,
+      status:       "pending",
+      moneroo_id:   gpData.data.reference,
       checkout_url: gpData.data.checkout_url || gpData.data.payment_url,
       metadata: {
         ...metadata,
-        geniuspay_id: gpData.data.id,
+        geniuspay_id:   gpData.data.id,
         customer_email: user_email,
       },
     });
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success:     true,
         payment_url: gpData.data.checkout_url || gpData.data.payment_url,
-        payment_id: gpData.data.reference,
+        payment_id:  gpData.data.reference,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (err) {
     console.error("Edge function error:", err);
     return new Response(
