@@ -186,7 +186,7 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
 // ─────────────────────────────────────────────
 
 export function redirectToCheckout(payment_url: string): void {
-  window.location.href = payment_url;
+  window.open(payment_url, "_blank");
 }
 
 // ─────────────────────────────────────────────
