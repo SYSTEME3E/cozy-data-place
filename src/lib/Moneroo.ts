@@ -75,12 +75,11 @@ export const RESEAU_CODES: Record<string, string> = {
 
 // ─────────────────────────────────────────────
 // FRAIS APPLIQUÉS
-// Transfert/recharge uniquement : +100 FCFA fixes
+// Transfert/recharge uniquement : +0 FCFA fixes
 // Retrait/payout               : 3% du montant
 // Abonnement premium           : aucun frais (100 FCFA tout inclus)
 // ─────────────────────────────────────────────
 
-export const FRAIS_PAIEMENT = 100; // FCFA fixes (transfert/recharge uniquement)
 export const TAUX_RETRAIT   = 0.03; // 3%
 
 export function calcFraisPaiement(_montant: number): number {
@@ -94,7 +93,6 @@ export function calcFraisRetrait(montant: number): number {
 // ─────────────────────────────────────────────
 // INITIALISER UN PAIEMENT
 // (recharge, abonnement, dépôt)
-// ✅ FIX : les 100 FCFA de frais ne s'appliquent PAS à l'abonnement premium
 // ─────────────────────────────────────────────
 
 export async function initPayment(params: InitPaymentParams): Promise<GeniusPayResult> {
