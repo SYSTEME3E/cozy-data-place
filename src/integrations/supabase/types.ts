@@ -1332,6 +1332,7 @@ export type Database = {
           suspended_reason: string | null
           updated_at: string
           username: string
+          whatsapp: string | null
         }
         Insert: {
           admin_features?: Json | null
@@ -1358,6 +1359,7 @@ export type Database = {
           suspended_reason?: string | null
           updated_at?: string
           username: string
+          whatsapp?: string | null
         }
         Update: {
           admin_features?: Json | null
@@ -1384,6 +1386,7 @@ export type Database = {
           suspended_reason?: string | null
           updated_at?: string
           username?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
@@ -1746,6 +1749,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_contacts_downloads: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_download_at: string | null
+          last_download_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_download_at?: string | null
+          last_download_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_download_at?: string | null
+          last_download_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
