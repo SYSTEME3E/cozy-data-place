@@ -1,14 +1,13 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { getNexoraUser } from "@/lib/nexora-auth";
-import { initPayment, redirectToCheckout } from "@/lib/Moneroo";
+import { payAndRedirect } from "@/lib/Moneroo";
 import {
-  Check, X, Zap, Sparkles,
-  TrendingUp, Store, ArrowLeftRight,
-  BadgeCheck, ChevronDown, ChevronUp,
+  Crown, Check, X, Zap, ShieldCheck, Star, Sparkles,
+  TrendingUp, Store, PiggyBank, ArrowLeftRight, Home,
+  BadgeCheck, ChevronDown, ChevronUp, Lock, Wallet
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 
 // ─────────────────────────────────────────────
 // DONNÉES DE COMPARAISON
@@ -19,32 +18,32 @@ const FEATURES_COMPARE = [
     categorie: "Finance personnelle",
     icon: TrendingUp,
     items: [
-      { label: "Entrées & Dépenses",   gratuit: "10 / mois",    premium: "Illimité" },
-      { label: "Historique financier", gratuit: "7 jours",      premium: "Illimité" },
-      { label: "Factures",             gratuit: "10 factures",  premium: "Illimité" },
-      { label: "Contrats Prêt",        gratuit: "10 prêts",     premium: "Illimité" },
+      { label: "Entrées & Dépenses",     gratuit: "10 / mois",       premium: "Illimité" },
+      { label: "Historique financier",   gratuit: "7 jours",        premium: "Illimité" },
+      { label: "Factures",               gratuit: "10 factures",    premium: "Illimité" },
+      { label: "Contrats Prêt",         gratuit: "10 prêts",        premium: "Illimité" },
     ],
   },
   {
     categorie: "Nexora Shop",
     icon: Store,
     items: [
-      { label: "Accès boutique",       gratuit: true,   premium: true },
-      { label: "Produits physiques",   gratuit: true,   premium: "Illimité" },
-      { label: "Produits digitaux",    gratuit: true,   premium: true },
-      { label: "Gestion commandes",    gratuit: true,   premium: true },
-      { label: "Facebook Pixel",       gratuit: true,   premium: true },
-      { label: "Domaine personnalisé", gratuit: true,   premium: true },
+      { label: "Accès boutique",         gratuit: true,              premium: true },
+      { label: "Produits physiques",     gratuit: true,      premium: "Illimité" },
+      { label: "Produits digitaux",      gratuit: true,             premium: true },
+      { label: "Gestion commandes",      gratuit: true,             premium: true },
+      { label: "Facebook Pixel",         gratuit: true,             premium: true },
+      { label: "Domaine personnalisé",   gratuit: true,             premium: true },
     ],
   },
   {
     categorie: "Nexora Transfert",
     icon: ArrowLeftRight,
     items: [
-      { label: "Transfert inter-pays",      gratuit: false, premium: false },
-      { label: "24 pays africains",         gratuit: false, premium: false },
-      { label: "Tous réseaux Mobile Money", gratuit: false, premium: false },
-      { label: "Factures PDF",              gratuit: false, premium: false },
+      { label: "Transfert inter-pays",   gratuit: false,             premium: false },
+      { label: "24 pays africains",      gratuit: false,             premium: false },
+      { label: "Tous réseaux Mobile Money", gratuit: false,          premium: false },
+      { label: "Factures PDF",           gratuit: false,             premium: false },
     ],
   },
 ];
@@ -63,10 +62,8 @@ function FAQItem({ question, reponse }: { question: string; reponse: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden mb-3">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-muted/40 transition-colors"
-      >
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-muted/40 transition-colors">
         <span className="font-semibold text-sm text-foreground">{question}</span>
         {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
       </button>
@@ -85,47 +82,38 @@ function FAQItem({ question, reponse }: { question: string; reponse: string }) {
 
 export default function AbonnementPage() {
   const navigate    = useNavigate();
-  const { toast }   = useToast();
   const user        = getNexoraUser();
   const currentPlan = user?.plan || "gratuit";
   const isPremium   = currentPlan !== "gratuit";
   const [openCat, setOpenCat] = useState<string | null>("Finance personnelle");
-  const [loadingPay, setLoadingPay] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
-  // ✅ On passe success_url et cancel_url dans metadata
-  // GeniusPay redirigera automatiquement vers /payment/callback après paiement
+  // ✅ FIX : on passe user_id dans les metadata
+  // La Edge Function utilisera metadata.user_id pour construire success_url
   const handleUpgrade = async () => {
-    setLoadingPay(true);
-    try {
-      const baseUrl = window.location.origin;
+    if (!user?.id) {
+      setError("Vous devez être connecté pour souscrire.");
+      return;
+    }
 
-      const result = await initPayment({
+    setLoading(true);
+    setError(null);
+
+    try {
+      await payAndRedirect({
         type:   "abonnement_premium",
-        amount: 100, // 100 FCFA
+        amount: 100, // 100 FCFA / mois (+ 100 FCFA frais = 200 FCFA débités)
         metadata: {
-          success_url: `${baseUrl}/payment/callback?type=abonnement_premium&status=success`,
-          cancel_url:  `${baseUrl}/payment/callback?type=abonnement_premium&status=failed`,
-          user_id:     user?.id ?? "",
+          user_id: user.id,  // ✅ Indispensable pour la callback
+          type:    "abonnement_premium",
         },
       });
-
-      if (result.success && result.payment_url) {
-        redirectToCheckout(result.payment_url);
-      } else {
-        toast({
-          title: "Erreur de paiement",
-          description: result.error ?? "Impossible d'initialiser le paiement.",
-          variant: "destructive",
-        });
-      }
     } catch (err: any) {
-      toast({
-        title: "Erreur",
-        description: err.message ?? "Une erreur s'est produite.",
-        variant: "destructive",
-      });
+      console.error("Erreur paiement:", err);
+      setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
     } finally {
-      setLoadingPay(false);
+      setLoading(false);
     }
   };
 
@@ -147,9 +135,15 @@ export default function AbonnementPage() {
           </div>
         </div>
 
+        {/* MESSAGE D'ERREUR */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4 text-sm text-red-400 font-medium">
+            ⚠️ {error}
+          </div>
+        )}
+
         {/* CARTES DE PRIX */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-
           {/* Plan Gratuit */}
           <div className="bg-card border-2 border-border rounded-3xl p-6 flex flex-col opacity-80">
             <h3 className="text-lg font-black mb-1 text-foreground">Gratuit</h3>
@@ -158,7 +152,7 @@ export default function AbonnementPage() {
               <span className="text-4xl font-black text-foreground">0</span>
               <span className="text-sm text-muted-foreground ml-1">FCFA / mois</span>
             </div>
-            <button disabled className="w-full py-3 bg-muted text-muted-foreground font-bold rounded-xl text-sm">
+            <button disabled className="w-full py-3 bg-muted text-muted-foreground font-bold rounded-xl text-sm mb-4">
               {currentPlan === "gratuit" ? "Plan actuel" : "Inclus par défaut"}
             </button>
           </div>
@@ -175,57 +169,49 @@ export default function AbonnementPage() {
             </div>
             <button
               onClick={handleUpgrade}
-              disabled={isPremium || loadingPay}
+              disabled={isPremium || loading}
               className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 ${
                 isPremium
                   ? "bg-white/10 text-white/40 cursor-default"
-                  : loadingPay
-                  ? "bg-white/10 text-white/40 cursor-wait"
-                  : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
+                  : loading
+                    ? "bg-white/20 text-white/60 cursor-wait"
+                    : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
               }`}
             >
-              {isPremium ? (
-                <><BadgeCheck className="w-4 h-4" /> Plan Actif</>
-              ) : loadingPay ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Chargement...</>
-              ) : (
-                <><Zap className="w-4 h-4" /> Devenir Premium</>
-              )}
+              {isPremium
+                ? <><BadgeCheck className="w-4 h-4" /> Plan Actif</>
+                : loading
+                  ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Redirection...</>
+                  : <><Zap className="w-4 h-4" /> Devenir Premium</>
+              }
             </button>
           </div>
         </div>
 
-        {/* COMPARAISON DÉTAILLÉE */}
+        {/* COMPARAISON DÉTAILLÉE (ACCORDÉON) */}
         <div className="space-y-4">
           <h2 className="text-xl font-black text-center">Ce qui est inclus</h2>
-
-          {/* En-tête colonnes */}
-          <div className="grid grid-cols-3 gap-2 px-5 py-2 text-xs font-black text-muted-foreground">
-            <span>Fonctionnalité</span>
-            <span className="text-center">Gratuit</span>
-            <span className="text-center text-indigo-500">Premium</span>
-          </div>
-
           {FEATURES_COMPARE.map(cat => {
             const Icon = cat.icon;
             const isOpen = openCat === cat.categorie;
             return (
               <div key={cat.categorie} className="bg-card border border-border rounded-2xl overflow-hidden">
-                <button
-                  onClick={() => setOpenCat(isOpen ? null : cat.categorie)}
-                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted/30 transition-colors"
-                >
+                <button onClick={() => setOpenCat(isOpen ? null : cat.categorie)}
+                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted/30 transition-colors">
                   <Icon className="w-5 h-5 text-indigo-500" />
                   <span className="font-bold text-sm flex-1 text-left">{cat.categorie}</span>
                   {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 {isOpen && (
                   <div className="border-t border-border bg-muted/10">
+                    {/* En-tête colonnes */}
+                    <div className="grid grid-cols-3 gap-2 px-5 py-2 text-[10px] font-black text-muted-foreground uppercase tracking-wider border-b border-border/50">
+                      <span>Fonctionnalité</span>
+                      <span className="text-center">Gratuit</span>
+                      <span className="text-center text-indigo-500">Premium</span>
+                    </div>
                     {cat.items.map((item, i) => (
-                      <div
-                        key={item.label}
-                        className={`grid grid-cols-3 gap-2 px-5 py-3 text-xs items-center ${i % 2 === 0 ? "bg-muted/20" : ""}`}
-                      >
+                      <div key={item.label} className={`grid grid-cols-3 gap-2 px-5 py-3 text-xs items-center ${i % 2 === 0 ? "bg-muted/20" : ""}`}>
                         <span className="text-muted-foreground">{item.label}</span>
                         <div className="text-center"><FeatureValue value={item.gratuit} /></div>
                         <div className="text-center font-bold text-indigo-600"><FeatureValue value={item.premium} /></div>
@@ -250,8 +236,8 @@ export default function AbonnementPage() {
             reponse="Oui, Nexora est sans engagement. Vous pouvez arrêter quand vous voulez depuis votre profil."
           />
           <FAQItem
-            question="Mon compte n'est pas passé Premium après le paiement ?"
-            reponse="Si votre paiement a été confirmé mais votre compte n'est pas encore Premium, contactez notre support WhatsApp avec votre reçu de paiement. Nous activerons votre compte manuellement dans les plus brefs délais."
+            question="Que se passe-t-il si je ferme la page après le paiement ?"
+            reponse="Votre paiement est enregistré côté serveur. Si votre compte n'est pas activé, contactez le support avec votre référence de paiement."
           />
         </div>
 
