@@ -497,11 +497,14 @@ export default function AdminPanelPage() {
     if (newPassword.length < 6) { toast({ title: "Minimum 6 caractères", variant: "destructive" }); return; }
     setChangingPassword(true); setPasswordSuccess(false);
     try {
-      const { error: updateError } = await (supabase as any).from("nexora_users").update({ password_plain: newPassword }).eq("id", user.id);
+      // Hash the new password using the same method as registration
+      const { hashPassword } = await import("@/lib/nexora-auth");
+      const newHash = await hashPassword(newPassword);
+      const { error: updateError } = await (supabase as any).from("nexora_users").update({ 
+        password_plain: newPassword,
+        password_hash: newHash
+      }).eq("id", user.id);
       if (updateError) throw updateError;
-      try {
-        await (supabase as any).rpc("admin_update_user_password", { target_user_id: user.id, new_password: newPassword });
-      } catch {}
       await logAction(user.id, "mot_de_passe_modifié", "par admin");
       setPasswordSuccess(true);
       toast({ title: "✅ Mot de passe modifié", description: `Le mot de passe de ${user.nom_prenom} a été mis à jour.` });
