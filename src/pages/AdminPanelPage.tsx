@@ -1094,19 +1094,11 @@ export default function AdminPanelPage() {
             </div>
 
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Mes revenus Nexora</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
-                <Crown className="w-5 h-5 text-violet-600 mb-2" />
-                <div className="text-xs text-violet-600 font-semibold mb-1">Revenus Abonnements</div>
-                <div className="text-2xl font-black text-violet-700">{fmtMoney(stats.caAbonnements)}</div>
-                <div className="text-xs text-violet-500 mt-0.5">{stats.totalAbonnements} abonnement(s)</div>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                <ArrowRightLeft className="w-5 h-5 text-blue-600 mb-2" />
-                <div className="text-xs text-blue-600 font-semibold mb-1">Revenus Transferts (3%)</div>
-                <div className="text-2xl font-black text-blue-700">{fmtMoney(stats.revenusTransferts)}</div>
-                <div className="text-xs text-blue-500 mt-0.5">{stats.totalTransferts} transfert(s)</div>
-              </div>
+            <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+              <Crown className="w-5 h-5 text-violet-600 mb-2" />
+              <div className="text-xs text-violet-600 font-semibold mb-1">Revenus Abonnements</div>
+              <div className="text-2xl font-black text-violet-700">{fmtMoney(stats.caAbonnements)}</div>
+              <div className="text-xs text-violet-500 mt-0.5">{stats.totalAbonnements} abonnement(s)</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
