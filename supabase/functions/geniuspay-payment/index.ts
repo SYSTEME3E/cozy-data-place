@@ -10,6 +10,7 @@ const GENIUSPAY_API_URL = "https://api.geniuspay.app/api/v1"; // adapter si beso
 const GENIUSPAY_SECRET  = Deno.env.get("GENIUSPAY_SECRET_KEY") ?? "";
 const APP_URL           = Deno.env.get("APP_URL") ?? "https://ton-app.com"; // ⚠️ à définir dans Supabase
 
+
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
