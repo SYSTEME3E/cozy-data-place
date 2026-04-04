@@ -1322,7 +1322,6 @@ export type Database = {
           last_login: string | null
           nom_prenom: string
           password_hash: string
-          password_plain: string | null
           plan: string
           premium_expires_at: string | null
           premium_since: string | null
@@ -1349,7 +1348,6 @@ export type Database = {
           last_login?: string | null
           nom_prenom: string
           password_hash: string
-          password_plain?: string | null
           plan?: string
           premium_expires_at?: string | null
           premium_since?: string | null
@@ -1376,7 +1374,6 @@ export type Database = {
           last_login?: string | null
           nom_prenom?: string
           password_hash?: string
-          password_plain?: string | null
           plan?: string
           premium_expires_at?: string | null
           premium_since?: string | null
