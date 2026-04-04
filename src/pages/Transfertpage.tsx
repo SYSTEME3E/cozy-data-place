@@ -270,8 +270,8 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const montantNum = parseFloat(montant) || 0;
-  const fraisFixe  = 100;
-  const totalPaye  = montantNum + fraisFixe;
+  const fraisFixe  = 0; // Recharge gratuite — aucun frais
+  const totalPaye  = montantNum;
   const valid      = montantNum >= 100 && pays !== null && reseau !== "" && telephone.length >= 8;
 
   const handlePaysSelect = (p: ActiveCountry) => {
@@ -397,7 +397,7 @@ function ModalRecharge({ onClose }: { onClose: () => void }) {
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Frais de service NEXORA</span>
-                <span>+ {fmt(fraisFixe)} FCFA</span>
+                <span className="text-emerald-600 font-bold">Gratuit 🎉</span>
               </div>
               <div className="h-px bg-border" />
               <div className="flex justify-between font-black">
@@ -923,7 +923,7 @@ export default function TransfertPage() {
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p>NEXORA TRANSFERT — Recharge via GeniusPay (Wave, Orange Money, MTN, Moov).</p>
-            <p>Frais de recharge : 100 FCFA. Frais de transfert : 3% déduits du montant envoyé.</p>
+            <p>Recharge gratuite. Frais de transfert : 3% déduits du montant envoyé.</p>
             <p>24 pays disponibles en Afrique. D'autres pays arrivent bientôt.</p>
           </div>
         </div>
