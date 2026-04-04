@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success:    true,
         payout_id:  payout?.id ?? transaction.id,
-        message:    "Transfert initié. Le destinataire recevra l'argent sous 24h.",
+        message:    "Transfert initié. Le destinataire recevra l'argent sous 1 minuit.",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
