@@ -1332,6 +1332,7 @@ export type Database = {
           suspended_reason: string | null
           updated_at: string
           username: string
+          whatsapp: string | null
         }
         Insert: {
           admin_features?: Json | null
@@ -1358,6 +1359,7 @@ export type Database = {
           suspended_reason?: string | null
           updated_at?: string
           username: string
+          whatsapp?: string | null
         }
         Update: {
           admin_features?: Json | null
@@ -1384,6 +1386,7 @@ export type Database = {
           suspended_reason?: string | null
           updated_at?: string
           username?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
