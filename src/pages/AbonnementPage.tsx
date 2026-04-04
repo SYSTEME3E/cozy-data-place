@@ -103,7 +103,7 @@ export default function AbonnementPage() {
     try {
       await payAndRedirect({
         type:   "abonnement_premium",
-        amount: 100, // 100 FCFA / mois (+ 100 FCFA frais = 200 FCFA débités)
+        amount: 100, // 100 FCFA / mois
         metadata: {
           user_id: user.id,  // ✅ Indispensable pour la callback
           type:    "abonnement_premium",
