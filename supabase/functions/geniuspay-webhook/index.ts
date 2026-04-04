@@ -84,7 +84,9 @@ Deno.serve(async (req) => {
 
         // Handle transfer recharge
         if (nexoraType === "recharge_transfert" && userId) {
-          const amountNet = Number(meta.amount_net) || tx.amount;
+          // ✅ FIX : utiliser frais pour calculer le montant net réellement crédité
+          const frais     = tx.frais ?? 100; // 100 FCFA de frais fixes
+          const amountNet = Number(meta.amount_net) || Math.max(0, (tx.amount ?? 0) - frais);
 
           // Upsert transfer account balance
           const { data: existing } = await supabase
