@@ -23,7 +23,7 @@ export type PayoutType =
 
 export interface InitPaymentParams {
   type: PaymentType;
-  amount: number;           // En FCFA (les 100 FCFA de frais sont ajoutés ici)
+  amount: number;           // En FCFA
   currency?: string;
   payment_method?: string;  // "wave" | "orange_money" | "mtn_money" | "moov_money"
   metadata?: Record<string, string>;
