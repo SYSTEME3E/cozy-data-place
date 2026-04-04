@@ -131,7 +131,6 @@ export async function registerUser(data: {
     username: data.username.toLowerCase(),
     email: data.email.toLowerCase(),
     password_hash,
-    password_plain: data.password,
     is_admin: false,
     plan: "gratuit",
     badge_premium: false,
