@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase"; // ← assure-toi que ce chemin est c
 
 const LOGO_URL = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
 
+
 // ─── STORAGE KEY (uniquement pour la recharge en attente de redirect) ───
 const STORAGE_KEY_PENDING = "nexora_pending_recharge";
 
