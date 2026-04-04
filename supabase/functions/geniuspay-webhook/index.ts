@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
       if (tx) {
         const meta = (tx.metadata as Record<string, string>) || {};
-        const nexoraType = meta.nexora_type;
+        const nexoraType = tx.type || meta.nexora_type;
         const userId = tx.user_id;
 
         // Handle subscription activation
