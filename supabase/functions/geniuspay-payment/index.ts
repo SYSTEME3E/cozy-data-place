@@ -1,15 +1,17 @@
 // supabase/functions/geniuspay-payment/index.ts
 // ─────────────────────────────────────────────────────────────────
 // Edge Function : initialise un paiement GeniusPay
-// ✅ FIX : ajoute success_url et error_url pour la redirection callback
+// ✅ FIX CRITIQUE : crée la transaction en base AVANT la redirection
+//    → le webhook peut ainsi la retrouver par moneroo_id et mettre
+//      à jour le statut + créditer le solde automatiquement
 // ─────────────────────────────────────────────────────────────────
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const GENIUSPAY_API_URL = "https://api.geniuspay.app/api/v1"; // adapter si besoin
+const GENIUSPAY_API_URL = "https://api.geniuspay.app/api/v1";
 const GENIUSPAY_SECRET  = Deno.env.get("GENIUSPAY_SECRET_KEY") ?? "";
-const APP_URL           = Deno.env.get("APP_URL") ?? "https://ton-app.com"; // ⚠️ à définir dans Supabase
-
+const APP_URL           = Deno.env.get("APP_URL") ?? "https://ton-app.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -26,8 +28,8 @@ serve(async (req: Request) => {
 
     const {
       type,
-      amount,         // Montant total (net + frais 100 FCFA)
-      amount_net,     // Montant net sans frais
+      amount,
+      amount_net,
       currency = "XOF",
       payment_method,
       user_id,
@@ -44,10 +46,14 @@ serve(async (req: Request) => {
       );
     }
 
-    // ✅ FIX PRINCIPAL : URLs de redirection après paiement
-    // Pour la recharge, rediriger vers /transfert (pas /payment/callback)
-    // Pour l'abonnement, rediriger vers /payment/callback
-    const isRecharge = type === "recharge_transfert";
+    // ── Supabase client avec service role pour écrire en base ──
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // ── URLs de redirection ──
+    const isRecharge   = type === "recharge_transfert";
     const callbackBase = isRecharge
       ? `${APP_URL}/transfert`
       : `${APP_URL}/payment/callback`;
@@ -55,7 +61,7 @@ serve(async (req: Request) => {
     const success_url = `${callbackBase}?status=success&type=${type}&user_id=${user_id}`;
     const error_url   = `${callbackBase}?status=failed&type=${type}&user_id=${user_id}`;
 
-    // Appel à l'API GeniusPay
+    // ── Appel GeniusPay ──
     const geniusPayResponse = await fetch(`${GENIUSPAY_API_URL}/payments/initialize`, {
       method: "POST",
       headers: {
@@ -74,11 +80,9 @@ serve(async (req: Request) => {
           phone: user_phone || undefined,
         },
         payment_method: payment_method || undefined,
-        // ✅ URLs de redirection
         success_url,
         error_url,
         cancel_url: error_url,
-        // ✅ Metadata pour retrouver le contexte dans la callback
         metadata: {
           ...metadata,
           user_id,
@@ -101,11 +105,43 @@ serve(async (req: Request) => {
       );
     }
 
+    // ✅ FIX CRITIQUE : enregistrer la transaction en base maintenant
+    // que GeniusPay nous a donné son ID de référence.
+    // Le webhook utilisera moneroo_id pour retrouver cette ligne
+    // et la passer à "completed" + créditer le solde.
+    const paymentId = geniusData.id ?? geniusData.payment_id ?? null;
+    const frais     = isRecharge ? 100 : 0;
+
+    const { error: txError } = await supabase
+      .from("nexora_transactions")
+      .insert({
+        user_id,
+        type,
+        amount,
+        amount_net: amount_net ?? (amount - frais),
+        frais,
+        currency,
+        status:      "pending",
+        moneroo_id:  paymentId,
+        checkout_url: geniusData.payment_url,
+        metadata: {
+          ...metadata,
+          user_id,
+          type,
+          amount_net: String(amount_net ?? (amount - frais)),
+        },
+      });
+
+    if (txError) {
+      // On log mais on ne bloque pas : l'utilisateur peut quand même payer
+      console.error("Erreur création transaction:", txError);
+    }
+
     return new Response(
       JSON.stringify({
         success:     true,
         payment_url: geniusData.payment_url,
-        payment_id:  geniusData.id ?? geniusData.payment_id,
+        payment_id:  paymentId,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -119,7 +155,6 @@ serve(async (req: Request) => {
   }
 });
 
-// ─── Descriptions lisibles par type de paiement ───────────────────
 function getDescription(type: string): string {
   switch (type) {
     case "abonnement_premium": return "Abonnement Nexora Premium - 1 mois";
