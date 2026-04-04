@@ -1,5 +1,5 @@
 import { useState } from "react";
-import AppLayout from "@/components/AppLayout"; // Corrigé: import au lieu de importer
+import AppLayout from "@/components/AppLayout";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { payAndRedirect } from "@/lib/Moneroo";
 import {
@@ -92,7 +92,7 @@ export default function AbonnementPage() {
     try {
       await payAndRedirect({
         type: "abonnement_premium",
-        amount: 6500, // 10$ en FCFA (Taux 650)
+        amount: 100, // 100 FCFA / mois
       });
     } catch (error) {
       console.error("Erreur d'initialisation du paiement:", error);
@@ -138,16 +138,16 @@ export default function AbonnementPage() {
             <h3 className="text-lg font-black text-white mb-1">Premium</h3>
             <p className="text-xs text-white/50 mb-4">Puissance & Liberté</p>
             <div className="mb-6">
-              <span className="text-4xl font-black text-white">10</span>
-              <span className="text-sm text-white/50 ml-1">$ / mois</span>
-              <p className="text-[10px] text-white/30 mt-1">≈ 6500 FCFA via Mobile Money</p>
+              <span className="text-4xl font-black text-white">100</span>
+              <span className="text-sm text-white/50 ml-1">FCFA / mois</span>
+              <p className="text-[10px] text-white/30 mt-1">Paiement via Mobile Money</p>
             </div>
             <button
               onClick={handleUpgrade}
               disabled={isPremium}
               className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 ${
-                isPremium 
-                ? "bg-white/10 text-white/40 cursor-default" 
+                isPremium
+                ? "bg-white/10 text-white/40 cursor-default"
                 : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
               }`}
             >
@@ -189,15 +189,16 @@ export default function AbonnementPage() {
         {/* FAQ */}
         <div className="pt-8">
           <h2 className="text-xl font-black text-center mb-6">Questions fréquentes</h2>
-          <FAQItem 
-            question="Comment payer l'abonnement ?" 
-            reponse="Le paiement s'effectue par Mobile Money (MTN, Moov, Orange, Wave). Une fois le paiement validé sur votre téléphone, votre compte passe Premium instantanément." 
+          <FAQItem
+            question="Comment payer l'abonnement ?"
+            reponse="Le paiement s'effectue par Mobile Money (MTN, Moov, Orange, Wave). Une fois le paiement validé sur votre téléphone, votre compte passe Premium instantanément."
           />
-          <FAQItem 
-            question="Puis-je annuler mon abonnement ?" 
-            reponse="Oui, Nexora est sans engagement. Vous pouvez arrêter quand vous voulez depuis votre profil." 
+          <FAQItem
+            question="Puis-je annuler mon abonnement ?"
+            reponse="Oui, Nexora est sans engagement. Vous pouvez arrêter quand vous voulez depuis votre profil."
           />
         </div>
+
       </div>
     </AppLayout>
   );
