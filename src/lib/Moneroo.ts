@@ -23,18 +23,18 @@ export type PayoutType =
 
 export interface InitPaymentParams {
   type: PaymentType;
-  amount: number;        // Montant en FCFA (les 100 FCFA de frais sont ajoutés ici)
+  amount: number;
   currency?: string;
-  payment_method?: string; // "wave" | "orange_money" | "mtn_money" | "moov_money"
+  payment_method?: string;
   metadata?: Record<string, string>;
 }
 
 export interface InitPayoutParams {
   type: PayoutType;
-  amount: number;          // Montant brut demandé (les 3% sont calculés ici)
+  amount: number;
   pays: string;
-  reseau: string;          // Code réseau ex: "wave", "orange_money", "mtn_money"
-  numero_mobile: string;   // Ex: "+229 97 00 11 22"
+  reseau: string;
+  numero_mobile: string;
   nom_beneficiaire: string;
   metadata?: Record<string, string>;
 }
@@ -42,7 +42,7 @@ export interface InitPayoutParams {
 export interface GeniusPayResult {
   success: boolean;
   error?: string;
-  payment_url?: string;  // Pour les paiements → redirection
+  payment_url?: string;
   payment_id?: string;
   payout_id?: string;
   message?: string;
@@ -53,17 +53,14 @@ export interface GeniusPayResult {
 // ─────────────────────────────────────────────
 
 export const RESEAU_CODES: Record<string, string> = {
-  // Codes directs GeniusPay
-  "wave":         "wave",
-  "orange_money": "orange_money",
-  "mtn_money":    "mtn_money",
-  "moov_money":   "moov_money",
-  // Noms affichés → codes
-  "Wave":         "wave",
-  "Orange Money": "orange_money",
-  "MTN MoMo":     "mtn_money",
-  "Moov Money":   "moov_money",
-  // Variantes régionales
+  "wave":            "wave",
+  "orange_money":    "orange_money",
+  "mtn_money":       "mtn_money",
+  "moov_money":      "moov_money",
+  "Wave":            "wave",
+  "Orange Money":    "orange_money",
+  "MTN MoMo":        "mtn_money",
+  "Moov Money":      "moov_money",
   "Wave CI":         "wave",
   "Orange Money CI": "orange_money",
   "MTN MoMo CI":     "mtn_money",
@@ -75,12 +72,10 @@ export const RESEAU_CODES: Record<string, string> = {
 
 // ─────────────────────────────────────────────
 // FRAIS APPLIQUÉS
-// Paiement/recharge : +100 FCFA fixes
-// Retrait/transfert : 3% du montant
 // ─────────────────────────────────────────────
 
-export const FRAIS_PAIEMENT = 100; // FCFA
-export const TAUX_RETRAIT   = 0.03; // 3%
+export const FRAIS_PAIEMENT = 100;
+export const TAUX_RETRAIT   = 0.03;
 
 export function calcFraisPaiement(_montant: number): number {
   return FRAIS_PAIEMENT;
@@ -91,17 +86,40 @@ export function calcFraisRetrait(montant: number): number {
 }
 
 // ─────────────────────────────────────────────
+// HELPER : extraire le vrai message d'erreur
+// d'une FunctionsHttpError Supabase
+// ─────────────────────────────────────────────
+
+async function extractErrorMessage(error: any): Promise<string> {
+  try {
+    // FunctionsHttpError a un champ context.body ou context.responseBody
+    if (error?.context?.responseBody) {
+      const body = await error.context.responseBody.text?.();
+      if (body) {
+        const parsed = JSON.parse(body);
+        return parsed?.error ?? parsed?.message ?? body;
+      }
+    }
+    if (error?.context?.body) {
+      const body = typeof error.context.body === "string"
+        ? error.context.body
+        : JSON.stringify(error.context.body);
+      const parsed = JSON.parse(body);
+      return parsed?.error ?? parsed?.message ?? body;
+    }
+  } catch (_) {}
+  return error?.message ?? "Erreur inconnue";
+}
+
+// ─────────────────────────────────────────────
 // INITIALISER UN PAIEMENT
-// (recharge, abonnement, dépôt)
-// Les 100 FCFA de frais sont ajoutés au montant envoyé à GeniusPay
 // ─────────────────────────────────────────────
 
 export async function initPayment(params: InitPaymentParams): Promise<GeniusPayResult> {
   const user = getNexoraUser();
   if (!user) return { success: false, error: "Utilisateur non connecté" };
 
-  // Frais : 100 FCFA uniquement pour recharge_transfert, 0 pour abonnement
-  const frais = params.type === "recharge_transfert" ? FRAIS_PAIEMENT : 0;
+  const frais            = params.type === "recharge_transfert" ? FRAIS_PAIEMENT : 0;
   const montantAvecFrais = params.amount + frais;
 
   try {
@@ -120,8 +138,15 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
       },
     });
 
-    if (error) throw error;
-    if (!data?.success) return { success: false, error: data?.error ?? "Erreur paiement" };
+    if (error) {
+      const msg = await extractErrorMessage(error);
+      console.error("initPayment error détaillé:", msg);
+      return { success: false, error: msg };
+    }
+
+    if (!data?.success) {
+      return { success: false, error: data?.error ?? "Erreur paiement" };
+    }
 
     return {
       success:     true,
@@ -129,14 +154,14 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
       payment_id:  data.payment_id,
     };
   } catch (err: any) {
-    console.error("initPayment error:", err);
-    return { success: false, error: err.message ?? "Erreur réseau" };
+    const msg = await extractErrorMessage(err);
+    console.error("initPayment exception:", msg);
+    return { success: false, error: msg };
   }
 }
 
 // ─────────────────────────────────────────────
 // INITIER UN RETRAIT (payout)
-// Les 3% de frais sont calculés et déduits du montant reçu
 // ─────────────────────────────────────────────
 
 export async function initPayout(params: InitPayoutParams): Promise<GeniusPayResult> {
@@ -168,8 +193,15 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
       },
     });
 
-    if (error) throw error;
-    if (!data?.success) return { success: false, error: data?.error ?? "Erreur retrait" };
+    if (error) {
+      const msg = await extractErrorMessage(error);
+      console.error("initPayout error détaillé:", msg);
+      return { success: false, error: msg };
+    }
+
+    if (!data?.success) {
+      return { success: false, error: data?.error ?? "Erreur retrait" };
+    }
 
     return {
       success:   true,
@@ -177,8 +209,9 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
       message:   data.message,
     };
   } catch (err: any) {
-    console.error("initPayout error:", err);
-    return { success: false, error: err.message ?? "Erreur réseau" };
+    const msg = await extractErrorMessage(err);
+    console.error("initPayout exception:", msg);
+    return { success: false, error: msg };
   }
 }
 
@@ -205,8 +238,6 @@ export async function payAndRedirect(params: InitPaymentParams): Promise<void> {
 
 // ─────────────────────────────────────────────
 // VÉRIFIER UN PAIEMENT APRÈS RETOUR
-// Appelé sur la page /payment/callback
-// GeniusPay redirige vers success_url ou error_url
 // ─────────────────────────────────────────────
 
 export async function verifyPaymentFromCallback(): Promise<{
@@ -218,8 +249,6 @@ export async function verifyPaymentFromCallback(): Promise<{
   const reference = params.get("reference") ?? params.get("paymentId") ?? null;
   const type      = params.get("type");
 
-  // GeniusPay redirige vers success_url en cas de succès
-  // On détecte le succès via le paramètre "status=success" dans l'URL
   const isSuccess =
     params.get("status") === "success" ||
     params.get("payStatus") === "completed" ||
