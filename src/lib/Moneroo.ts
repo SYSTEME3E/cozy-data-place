@@ -100,8 +100,9 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
   const user = getNexoraUser();
   if (!user) return { success: false, error: "Utilisateur non connecté" };
 
-  // Montant final = montant + 100 FCFA de frais
-  const montantAvecFrais = params.amount + FRAIS_PAIEMENT;
+  // Frais : 100 FCFA uniquement pour recharge_transfert, 0 pour abonnement
+  const frais = params.type === "recharge_transfert" ? FRAIS_PAIEMENT : 0;
+  const montantAvecFrais = params.amount + frais;
 
   try {
     const { data, error } = await supabase.functions.invoke("geniuspay-payment", {
