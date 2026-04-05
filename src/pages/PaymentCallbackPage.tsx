@@ -124,7 +124,7 @@ export default function PaymentCallbackPage() {
         status:     "success",
         payment_id: paymentId ?? "callback_verified",
         plan:       "boss",
-      }).then(() => {}).catch(() => {});
+      }).then(null, () => {});
 
       // ✅ Mettre à jour le cache localStorage/sessionStorage
       const updatedUser = {
