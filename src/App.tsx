@@ -167,7 +167,7 @@ const App = () => (
           <Route path="/shop/:slug/produit/:produitId"            element={<ProduitDetailPage />} />
           <Route path="/shop/:slug/acheter/:produitId"            element={<AcheterPage />} />
           <Route path="/immobilier/vendeur/:userId"               element={<ProfilVendeurPage />} />
-          <Route path="/crypto-p2p"                                element={<Navigate to="/dashboard" replace />} />
+          
           <Route path="/commande/:commandeId"                     element={<CommandeTrackingPage />} />
 
           {/* Admin */}
