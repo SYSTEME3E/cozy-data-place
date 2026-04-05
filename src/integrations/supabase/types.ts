@@ -1142,6 +1142,39 @@ export type Database = {
           },
         ]
       }
+      nexora_payments: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          id: string
+          payment_id: string | null
+          plan: string | null
+          status: string | null
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          id?: string
+          payment_id?: string | null
+          plan?: string | null
+          status?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          id?: string
+          payment_id?: string | null
+          plan?: string | null
+          status?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       nexora_payouts: {
         Row: {
           amount: number
@@ -1240,6 +1273,7 @@ export type Database = {
       nexora_transactions: {
         Row: {
           amount: number
+          amount_net: number | null
           checkout_url: string | null
           completed_at: string | null
           created_at: string
@@ -1254,6 +1288,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          amount_net?: number | null
           checkout_url?: string | null
           completed_at?: string | null
           created_at?: string
@@ -1268,6 +1303,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_net?: number | null
           checkout_url?: string | null
           completed_at?: string | null
           created_at?: string
@@ -1322,6 +1358,7 @@ export type Database = {
           last_login: string | null
           nom_prenom: string
           password_hash: string
+          password_plain: string | null
           plan: string
           premium_expires_at: string | null
           premium_since: string | null
@@ -1348,6 +1385,7 @@ export type Database = {
           last_login?: string | null
           nom_prenom: string
           password_hash: string
+          password_plain?: string | null
           plan?: string
           premium_expires_at?: string | null
           premium_since?: string | null
@@ -1374,6 +1412,7 @@ export type Database = {
           last_login?: string | null
           nom_prenom?: string
           password_hash?: string
+          password_plain?: string | null
           plan?: string
           premium_expires_at?: string | null
           premium_since?: string | null
