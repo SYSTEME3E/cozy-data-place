@@ -8,9 +8,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const GENIUSPAY_API_URL = "https://api.geniuspay.app/api/v1";
+const GENIUSPAY_API_URL = "https://pay.genius.ci/api/v1/merchant";
 const GENIUSPAY_SECRET  = Deno.env.get("GENIUSPAY_SECRET_KEY") ?? "";
-const APP_URL           = Deno.env.get("APP_URL") ?? "https://ton-app.com";
+const APP_URL           = Deno.env.get("APP_URL") ?? "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -45,13 +45,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Supabase client avec service role pour écrire en base ──
+    if (!GENIUSPAY_SECRET) {
+      console.error("❌ GENIUSPAY_SECRET_KEY non défini !");
+      return new Response(
+        JSON.stringify({ success: false, error: "Clé API GeniusPay non configurée." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ── URLs de redirection ──
     const isRecharge   = type === "recharge_transfert";
     const callbackBase = isRecharge
       ? `${APP_URL}/transfert`
@@ -60,7 +66,9 @@ Deno.serve(async (req: Request) => {
     const success_url = `${callbackBase}?status=success&type=${type}&user_id=${user_id}`;
     const error_url   = `${callbackBase}?status=failed&type=${type}&user_id=${user_id}`;
 
-    // ── Appel GeniusPay ──
+    // ── Appel GeniusPay avec la bonne URL ──
+    console.log("Appel GeniusPay:", `${GENIUSPAY_API_URL}/payments/initialize`);
+
     const geniusPayResponse = await fetch(`${GENIUSPAY_API_URL}/payments/initialize`, {
       method: "POST",
       headers: {
@@ -92,20 +100,21 @@ Deno.serve(async (req: Request) => {
     });
 
     const geniusData = await geniusPayResponse.json();
+    console.log("Réponse GeniusPay status:", geniusPayResponse.status);
+    console.log("Réponse GeniusPay data:", JSON.stringify(geniusData));
 
     if (!geniusPayResponse.ok || !geniusData.payment_url) {
       console.error("GeniusPay error:", geniusData);
       return new Response(
         JSON.stringify({
           success: false,
-          error: geniusData.message ?? "Erreur lors de l'initialisation du paiement",
+          error: geniusData.message ?? geniusData.error ?? `Erreur GeniusPay (HTTP ${geniusPayResponse.status})`,
+          detail: geniusData,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ✅ FIX CRITIQUE : enregistrer la transaction en base maintenant
-    // que GeniusPay nous a donné son ID de référence.
     const paymentId = geniusData.id ?? geniusData.payment_id ?? null;
     const frais     = isRecharge ? 100 : 0;
 
@@ -118,8 +127,8 @@ Deno.serve(async (req: Request) => {
         amount_net: amount_net ?? (amount - frais),
         frais,
         currency,
-        status:      "pending",
-        moneroo_id:  paymentId,
+        status:       "pending",
+        moneroo_id:   paymentId,
         checkout_url: geniusData.payment_url,
         metadata: {
           ...metadata,
@@ -130,7 +139,7 @@ Deno.serve(async (req: Request) => {
       });
 
     if (txError) {
-      console.error("Erreur création transaction:", txError);
+      console.error("Erreur création transaction:", JSON.stringify(txError));
     }
 
     return new Response(
@@ -143,7 +152,7 @@ Deno.serve(async (req: Request) => {
     );
 
   } catch (err: any) {
-    console.error("geniuspay-payment error:", err);
+    console.error("geniuspay-payment error:", err?.message, err?.stack);
     return new Response(
       JSON.stringify({ success: false, error: err.message ?? "Erreur interne" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
