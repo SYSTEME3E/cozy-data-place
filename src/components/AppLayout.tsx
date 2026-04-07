@@ -22,8 +22,6 @@ const getNavItems = (isAdmin: boolean) => {
     { path: "/historique",       icon: History,         label: "Historique",           color: "text-accent",      bg: "bg-accent/10"      },
     { path: "/transfert",        icon: ArrowLeftRight,  label: "Nexora Transfert",    color: "text-violet-400",  bg: "bg-violet-400/10"  },
     { path: "/factures",         icon: Receipt,         label: "Factures",             color: "text-purple-300",  bg: "bg-purple-300/10"  },
-    { path: "/coffre-fort",      icon: Lock,            label: "Coffre-fort",          color: "text-yellow-300",  bg: "bg-yellow-300/10"  },
-    { path: "/liens",            icon: Link2,           label: "Liens & Contacts",     color: "text-green-300",   bg: "bg-green-300/10"   },
     { path: "/boutique",         icon: Store,           label: "Nexora Shop",          color: "text-pink-300",    bg: "bg-pink-300/10"    },
     { path: "/contacts-whatsapp", icon: Phone,           label: "Contacts WhatsApp",    color: "text-green-400",   bg: "bg-green-400/10"   },
     { path: "/immobilier",        icon: Map,             label: "Marché Immobilier",    color: "text-blue-300",    bg: "bg-blue-300/10"    },
