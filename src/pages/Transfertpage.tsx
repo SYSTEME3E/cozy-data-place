@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import AppLayout from "@/components/AppLayout";
 import {
   Send, Plus, History, Globe,
@@ -232,7 +232,7 @@ function CountrySelector({ selected, onSelect, label }: {
   );
 }
 
-// ─── MODAL RECHARGE (simplifié : montant + email) ───
+// ─── MODAL RECHARGE ───
 function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [montant, setMontant] = useState("");
   const [email, setEmail] = useState(getNexoraUser()?.email ?? "");
@@ -260,9 +260,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
         setLoading(false);
         return;
       }
-      // Ouvre la page de paiement dans un nouvel onglet
       window.open(result.payment_url, "_blank");
-      // Afficher message d'attente et commencer à poll
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -442,7 +440,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             <span className="font-black text-foreground">{fmt(balance)} FCFA</span>
           </div>
 
-          {/* Nom complet du destinataire */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground">Nom complet du destinataire</label>
             <div className="relative">
@@ -457,10 +454,8 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             </div>
           </div>
 
-          {/* Pays */}
           <CountrySelector selected={pays} onSelect={handlePaysSelect} label="Pays du destinataire" />
 
-          {/* Réseau */}
           {pays && (
             <div className="space-y-2">
               <label className="text-sm font-semibold text-muted-foreground">Réseau Mobile Money</label>
@@ -478,7 +473,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             </div>
           )}
 
-          {/* Numéro */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground">Numéro du destinataire</label>
             <div className="relative">
@@ -493,7 +487,6 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             </div>
           </div>
 
-          {/* Montant */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground">Montant à envoyer</label>
             <div className="relative">
@@ -560,15 +553,29 @@ export default function TransfertPage() {
   const [filterType, setFilterType] = useState<"all" | "depot" | "transfert">("all");
   const [pollingRecharge, setPollingRecharge] = useState(false);
 
+  // ✅ FIX : ref pour mémoriser le solde avant la recharge
+  const balanceBeforeRecharge = useRef<number>(0);
+
   const showSuccessMsg = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 6000); };
   const showErrorMsg = (msg: string) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(null), 6000); };
 
+  // ✅ FIX : lit le solde depuis nexora_transfert_comptes (source de vérité)
   const fetchFromSupabase = useCallback(async () => {
     setLoadingData(true);
     try {
       const user = getNexoraUser();
       if (!user?.id) { setLoadingData(false); return; }
 
+      // ✅ Lire le solde depuis la table gérée par le webhook
+      const { data: compte } = await supabase
+        .from("nexora_transfert_comptes")
+        .select("solde")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      setBalance(compte?.solde ?? 0);
+
+      // Charger les transactions
       const { data, error } = await supabase
         .from("nexora_transactions")
         .select("*")
@@ -583,18 +590,7 @@ export default function TransfertPage() {
         return;
       }
 
-      const txs = (data ?? []).map(mapSupabaseRow);
-      setTransactions(txs);
-
-      const totalRecharges = txs
-        .filter(t => t.type === "depot" && t.status === "success")
-        .reduce((sum, t) => sum + t.montant, 0);
-
-      const totalTransferts = txs
-        .filter(t => t.type === "transfert" && t.status === "success")
-        .reduce((sum, t) => sum + t.montant, 0);
-
-      setBalance(Math.max(0, totalRecharges - totalTransferts));
+      setTransactions((data ?? []).map(mapSupabaseRow));
     } catch (err) {
       console.error("fetchFromSupabase error:", err);
       showErrorMsg("Erreur lors du chargement des données.");
@@ -612,7 +608,6 @@ export default function TransfertPage() {
     if (!pollingRecharge) return;
     let attempts = 0;
     const maxAttempts = 20;
-    const prevBalance = balance;
 
     const interval = setInterval(async () => {
       attempts++;
@@ -627,9 +622,9 @@ export default function TransfertPage() {
     return () => clearInterval(interval);
   }, [pollingRecharge]);
 
-  // Detect balance change during polling
+  // ✅ FIX : compare avec le solde snapshot AVANT la recharge, pas juste > 0
   useEffect(() => {
-    if (pollingRecharge && balance > 0) {
+    if (pollingRecharge && balance > balanceBeforeRecharge.current) {
       setPollingRecharge(false);
       showSuccessMsg("✅ Recharge confirmée ! Votre solde a été mis à jour.");
     }
@@ -639,7 +634,9 @@ export default function TransfertPage() {
   const totalTransferts = transactions.filter(t => t.type === "transfert" && t.status === "success").reduce((s, t) => s + t.montant, 0);
   const filtered = transactions.filter(t => filterType === "all" || t.type === filterType);
 
+  // ✅ FIX : snapshot du solde actuel avant d'ouvrir le paiement
   const handleRechargeSuccess = () => {
+    balanceBeforeRecharge.current = balance;
     setPollingRecharge(true);
     showSuccessMsg("⏳ Paiement ouvert. Votre solde sera mis à jour automatiquement après confirmation.");
   };
