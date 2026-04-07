@@ -165,37 +165,6 @@ Deno.serve(async (req) => {
         console.log(`✅ Premium activé pour ${finalUserId}`);
       }
 
-      // ── DÉPÔT ÉPARGNE ──
-      if (finalType === "depot_epargne" && finalUserId) {
-        const { data: allTxs } = await supabase
-          .from("nexora_transactions")
-          .select("type, amount, status")
-          .eq("user_id", finalUserId);
-
-        if (allTxs) {
-          const totalEpargne = allTxs
-            .filter(t => t.type === "depot_epargne" && t.status === "completed")
-            .reduce((sum, t) => sum + (t.amount ?? 0), 0);
-
-          await supabase.from("nexora_epargne_comptes").upsert(
-            { 
-              user_id: finalUserId, 
-              solde: totalEpargne, 
-              updated_at: new Date().toISOString() 
-            },
-            { onConflict: "user_id" }
-          );
-        }
-
-        await supabase.from("nexora_notifications").insert({
-          user_id: finalUserId,
-          titre: "🏦 Dépôt épargne confirmé",
-          message: `${finalNet} FCFA ont été ajoutés à votre épargne.`,
-          type: "success",
-        });
-        console.log(`✅ Épargne ${finalNet} FCFA déposée pour ${finalUserId}`);
-      }
-    }
 
     // ══════════════════════════════════════════════════════════════
     // ② PAYOUT RÉUSSI (payout.success)
