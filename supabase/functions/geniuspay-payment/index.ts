@@ -167,7 +167,7 @@ function getDescription(type: string): string {
   switch (type) {
     case "abonnement_premium": return "Abonnement Nexora Premium - 1 mois";
     case "recharge_transfert": return "Recharge portefeuille Nexora Transfert";
-    case "depot_epargne":      return "Dépôt épargne Nexora";
+  
     default:                   return "Paiement Nexora";
   }
 }
