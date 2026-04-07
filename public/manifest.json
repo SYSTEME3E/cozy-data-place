@@ -6,7 +6,7 @@
   "id": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#000000",
+  "background_color": "#0a0e27",
   "theme_color": "#84cc16",
   "lang": "fr",
   "scope": "/",
@@ -14,7 +14,43 @@
   "icons": [
     {
       "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
       "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+      "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
@@ -22,9 +58,11 @@
       "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
+  "splash_pages": null,
+  "screenshots": [],
   "shortcuts": [
     {
       "name": "Dashboard",
@@ -38,7 +76,29 @@
           "type": "image/png"
         }
       ]
+    },
+    {
+      "name": "Transactions",
+      "short_name": "Transactions",
+      "description": "Voir les transactions récentes",
+      "url": "/transactions",
+      "icons": [
+        {
+          "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ],
-  "prefer_related_applications": false
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }
