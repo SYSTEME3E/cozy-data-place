@@ -53,10 +53,10 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (url.protocol === "chrome-extension:") return;
 
-  // Requêtes API (Supabase, KKiaPay, postimg) → réseau uniquement
+  // Requêtes API (Supabase, pay.genius.ci, postimg) → réseau uniquement
   const isApiCall =
     url.hostname.includes("supabase.co") ||
-    url.hostname.includes("kkiapay.me") ||
+    url.hostname.includes("pay.genius.ci") ||
     url.hostname.includes("postimg.cc") ||
     url.pathname.startsWith("/api/");
 
