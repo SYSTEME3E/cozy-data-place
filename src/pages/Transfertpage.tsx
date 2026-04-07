@@ -274,13 +274,13 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 flex items-center gap-4">
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-5 flex items-center gap-4">
           <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
             <Plus className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-black text-white">Recharger mon compte</h2>
-            <p className="text-xs text-emerald-100">Paiement sécurisé · Wave, OM, MTN</p>
+            <p className="text-xs text-yellow-100">Paiement sécurisé · Wave, OM, MTN</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors">
             <X className="w-4 h-4 text-white" />
@@ -296,7 +296,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 value={montant}
                 onChange={e => setMontant(e.target.value)}
                 placeholder="Ex: 50000"
-                className="w-full px-4 py-3 pr-20 bg-muted/60 border border-border rounded-xl text-lg font-bold outline-none focus:border-emerald-400 transition-colors"
+                className="w-full px-4 py-3 pr-20 bg-muted/60 border border-border rounded-xl text-lg font-bold outline-none focus:border-yellow-400 transition-colors"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">FCFA</span>
             </div>
@@ -320,7 +320,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="votre@email.com"
-              className="w-full px-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-emerald-400 transition-colors"
+              className="w-full px-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-yellow-400 transition-colors"
             />
           </div>
 
@@ -328,7 +328,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             <div className="bg-muted/60 border border-border rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Montant crédité</span>
-                <span className="font-bold text-emerald-600">{fmt(montantNum)} FCFA</span>
+                <span className="font-bold text-yellow-600">{fmt(montantNum)} FCFA</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Frais de service</span>
@@ -342,7 +342,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </div>
           )}
 
-          <div className="flex items-start gap-2 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-xl">
+          <div className="flex items-start gap-2 text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 p-3 rounded-xl">
             <BadgeCheck className="w-4 h-4 mt-0.5 shrink-0" />
             <p>Une page de paiement s'ouvrira. Revenez ici après le paiement, votre solde sera mis à jour automatiquement.</p>
           </div>
@@ -357,7 +357,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           <button
             onClick={handleSubmit}
             disabled={!valid || loading}
-            className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Préparation...</>
