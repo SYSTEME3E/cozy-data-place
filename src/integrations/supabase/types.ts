@@ -1183,6 +1183,7 @@ export type Database = {
           created_at: string
           currency: string
           frais: number
+          geniuspay_id: string | null
           id: string
           metadata: Json | null
           moneroo_code: string | null
@@ -1192,6 +1193,7 @@ export type Database = {
           pays: string | null
           reseau: string | null
           status: string
+          transaction_id: string | null
           type: string
           user_id: string
         }
@@ -1202,6 +1204,7 @@ export type Database = {
           created_at?: string
           currency?: string
           frais?: number
+          geniuspay_id?: string | null
           id?: string
           metadata?: Json | null
           moneroo_code?: string | null
@@ -1211,6 +1214,7 @@ export type Database = {
           pays?: string | null
           reseau?: string | null
           status?: string
+          transaction_id?: string | null
           type?: string
           user_id: string
         }
@@ -1221,6 +1225,7 @@ export type Database = {
           created_at?: string
           currency?: string
           frais?: number
+          geniuspay_id?: string | null
           id?: string
           metadata?: Json | null
           moneroo_code?: string | null
@@ -1230,6 +1235,7 @@ export type Database = {
           pays?: string | null
           reseau?: string | null
           status?: string
+          transaction_id?: string | null
           type?: string
           user_id?: string
         }
