@@ -1,14 +1,14 @@
 // supabase/functions/geniuspay-payment/index.ts
 // ─────────────────────────────────────────────────────────────────
 // Edge Function : initialise un paiement GeniusPay
-// ✅ FIX CRITIQUE : crée la transaction en base AVANT la redirection
-//    → le webhook peut ainsi la retrouver par moneroo_id et mettre
-//      à jour le statut + créditer le solde automatiquement
+// ✅ Utilise les bons headers X-API-Key / X-API-Secret
+// ✅ Endpoint correct : /api/v1/merchant/payments
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const GENIUSPAY_API_URL = "https://pay.genius.ci/api/v1/merchant";
+const GENIUSPAY_PUBLIC  = Deno.env.get("GENIUSPAY_PUBLIC_KEY") ?? "";
 const GENIUSPAY_SECRET  = Deno.env.get("GENIUSPAY_SECRET_KEY") ?? "";
 const APP_URL           = Deno.env.get("APP_URL") ?? "";
 
@@ -45,10 +45,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!GENIUSPAY_SECRET) {
-      console.error("❌ GENIUSPAY_SECRET_KEY non défini !");
+    if (!GENIUSPAY_SECRET || !GENIUSPAY_PUBLIC) {
+      console.error("❌ Clés GeniusPay non configurées !");
       return new Response(
-        JSON.stringify({ success: false, error: "Clé API GeniusPay non configurée." }),
+        JSON.stringify({ success: false, error: "Clés API GeniusPay non configurées." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -66,34 +66,33 @@ Deno.serve(async (req: Request) => {
     const success_url = `${callbackBase}?status=success&type=${type}&user_id=${user_id}`;
     const error_url   = `${callbackBase}?status=failed&type=${type}&user_id=${user_id}`;
 
-    // ── Appel GeniusPay avec la bonne URL ──
-    console.log("Appel GeniusPay:", `${GENIUSPAY_API_URL}/payments/initialize`);
+    console.log("Appel GeniusPay:", `${GENIUSPAY_API_URL}/payments`);
 
-    const geniusPayResponse = await fetch(`${GENIUSPAY_API_URL}/payments/initialize`, {
+    const geniusPayResponse = await fetch(`${GENIUSPAY_API_URL}/payments`, {
       method: "POST",
       headers: {
         "Content-Type":  "application/json",
-        "Authorization": `Bearer ${GENIUSPAY_SECRET}`,
+        "X-API-Key":     GENIUSPAY_PUBLIC,
+        "X-API-Secret":  GENIUSPAY_SECRET,
         "Accept":        "application/json",
       },
       body: JSON.stringify({
         amount,
-        amount_net,
         currency,
         description:    getDescription(type),
         customer: {
-          email: user_email,
-          name:  user_name,
+          email: user_email || undefined,
+          name:  user_name || undefined,
           phone: user_phone || undefined,
         },
         payment_method: payment_method || undefined,
         success_url,
         error_url,
-        cancel_url: error_url,
         metadata: {
           ...metadata,
           user_id,
           type,
+          amount_net: String(amount_net ?? amount),
           source: "nexora",
         },
       }),
@@ -103,7 +102,12 @@ Deno.serve(async (req: Request) => {
     console.log("Réponse GeniusPay status:", geniusPayResponse.status);
     console.log("Réponse GeniusPay data:", JSON.stringify(geniusData));
 
-    if (!geniusPayResponse.ok || !geniusData.payment_url) {
+    // GeniusPay retourne { success, data: { id, reference, checkout_url, payment_url, ... } }
+    const txData     = geniusData.data ?? geniusData;
+    const paymentUrl = txData.checkout_url ?? txData.payment_url ?? null;
+    const paymentRef = txData.reference ?? txData.id ?? null;
+
+    if (!geniusPayResponse.ok || !paymentUrl) {
       console.error("GeniusPay error:", geniusData);
       return new Response(
         JSON.stringify({
@@ -115,8 +119,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const paymentId = geniusData.id ?? geniusData.payment_id ?? null;
-    const frais     = isRecharge ? 100 : 0;
+    const frais = isRecharge ? 100 : 0;
 
     const { error: txError } = await supabase
       .from("nexora_transactions")
@@ -128,8 +131,8 @@ Deno.serve(async (req: Request) => {
         frais,
         currency,
         status:       "pending",
-        moneroo_id:   paymentId,
-        checkout_url: geniusData.payment_url,
+        moneroo_id:   String(paymentRef),
+        checkout_url: paymentUrl,
         metadata: {
           ...metadata,
           user_id,
@@ -145,8 +148,8 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success:     true,
-        payment_url: geniusData.payment_url,
-        payment_id:  paymentId,
+        payment_url: paymentUrl,
+        payment_id:  String(paymentRef),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -137,8 +137,8 @@ const App = () => (
           {/* Routes Dashboard / Finance */}
           <Route path="/dashboard"         element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
           <Route path="/historique"        element={<ProtectedPage><HistoriquePage /></ProtectedPage>} />
-          <Route path="/coffre-fort"       element={<ProtectedPage><CoffreFortPage /></ProtectedPage>} />
-          <Route path="/liens"             element={<ProtectedPage><LiensPage /></ProtectedPage>} />
+          <Route path="/coffre-fort"       element={<AdminPage><CoffreFortPage /></AdminPage>} />
+          <Route path="/liens"             element={<AdminPage><LiensPage /></AdminPage>} />
           <Route path="/profil"            element={<ProtectedPage><ProfilPage /></ProtectedPage>} />
           <Route path="/abonnement"        element={<ProtectedPage><AbonnementPage /></ProtectedPage>} />
           <Route path="/transfert"         element={<ProtectedPage><TransfertPage /></ProtectedPage>} />

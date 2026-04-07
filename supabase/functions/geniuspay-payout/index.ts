@@ -1,16 +1,13 @@
-// supabase/functions/geniuspay-payment/index.ts
+// supabase/functions/geniuspay-payout/index.ts
 // ─────────────────────────────────────────────────────────────────
-// Edge Function : initialise un paiement GeniusPay
-// ✅ FIX CRITIQUE : crée la transaction en base AVANT la redirection
-//    → le webhook peut ainsi la retrouver par moneroo_id et mettre
-//      à jour le statut + créditer le solde automatiquement
+// Edge Function : initie un retrait / transfert via GeniusPay
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const GENIUSPAY_API_URL = "https://pay.genius.ci/api/v1/merchant";
+const GENIUSPAY_PUBLIC  = Deno.env.get("GENIUSPAY_PUBLIC_KEY") ?? "";
 const GENIUSPAY_SECRET  = Deno.env.get("GENIUSPAY_SECRET_KEY") ?? "";
-const APP_URL           = Deno.env.get("APP_URL") ?? "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -29,26 +26,27 @@ Deno.serve(async (req: Request) => {
       type,
       amount,
       amount_net,
-      currency = "XOF",
-      payment_method,
+      frais = 0,
       user_id,
       user_email,
-      user_name,
-      user_phone,
+      user_first_name,
+      user_last_name,
+      pays,
+      reseau,
+      numero_mobile,
       metadata = {},
     } = body;
 
-    if (!user_id || !amount || !type) {
+    if (!user_id || !amount || !type || !numero_mobile) {
       return new Response(
-        JSON.stringify({ success: false, error: "Paramètres manquants : user_id, amount, type requis" }),
+        JSON.stringify({ success: false, error: "Paramètres manquants" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!GENIUSPAY_SECRET) {
-      console.error("❌ GENIUSPAY_SECRET_KEY non défini !");
+    if (!GENIUSPAY_SECRET || !GENIUSPAY_PUBLIC) {
       return new Response(
-        JSON.stringify({ success: false, error: "Clé API GeniusPay non configurée." }),
+        JSON.stringify({ success: false, error: "Clés API GeniusPay non configurées." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -58,113 +56,104 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const isRecharge   = type === "recharge_transfert";
-    const callbackBase = isRecharge
-      ? `${APP_URL}/transfert`
-      : `${APP_URL}/payment/callback`;
+    // Vérifier le solde de l'utilisateur
+    const { data: compte } = await supabase
+      .from("nexora_transfert_comptes")
+      .select("solde")
+      .eq("user_id", user_id)
+      .maybeSingle();
 
-    const success_url = `${callbackBase}?status=success&type=${type}&user_id=${user_id}`;
-    const error_url   = `${callbackBase}?status=failed&type=${type}&user_id=${user_id}`;
-
-    // ── Appel GeniusPay avec la bonne URL ──
-    console.log("Appel GeniusPay:", `${GENIUSPAY_API_URL}/payments/initialize`);
-
-    const geniusPayResponse = await fetch(`${GENIUSPAY_API_URL}/payments/initialize`, {
-      method: "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${GENIUSPAY_SECRET}`,
-        "Accept":        "application/json",
-      },
-      body: JSON.stringify({
-        amount,
-        amount_net,
-        currency,
-        description:    getDescription(type),
-        customer: {
-          email: user_email,
-          name:  user_name,
-          phone: user_phone || undefined,
-        },
-        payment_method: payment_method || undefined,
-        success_url,
-        error_url,
-        cancel_url: error_url,
-        metadata: {
-          ...metadata,
-          user_id,
-          type,
-          source: "nexora",
-        },
-      }),
-    });
-
-    const geniusData = await geniusPayResponse.json();
-    console.log("Réponse GeniusPay status:", geniusPayResponse.status);
-    console.log("Réponse GeniusPay data:", JSON.stringify(geniusData));
-
-    if (!geniusPayResponse.ok || !geniusData.payment_url) {
-      console.error("GeniusPay error:", geniusData);
+    const soldeActuel = compte?.solde ?? 0;
+    if (soldeActuel < amount) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: geniusData.message ?? geniusData.error ?? `Erreur GeniusPay (HTTP ${geniusPayResponse.status})`,
-          detail: geniusData,
-        }),
+        JSON.stringify({ success: false, error: "Solde insuffisant" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const paymentId = geniusData.id ?? geniusData.payment_id ?? null;
-    const frais     = isRecharge ? 100 : 0;
-
-    const { error: txError } = await supabase
-      .from("nexora_transactions")
+    // Créer l'enregistrement payout
+    const { data: payout, error: payoutErr } = await supabase
+      .from("nexora_payouts")
       .insert({
         user_id,
         type,
         amount,
-        amount_net: amount_net ?? (amount - frais),
+        amount_net: amount_net ?? amount - frais,
         frais,
-        currency,
-        status:       "pending",
-        moneroo_id:   paymentId,
-        checkout_url: geniusData.payment_url,
+        currency: "XOF",
+        status: "pending",
+        nom_beneficiaire: `${user_first_name} ${user_last_name}`,
+        numero: numero_mobile,
+        pays,
+        reseau,
         metadata: {
           ...metadata,
-          user_id,
-          type,
-          amount_net: String(amount_net ?? (amount - frais)),
+          pays_flag: metadata.pays_flag ?? "",
+          pays_code: metadata.pays_code ?? "",
         },
-      });
+      })
+      .select()
+      .single();
 
-    if (txError) {
-      console.error("Erreur création transaction:", JSON.stringify(txError));
+    if (payoutErr) {
+      console.error("Erreur création payout:", JSON.stringify(payoutErr));
+      return new Response(
+        JSON.stringify({ success: false, error: "Erreur création du transfert" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    // Enregistrer aussi dans nexora_transactions pour le suivi
+    await supabase.from("nexora_transactions").insert({
+      user_id,
+      type: "retrait_transfert",
+      amount,
+      amount_net: amount_net ?? amount - frais,
+      frais,
+      currency: "XOF",
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      moneroo_id: payout?.id ?? null,
+      metadata: {
+        ...metadata,
+        nom_beneficiaire: `${user_first_name} ${user_last_name}`,
+        telephone: numero_mobile,
+        reseau,
+        pays,
+      },
+    });
+
+    // Déduire du solde
+    const newSolde = Math.max(0, soldeActuel - amount);
+    await supabase
+      .from("nexora_transfert_comptes")
+      .upsert(
+        { user_id, solde: newSolde, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+
+    // Notification
+    await supabase.from("nexora_notifications").insert({
+      user_id,
+      titre: "📤 Transfert envoyé",
+      message: `${amount} FCFA envoyés vers ${pays} (${reseau})`,
+      type: "success",
+    });
 
     return new Response(
       JSON.stringify({
-        success:     true,
-        payment_url: geniusData.payment_url,
-        payment_id:  paymentId,
+        success:   true,
+        payout_id: payout?.id,
+        message:   "Transfert initié avec succès",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (err: any) {
-    console.error("geniuspay-payment error:", err?.message, err?.stack);
+    console.error("geniuspay-payout error:", err?.message, err?.stack);
     return new Response(
       JSON.stringify({ success: false, error: err.message ?? "Erreur interne" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
-
-function getDescription(type: string): string {
-  switch (type) {
-    case "abonnement_premium": return "Abonnement Nexora Premium - 1 mois";
-    case "recharge_transfert": return "Recharge portefeuille Nexora Transfert";
-    case "depot_epargne":      return "Dépôt épargne Nexora";
-    default:                   return "Paiement Nexora";
-  }
-}
