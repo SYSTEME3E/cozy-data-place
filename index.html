@@ -2,17 +2,19 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>NEXORA</title>
     <meta name="description" content="NEXORA - Gestion financière intelligente">
     <meta name="author" content="Nexora" />
 
-    <!-- ── PWA Meta Tags ──────────────────────────────────── -->
+    <!-- ── PWA Core ──────────────────────────────────────────── -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#84cc16" />
+
+    <!-- Android -->
     <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- iOS PWA -->
+    <!-- iOS — fait tourner l'app en plein écran sans barre Safari -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Nexora" />
@@ -21,36 +23,41 @@
       href="https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png"
     />
 
+    <!-- Splash screen iOS (évite l'écran blanc au lancement) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="NEXORA" />
     <meta property="og:description" content="NEXORA - Gestion financière intelligente" />
     <meta property="og:image" content="https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png" />
-
-    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="NEXORA" />
     <meta name="twitter:description" content="NEXORA - Gestion financière intelligente" />
     <meta name="twitter:image" content="https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png" />
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- KKiaPay SDK — paiement Mobile Money -->
+    <!-- KKiaPay SDK -->
     <script src="https://cdn.kkiapay.me/k.js"></script>
 
-    <!-- ── Service Worker Registration ───────────────────── -->
+    <!-- ── Service Worker ─────────────────────────────────────── -->
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("/sw.js")
-            .then((reg) => console.log("[SW] Enregistré :", reg.scope))
-            .catch((err) => console.error("[SW] Erreur d'enregistrement :", err));
+            .then((reg) => {
+              console.log("[SW] Nexora SW actif :", reg.scope);
+            })
+            .catch((err) => {
+              console.error("[SW] Erreur :", err);
+            });
         });
       }
     </script>
