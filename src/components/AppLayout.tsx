@@ -27,9 +27,11 @@ const getNavItems = (isAdmin: boolean) => {
     { path: "/immobilier",        icon: Map,             label: "Marché Immobilier",    color: "text-blue-300",    bg: "bg-blue-300/10"    },
   ];
   if (isAdmin) {
-    items.push({ path: "/prets",  icon: HandCoins,   label: "Contrats Prêt", color: "text-orange-300", bg: "bg-orange-300/10" });
-    items.push({ path: "/admin",  icon: ShieldCheck, label: "Panel Admin", color: "text-amber-400", bg: "bg-amber-400/10" });
-    items.push({ path: "/medias", icon: Image,       label: "Médias",      color: "text-sky-300",   bg: "bg-sky-300/10"  });
+    items.push({ path: "/coffre-fort", icon: Lock,       label: "Coffre-fort",   color: "text-yellow-300", bg: "bg-yellow-300/10" });
+    items.push({ path: "/liens",       icon: Link2,      label: "Liens & Contacts", color: "text-green-300", bg: "bg-green-300/10" });
+    items.push({ path: "/prets",       icon: HandCoins,  label: "Contrats Prêt", color: "text-orange-300", bg: "bg-orange-300/10" });
+    items.push({ path: "/admin",       icon: ShieldCheck, label: "Panel Admin", color: "text-amber-400", bg: "bg-amber-400/10" });
+    items.push({ path: "/medias",      icon: Image,       label: "Médias",      color: "text-sky-300",   bg: "bg-sky-300/10"  });
   }
   return items;
 };
