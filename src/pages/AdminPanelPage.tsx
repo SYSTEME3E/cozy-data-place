@@ -500,79 +500,6 @@ export default function AdminPanelPage() {
 
   // ── Crypto P2P handlers ──
 
-  const handleToggleOfferAccess = async (seller: any) => {
-    const newVal = !seller.can_post_offers;
-    try {
-      await (supabase.from("crypto_sellers") as any).update({ can_post_offers: newVal }).eq("id", seller.id);
-      if (seller.user_id) {
-        await sendNotification(
-          seller.user_id,
-          newVal ? "Accès aux annonces accordé" : "Accès aux annonces retiré",
-          newVal
-            ? "Vous pouvez maintenant publier des annonces sur la plateforme Crypto P2P."
-            : "Votre accès à la publication d'annonces a été retiré par l'administrateur.",
-          newVal ? "success" : "warning"
-        );
-      }
-      await logAction(seller.user_id, newVal ? "crypto_offer_access_granted" : "crypto_offer_access_revoked", null);
-      toast({ title: newVal ? "✅ Accès annonces accordé" : "🚫 Accès annonces retiré" });
-      loadAll();
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const handleSetMaxSell = async (seller: any) => {
-    const raw = sellerMaxAmount[seller.id] || "";
-    const val = parseFloat(raw);
-    if (isNaN(val) || val < 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
-    try {
-      await (supabase.from("crypto_sellers") as any).update({ max_sell_amount: val }).eq("id", seller.id);
-      await logAction(seller.user_id, "crypto_max_sell_set", `${val}`);
-      toast({ title: val === 0 ? "Max vente retiré (illimité)" : `Max vente fixé à ${val.toLocaleString("fr-FR")}` });
-      setSellerMaxAmount(prev => ({ ...prev, [seller.id]: "" }));
-      loadAll();
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const handleReservePayout = async (seller: any) => {
-    const montant = parseFloat(reservePayAmount[seller.id] || "");
-    if (isNaN(montant) || montant <= 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
-    if (montant > (Number(seller.reserve) || 0)) { toast({ title: "Montant supérieur à la réserve disponible", variant: "destructive" }); return; }
-    const reason = reservePayReason[seller.id] || "";
-    try {
-      const newReserve = (Number(seller.reserve) || 0) - montant;
-      await (supabase.from("crypto_sellers") as any).update({ reserve: newReserve }).eq("id", seller.id);
-      await (supabase.from("nexora_transactions") as any).insert({
-        user_id: seller.user_id,
-        montant,
-        frais: 0,
-        devise: "FCFA",
-        statut: "effectue",
-        type: "reserve_payout",
-        details: reason || "Remboursement acheteur depuis réserve",
-      });
-      if (seller.user_id) {
-        await sendNotification(
-          seller.user_id,
-          "Prélèvement sur votre réserve",
-          `Un montant de ${montant.toLocaleString("fr-FR")} FCFA a été prélevé de votre réserve. Motif : ${reason || "Remboursement acheteur"}.`,
-          "warning"
-        );
-      }
-      await logAction(seller.user_id, "reserve_payout", `${montant} FCFA | ${reason}`);
-      toast({ title: `${montant.toLocaleString("fr-FR")} FCFA prélevés de la réserve` });
-      setReservePayAmount(prev => ({ ...prev, [seller.id]: "" }));
-      setReservePayReason(prev => ({ ...prev, [seller.id]: "" }));
-      loadAll();
-    } catch (err: any) {
-      toast({ title: "Erreur", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const filteredUsers = users.filter(u => {
     const q = searchUser.toLowerCase();
     return (
       (u.nom_prenom.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
@@ -1280,26 +1207,6 @@ export default function AdminPanelPage() {
           </div>
         )}
 
-        {/* ── CRYPTO P2P ── */}
-        {tab === "crypto" && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-6 shadow-lg">
-              <ArrowRightLeft className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-2xl font-black text-foreground mb-2">Crypto P2P</h2>
-            <p className="text-muted-foreground text-sm mb-1 max-w-xs">
-              Cette section sera bientôt disponible.
-            </p>
-            <p className="text-muted-foreground text-xs max-w-xs">
-              La marketplace Crypto P2P est en cours de finalisation. Restez connecté !
-            </p>
-            <div className="mt-6 px-4 py-2 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
-              🚀 Bientôt en ligne
-            </div>
-          </div>
-        )}
-
-        {/* ── LOGS ── */}
         {tab === "logs" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
