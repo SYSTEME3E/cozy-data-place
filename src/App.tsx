@@ -9,6 +9,7 @@ import { hasNexoraPremium } from "@/lib/nexora-auth";
 import { Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
+import InstallPWA from "@/components/InstallPWA"; // ← PWA
 
 // Auth
 import NexoraLoginPage from "@/pages/NexoraLoginPage";
@@ -178,6 +179,10 @@ const App = () => (
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+
+        {/* ── PWA Install Button (Android + iOS) ── */}
+        <InstallPWA />
+
       </TooltipProvider>
     </BrowserRouter>
   </QueryClientProvider>
