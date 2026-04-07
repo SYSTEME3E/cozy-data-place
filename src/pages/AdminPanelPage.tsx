@@ -103,7 +103,7 @@ interface Transfert {
   statut: string;
 }
 
-type AdminTab = "stats" | "users" | "boutiques" | "abonnements" | "logs" | "crypto";
+type AdminTab = "stats" | "users" | "boutiques" | "abonnements" | "logs";
 
 // ── Helpers ────────────────────────────────────────────────
 const fmtDate = (d: string | null) => d
@@ -140,7 +140,7 @@ const ALL_ADMIN_FEATURES = [
   { key: "abonnements",    label: "Voir les abonnements"    },
   { key: "logs",           label: "Voir les logs"           },
   { key: "transferts",     label: "Gestion transferts / dettes" },
-  { key: "crypto_manage",  label: "Gestion Crypto P2P"      },
+  
 ];
 
 const ADMIN_CODE = "ERIC";
@@ -180,9 +180,6 @@ export default function AdminPanelPage() {
   const [abonnements,   setAbonnements]   = useState<Abonnement[]>([]);
   const [logs,          setLogs]          = useState<any[]>([]);
   const [transferts,    setTransferts]    = useState<Transfert[]>([]);
-  const [cryptoSellers, setCryptoSellers] = useState<any[]>([]);
-  const [cryptoOffers,  setCryptoOffers]  = useState<any[]>([]);
-  const [cryptoOrders,  setCryptoOrders]  = useState<any[]>([]);
 
   const [searchUser,       setSearchUser]       = useState("");
   const [filterPlan,       setFilterPlan]       = useState("");
@@ -206,12 +203,6 @@ export default function AdminPanelPage() {
   const [detteModal,   setDetteModal]   = useState<NexoraUser | null>(null);
   const [detteMontant, setDetteMontant] = useState("");
 
-  // ── Crypto P2P states ──
-  const [expandedSeller,    setExpandedSeller]    = useState<string | null>(null);
-  const [sellerMaxAmount,   setSellerMaxAmount]   = useState<Record<string, string>>({});
-  const [reservePayAmount,  setReservePayAmount]  = useState<Record<string, string>>({});
-  const [reservePayReason,  setReservePayReason]  = useState<Record<string, string>>({});
-  const [showSellerPwd,     setShowSellerPwd]     = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     try {
@@ -249,7 +240,6 @@ export default function AdminPanelPage() {
       const [
         usersData, boutiquesData, produitsData, commandesData,
         abonnementsData, logsData, transfertsData,
-        cryptoSellersData, cryptoOffersData, cryptoOrdersData,
       ] = await Promise.all([
         safeQuery(async () => await (supabase.from("nexora_users") as any).select("*").order("created_at", { ascending: false })),
         safeQuery(async () => await (supabase.from("boutiques") as any).select("*").order("created_at", { ascending: false })),
@@ -258,9 +248,6 @@ export default function AdminPanelPage() {
         safeQuery(async () => await (supabase.from("abonnements") as any).select("*").order("created_at", { ascending: false })),
         safeQuery(async () => await (supabase.from("nexora_logs") as any).select("*").order("created_at", { ascending: false }).limit(100)),
         safeQuery(async () => await (supabase.from("nexora_transactions") as any).select("*").order("created_at", { ascending: false })),
-        safeQuery(async () => await (supabase.from("crypto_sellers") as any).select("*").order("created_at", { ascending: false })),
-        safeQuery(async () => await (supabase.from("crypto_offers") as any).select("*").order("created_at", { ascending: false })),
-        safeQuery(async () => await (supabase.from("crypto_orders") as any).select("*").order("created_at", { ascending: false })),
       ]);
 
       const u  = usersData       as NexoraUser[];
@@ -273,9 +260,6 @@ export default function AdminPanelPage() {
 
       setUsers(u); setBoutiques(b); setProduits(p); setCommandes(c);
       setAbonnements(ab); setLogs(logsData); setTransferts(tr);
-      setCryptoSellers(cryptoSellersData);
-      setCryptoOffers(cryptoOffersData);
-      setCryptoOrders(cryptoOrdersData);
 
       const ca   = c.reduce((acc, cmd) => acc + (Number(cmd.total) || 0), 0);
       const caAb = ab.filter(a => a.statut === "actif" || a.statut === "paye").reduce((acc, a) => acc + (Number(a.montant) || 0), 0);
@@ -603,7 +587,6 @@ export default function AdminPanelPage() {
     { id: "stats",       label: "Statistiques", icon: BarChart3        },
     { id: "users",       label: "Utilisateurs",  icon: Users            },
     { id: "boutiques",   label: "Boutiques",     icon: Store            },
-    { id: "crypto",      label: "Crypto P2P",    icon: ArrowRightLeft   },
     { id: "abonnements", label: "Abonnements",   icon: Crown            },
     { id: "logs",        label: "Logs",          icon: Activity         },
   ];
