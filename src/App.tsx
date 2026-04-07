@@ -9,13 +9,16 @@ import { hasNexoraPremium } from "@/lib/nexora-auth";
 import { Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
-import InstallPWA from "@/components/InstallPWA"; // ← PWA
 
 // Auth
 import NexoraLoginPage from "@/pages/NexoraLoginPage";
 import LandingPage from "@/pages/LandingPage";
 import CGUPage from "@/pages/CGUPage";
 import PrivacyPage from "@/pages/PrivacyPage";
+
+// PIN Security
+import SetupPinPage from "@/pages/SetupPinPage";
+import UnlockPinPage from "@/pages/UnlockPinPage";
 
 
 // Pages Dashboard / Finance
@@ -135,6 +138,10 @@ const App = () => (
           <Route path="/cgu" element={<CGUPage />} />
           <Route path="/confidentialite" element={<PrivacyPage />} />
 
+          {/* PIN Security Routes */}
+          <Route path="/setup-pin" element={<SetupPinPage />} />
+          <Route path="/unlock-pin" element={<UnlockPinPage />} />
+
           {/* Routes Dashboard / Finance */}
           <Route path="/dashboard"         element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
           <Route path="/historique"        element={<ProtectedPage><HistoriquePage /></ProtectedPage>} />
@@ -179,10 +186,6 @@ const App = () => (
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-
-        {/* ── PWA Install Button (Android + iOS) ── */}
-        <InstallPWA />
-
       </TooltipProvider>
     </BrowserRouter>
   </QueryClientProvider>
