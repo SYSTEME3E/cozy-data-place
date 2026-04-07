@@ -5,28 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NEXORA</title>
     <meta name="description" content="NEXORA - Gestion financière intelligente">
-    <meta name="author" content="Lovable" />
-    
-    
+    <meta name="author" content="Nexora" />
+
+    <!-- ── PWA Meta Tags ──────────────────────────────────── -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#84cc16" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nexora" />
+    <link
+      rel="apple-touch-icon"
+      href="https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png"
+    />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
+    <meta property="og:title" content="NEXORA" />
+    <meta property="og:description" content="NEXORA - Gestion financière intelligente" />
+    <meta property="og:image" content="https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png" />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    
-  
-  
-  
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5bd25eeb-9eeb-4c1a-9e4f-052eb2b6d26f/id-preview-a44b27f9--f9d37d45-1ca1-4d66-918b-8b359597d0cd.lovable.app-1774319361089.png">
-  <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5bd25eeb-9eeb-4c1a-9e4f-052eb2b6d26f/id-preview-a44b27f9--f9d37d45-1ca1-4d66-918b-8b359597d0cd.lovable.app-1774319361089.png">
-  <meta property="og:title" content="NEXORA">
-  <meta name="twitter:title" content="NEXORA">
-  <meta property="og:description" content="NEXORA - Gestion financière intelligente">
-  <meta name="twitter:description" content="NEXORA - Gestion financière intelligente">
-</head>
+    <meta name="twitter:title" content="NEXORA" />
+    <meta name="twitter:description" content="NEXORA - Gestion financière intelligente" />
+    <meta name="twitter:image" content="https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
     <!-- KKiaPay SDK — paiement Mobile Money -->
     <script src="https://cdn.kkiapay.me/k.js"></script>
+
+    <!-- ── Service Worker Registration ───────────────────── -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((reg) => console.log("[SW] Enregistré :", reg.scope))
+            .catch((err) => console.error("[SW] Erreur d'enregistrement :", err));
+        });
+      }
+    </script>
   </body>
 </html>
