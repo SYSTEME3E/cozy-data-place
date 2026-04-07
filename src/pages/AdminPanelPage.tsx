@@ -498,8 +498,7 @@ export default function AdminPanelPage() {
     } finally { setChangingPassword(false); }
   };
 
-  // ── Crypto P2P handlers ──
-
+  const filteredUsers = users.filter(u => {
     const q = searchUser.toLowerCase();
     return (
       (u.nom_prenom.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
