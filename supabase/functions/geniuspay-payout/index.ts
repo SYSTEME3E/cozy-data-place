@@ -1,7 +1,7 @@
 // supabase/functions/geniuspay-payout/index.ts
 // ─────────────────────────────────────────────────────────────────
 // Edge Function : initie un retrait / transfert via GeniusPay
-// ✅ Appel réel à l'API GeniusPay pour envoyer l'argent
+// ✅ FIXÉ : Déduit le solde UNIQUEMENT si GeniusPay confirme le succès
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -166,11 +166,14 @@ Deno.serve(async (req: Request) => {
     const payoutRef  = txData.reference ?? txData.id ?? payout.id;
     const payoutStatus = txData.status ?? "pending";
 
+    // ✅ CORRECTION : Vérifier le statut réel GeniusPay
+    const isSuccess = payoutStatus === "success" || payoutStatus === "completed";
+
     // ── 5. Mettre à jour le payout avec la référence GeniusPay ──
     await supabase
       .from("nexora_payouts")
       .update({
-        status:     payoutStatus === "success" ? "completed" : "pending",
+        status:     isSuccess ? "completed" : "pending",
         moneroo_id: String(payoutRef),
       })
       .eq("id", payout.id);
@@ -183,8 +186,8 @@ Deno.serve(async (req: Request) => {
       amount_net: amountNet,
       frais,
       currency: "XOF",
-      status: "completed",
-      completed_at: new Date().toISOString(),
+      status: isSuccess ? "completed" : "pending", // ✅ Reflète le vrai statut GeniusPay
+      completed_at: isSuccess ? new Date().toISOString() : null,
       moneroo_id: String(payoutRef),
       metadata: {
         ...metadata,
@@ -195,34 +198,57 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // ── 7. Déduire du solde seulement si GeniusPay accepte ──
-    const newSolde = Math.max(0, soldeActuel - amount);
-    await supabase
-      .from("nexora_transfert_comptes")
-      .upsert(
-        { user_id, solde: newSolde, updated_at: new Date().toISOString() },
-        { onConflict: "user_id" }
+    // ── 7. Déduire du solde UNIQUEMENT si GeniusPay confirme le succès ──
+    if (isSuccess) {
+      const newSolde = Math.max(0, soldeActuel - amount);
+      await supabase
+        .from("nexora_transfert_comptes")
+        .upsert(
+          { user_id, solde: newSolde, updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        );
+
+      // ── 8a. Notification succès ──
+      await supabase.from("nexora_notifications").insert({
+        user_id,
+        titre: "📤 Transfert envoyé",
+        message: `${amountNet} FCFA envoyés vers ${pays} (${reseau}) — Réf: ${payoutRef}`,
+        type: "success",
+      });
+
+      console.log(`✅ Payout ${payoutRef} COMPLÉTÉ pour ${user_id} — ${amountNet} FCFA vers ${pays}`);
+
+      return new Response(
+        JSON.stringify({
+          success:   true,
+          payout_id: payout.id,
+          reference: String(payoutRef),
+          message:   "Transfert initié avec succès",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    } else {
+      // ── 8b. Notification attente ──
+      await supabase.from("nexora_notifications").insert({
+        user_id,
+        titre: "⏳ Transfert en attente",
+        message: `Votre transfert de ${amountNet} FCFA vers ${pays} (${reseau}) est en attente. Réf: ${payoutRef}`,
+        type: "info",
+      });
 
-    // ── 8. Notification ──
-    await supabase.from("nexora_notifications").insert({
-      user_id,
-      titre: "📤 Transfert envoyé",
-      message: `${amountNet} FCFA envoyés vers ${pays} (${reseau}) — Réf: ${payoutRef}`,
-      type: "success",
-    });
+      console.log(`⏳ Payout ${payoutRef} EN ATTENTE pour ${user_id} — Statut GeniusPay: ${payoutStatus}`);
 
-    console.log(`✅ Payout ${payoutRef} initié pour ${user_id} — ${amountNet} FCFA vers ${pays}`);
-
-    return new Response(
-      JSON.stringify({
-        success:   true,
-        payout_id: payout.id,
-        reference: String(payoutRef),
-        message:   "Transfert initié avec succès",
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      return new Response(
+        JSON.stringify({
+          success:   true,
+          payout_id: payout.id,
+          reference: String(payoutRef),
+          status:    "pending",
+          message:   "Transfert en attente de confirmation",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
   } catch (err: any) {
     console.error("geniuspay-payout error:", err?.message, err?.stack);
