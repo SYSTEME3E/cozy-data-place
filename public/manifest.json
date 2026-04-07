@@ -3,6 +3,7 @@
   "short_name": "Nexora",
   "description": "Nexora - Gestion financière intelligente",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#000000",
@@ -15,13 +16,13 @@
       "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -39,6 +40,5 @@
       ]
     }
   ],
-  "screenshots": [],
   "prefer_related_applications": false
 }
