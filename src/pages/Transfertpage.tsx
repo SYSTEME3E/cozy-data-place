@@ -423,13 +423,13 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="bg-gradient-to-r from-violet-500 to-indigo-600 p-5 flex items-center gap-4">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 p-5 flex items-center gap-4">
           <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
             <Send className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-black text-white">Envoyer de l'argent</h2>
-            <p className="text-xs text-violet-100">Frais : 3% · 24 pays disponibles</p>
+            <p className="text-xs text-red-100">Frais : 3% · 24 pays disponibles</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors">
             <X className="w-4 h-4 text-white" />
@@ -452,7 +452,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
                 value={nomComplet}
                 onChange={e => setNomComplet(e.target.value)}
                 placeholder="Jean Dupont"
-                className="w-full pl-10 pr-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-violet-400 transition-colors"
+                className="w-full pl-10 pr-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-red-400 transition-colors"
               />
             </div>
           </div>
@@ -469,7 +469,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
                   <button
                     key={n}
                     onClick={() => setReseau(n)}
-                    className={`py-2.5 px-3 rounded-xl text-sm font-semibold border transition-all ${reseau === n ? "border-violet-400 bg-violet-400/10 text-violet-500" : "border-border bg-muted/60 text-foreground hover:border-accent"}`}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-semibold border transition-all ${reseau === n ? "border-red-400 bg-red-400/10 text-red-500" : "border-border bg-muted/60 text-foreground hover:border-accent"}`}
                   >
                     {n}
                   </button>
@@ -488,7 +488,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
                 value={telephone}
                 onChange={e => setTelephone(e.target.value)}
                 placeholder="+229 97 00 00 00"
-                className="w-full pl-10 pr-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-violet-400 transition-colors"
+                className="w-full pl-10 pr-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-red-400 transition-colors"
               />
             </div>
           </div>
@@ -502,7 +502,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
                 value={montant}
                 onChange={e => setMontant(e.target.value)}
                 placeholder="Ex: 10000"
-                className={`w-full px-4 py-3 pr-20 bg-muted/60 border rounded-xl text-lg font-bold outline-none transition-colors ${soldeInsuffisant ? "border-destructive" : "border-border focus:border-violet-400"}`}
+                className={`w-full px-4 py-3 pr-20 bg-muted/60 border rounded-xl text-lg font-bold outline-none transition-colors ${soldeInsuffisant ? "border-destructive" : "border-border focus:border-red-400"}`}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">FCFA</span>
             </div>
@@ -536,7 +536,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
           <button
             onClick={handleSubmit}
             disabled={!valid || loading}
-            className="w-full py-3.5 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Traitement en cours...</>
