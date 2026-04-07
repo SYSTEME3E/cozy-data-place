@@ -564,33 +564,36 @@ export default function TransfertPage() {
     setLoadingData(true);
     try {
       const user = getNexoraUser();
+      console.log("👤 user:", user);
       if (!user?.id) { setLoadingData(false); return; }
 
       // ✅ Lire le solde depuis la table gérée par le webhook
-      const { data: compte } = await supabase
+      const { data: compte, error: compteError } = await supabase
         .from("nexora_transfert_comptes")
         .select("solde")
         .eq("user_id", user.id)
         .maybeSingle();
 
+      console.log("💰 compte:", compte, "compteError:", compteError);
       setBalance(compte?.solde ?? 0);
 
-      // Charger les transactions
-      const { data, error } = await supabase
+      // Charger TOUTES les transactions sans filtre de type pour debug
+      const { data: allData, error: allError } = await supabase
         .from("nexora_transactions")
         .select("*")
         .eq("user_id", user.id)
-        .in("type", ["recharge_transfert", "retrait_transfert"])
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Supabase error:", error);
-        showErrorMsg("Impossible de charger vos transactions.");
-        setLoadingData(false);
-        return;
-      }
+      console.log("📋 toutes les transactions:", allData, "error:", allError);
 
-      setTransactions((data ?? []).map(mapSupabaseRow));
+      // Filtrer côté client pour voir ce qui correspond
+      const filtered = (allData ?? []).filter(
+        row => row.type === "recharge_transfert" || row.type === "retrait_transfert"
+      );
+
+      console.log("🔍 transactions filtrées:", filtered);
+      setTransactions(filtered.map(mapSupabaseRow));
+
     } catch (err) {
       console.error("fetchFromSupabase error:", err);
       showErrorMsg("Erreur lors du chargement des données.");
