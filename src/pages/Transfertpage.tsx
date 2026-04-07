@@ -682,9 +682,9 @@ export default function TransfertPage() {
         )}
 
         {/* HERO CARD */}
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.1),transparent_50%)]" />
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-red-900 via-red-800 to-yellow-900 p-6">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(250,204,21,0.2),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(239,68,68,0.15),transparent_50%)]" />
           <div className="relative z-10 space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -701,9 +701,9 @@ export default function TransfertPage() {
                     <span className="text-[10px] text-yellow-400 font-bold">En attente...</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 rounded-full">
-                  <Globe className="w-3 h-3 text-emerald-400" />
-                  <span className="text-[10px] text-emerald-400 font-bold">Mobile Money</span>
+                <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-full">
+                  <Globe className="w-3 h-3 text-yellow-400" />
+                  <span className="text-[10px] text-yellow-400 font-bold">Mobile Money</span>
                 </div>
                 <button
                   onClick={() => fetchFromSupabase()}
@@ -730,10 +730,10 @@ export default function TransfertPage() {
               )}
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowRecharge(true)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-black rounded-xl transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95">
+              <button onClick={() => setShowRecharge(true)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-black rounded-xl transition-all shadow-lg shadow-yellow-500/30 hover:scale-105 active:scale-95">
                 <ArrowDownLeft className="w-4 h-4" /> Recharger
               </button>
-              <button onClick={() => setShowTransfert(true)} disabled={balance === 0 || loadingData} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 hover:border-white/40 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100">
+              <button onClick={() => setShowTransfert(true)} disabled={balance === 0 || loadingData} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-400 border border-red-400/40 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-red-500/30">
                 <ArrowUpRight className="w-4 h-4" /> Envoyer
               </button>
             </div>
@@ -744,14 +744,14 @@ export default function TransfertPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-card border border-border rounded-xl p-4 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center"><ArrowDownLeft className="w-3.5 h-3.5 text-emerald-500" /></div>
+              <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center"><ArrowDownLeft className="w-3.5 h-3.5 text-yellow-500" /></div>
               <span className="text-xs font-semibold">Total rechargé</span>
             </div>
             <p className="text-lg font-black text-foreground">{fmt(totalDepots)}</p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center"><ArrowUpRight className="w-3.5 h-3.5 text-violet-500" /></div>
+              <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center"><ArrowUpRight className="w-3.5 h-3.5 text-red-500" /></div>
               <span className="text-xs font-semibold">Total envoyé</span>
             </div>
             <p className="text-lg font-black text-foreground">{fmt(totalTransferts)}</p>
@@ -781,7 +781,7 @@ export default function TransfertPage() {
             <div className="flex flex-col items-center py-12 space-y-3">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center"><History className="w-7 h-7 text-muted-foreground" /></div>
               <p className="font-bold text-foreground text-sm">Aucune transaction</p>
-              <button onClick={() => setShowRecharge(true)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
+              <button onClick={() => setShowRecharge(true)} className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
                 <Plus className="w-3 h-3" /> Première recharge
               </button>
             </div>
@@ -789,8 +789,8 @@ export default function TransfertPage() {
             <div className="space-y-2">
               {filtered.map(tx => (
                 <div key={tx.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.type === "depot" ? "bg-emerald-500/10" : "bg-violet-500/10"}`}>
-                    {tx.type === "depot" ? <ArrowDownLeft className="w-4 h-4 text-emerald-500" /> : <ArrowUpRight className="w-4 h-4 text-violet-500" />}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.type === "depot" ? "bg-yellow-500/10" : "bg-red-500/10"}`}>
+                    {tx.type === "depot" ? <ArrowDownLeft className="w-4 h-4 text-yellow-500" /> : <ArrowUpRight className="w-4 h-4 text-red-500" />}
                   </div>
                   <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex items-center gap-2">
@@ -812,7 +812,7 @@ export default function TransfertPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
-                      <p className={`font-black text-sm ${tx.type === "depot" ? "text-emerald-500" : "text-violet-500"}`}>
+                      <p className={`font-black text-sm ${tx.type === "depot" ? "text-yellow-500" : "text-red-500"}`}>
                         {tx.type === "depot" ? "+" : "−"}{fmt(tx.montant)}
                       </p>
                     </div>
