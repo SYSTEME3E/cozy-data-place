@@ -10,6 +10,7 @@ interface NexoraAuthGuardProps {
   requirePremium?: boolean;
 }
 
+
 // Pages that are part of the PIN flow and should not be intercepted
 const PIN_FLOW_PATHS = ["/setup-pin", "/unlock-pin", "/login"];
 
