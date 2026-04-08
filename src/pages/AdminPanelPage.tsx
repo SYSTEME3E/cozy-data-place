@@ -200,6 +200,11 @@ export default function AdminPanelPage() {
   const [passwordSuccess,  setPasswordSuccess]  = useState(false);
   const [showUserPassword, setShowUserPassword] = useState(false);
 
+  // Historique transactions utilisateur sélectionné
+  const [userTxHistory,     setUserTxHistory]     = useState<any[]>([]);
+  const [userTxLoading,     setUserTxLoading]     = useState(false);
+  const [userTxTab,         setUserTxTab]         = useState<"all" | "recharges" | "transferts">("all");
+
   const [detteModal,   setDetteModal]   = useState<NexoraUser | null>(null);
   const [detteMontant, setDetteMontant] = useState("");
 
@@ -451,6 +456,50 @@ export default function AdminPanelPage() {
       setSelectedUser(prev => prev ? { ...prev, is_admin: false, admin_features: [], admin_password: null } : prev);
       loadAll();
     } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+  };
+
+  // Charger l'historique des transactions d'un utilisateur
+  const loadUserTransactions = async (userId: string) => {
+    setUserTxLoading(true);
+    setUserTxHistory([]);
+    try {
+      const [{ data: txData }, { data: payoutData }] = await Promise.all([
+        supabase.from("nexora_transactions" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        supabase.from("nexora_payouts" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      ]);
+
+      const txRows = (txData ?? []).filter((r: any) =>
+        r.type === "recharge_transfert" || r.type === "retrait_transfert" || r.type === "abonnement_premium"
+      ).map((r: any) => ({
+        id: r.id,
+        type: r.type,
+        label: r.type === "recharge_transfert" ? "Recharge" : r.type === "abonnement_premium" ? "Abonnement" : "Transfert (tx)",
+        montant: r.amount ?? 0,
+        frais: r.frais ?? 0,
+        statut: r.status === "completed" ? "success" : r.status === "pending" ? "pending" : "failed",
+        date: r.created_at,
+        meta: typeof r.metadata === "string" ? JSON.parse(r.metadata) : (r.metadata ?? {}),
+      }));
+
+      const payoutRows = (payoutData ?? []).map((p: any) => ({
+        id: p.id,
+        type: "retrait_transfert",
+        label: `Envoi → ${p.pays ?? ""}`,
+        montant: p.amount ?? 0,
+        frais: p.frais ?? 0,
+        statut: p.status === "completed" ? "success" : p.status === "failed" ? "failed" : "pending",
+        date: p.created_at,
+        meta: { nom_beneficiaire: p.nom_beneficiaire, reseau: p.reseau, telephone: p.numero, pays_flag: (typeof p.metadata === "string" ? JSON.parse(p.metadata) : p.metadata ?? {}).pays_flag },
+      }));
+
+      // Merge, deduplicate
+      const all = [...payoutRows, ...txRows];
+      all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setUserTxHistory(all);
+    } catch (e) {
+      console.error("loadUserTransactions error:", e);
+    }
+    setUserTxLoading(false);
   };
 
   const handleSetDette = async () => {
@@ -826,6 +875,75 @@ export default function AdminPanelPage() {
               </button>
             </div>
           </div>
+
+          {/* ── Gestion PIN Admin ── */}
+          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+            <div className="font-bold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Key className="w-4 h-4 text-emerald-500" /> Gestion du PIN
+            </div>
+            <AdminPinManager
+              targetUserId={u.id}
+              targetUserName={u.nom_prenom}
+              hasPinSet={!!(u as any).has_set_pin}
+              onDone={() => loadAll()}
+            />
+          </div>
+
+          {/* ── Historique des transactions ── */}
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            <div className="font-bold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <ArrowRightLeft className="w-4 h-4 text-indigo-500" /> Historique des transactions
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {(["all", "recharges", "transferts"] as const).map(f => (
+                <button key={f} onClick={() => setUserTxTab(f)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${userTxTab === f ? "bg-indigo-100 text-indigo-700" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+                  {f === "all" ? "Tout" : f === "recharges" ? "Recharges" : "Transferts"}
+                </button>
+              ))}
+            </div>
+            {userTxLoading ? (
+              <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Chargement...
+              </div>
+            ) : userTxHistory.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-3 text-center">Aucune transaction trouvée.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                {userTxHistory
+                  .filter(tx => userTxTab === "all" || (userTxTab === "recharges" && tx.type === "recharge_transfert") || (userTxTab === "transferts" && tx.type === "retrait_transfert"))
+                  .map(tx => (
+                    <div key={tx.id} className="flex items-center gap-3 px-3 py-2.5 bg-muted/60 rounded-xl text-xs">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${tx.type === "recharge_transfert" ? "bg-yellow-100" : tx.type === "abonnement_premium" ? "bg-violet-100" : "bg-red-100"}`}>
+                        {tx.type === "recharge_transfert" ? "⬇️" : tx.type === "abonnement_premium" ? "👑" : "⬆️"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-foreground truncate">
+                          {tx.label}
+                          {tx.meta?.nom_beneficiaire && <span className="text-muted-foreground font-normal"> → {tx.meta.nom_beneficiaire}</span>}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {tx.meta?.reseau && <span>{tx.meta.reseau} · </span>}
+                          {new Date(tx.date).toLocaleString("fr-FR")}
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className={`font-black ${tx.type === "recharge_transfert" ? "text-yellow-600" : "text-red-500"}`}>
+                          {tx.type === "recharge_transfert" ? "+" : "−"}{(tx.montant ?? 0).toLocaleString("fr-FR")} FCFA
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded-full font-semibold ${
+                          tx.statut === "success" ? "bg-green-100 text-green-700"
+                          : tx.statut === "pending" ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"}`}>
+                          {tx.statut === "success" ? "✓" : tx.statut === "pending" ? "⏳" : "✗"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Modals vue détail */}
@@ -1060,6 +1178,8 @@ export default function AdminPanelPage() {
                     setSelectedUser(user);
                     setNewPassword(""); setConfirmPassword(""); setPasswordSuccess(false);
                     setAdminFeatures([]); setAdminPassword(""); setShowUserPassword(false);
+                    setUserTxHistory([]); setUserTxTab("all");
+                    loadUserTransactions(user.id);
                   }}
                     className="w-full text-left bg-card border border-border rounded-2xl p-4 hover:border-primary/40 hover:shadow-sm transition-all">
                     <div className="flex items-start gap-3">
