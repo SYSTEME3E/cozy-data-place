@@ -842,7 +842,7 @@ export default function LandingPage() {
             },
             {
               q: "Dans quels pays NEXORA est-il disponible ?",
-              a: "NEXORA est disponible partout, mais le service Transfert couvre 24 pays africains : Bénin, Côte d'Ivoire, Togo, Sénégal, Mali, Burkina Faso, Cameroun, Ghana, Nigéria, Kenya, Tanzanie, Ouganda, Rwanda, Guinée, RD Congo, Gabon, Congo, Maroc, Gambie, Sierra Leone, Liberia, Mozambique, Zambie et Niger."
+              a: "NEXORA est disponible partout, mais le service Transfert couvre 24 pays africains : Bénin, Côte d'Ivoire, Togo, Sénégal, Mali, Burkina Faso, Cameroun, Ghana, Nigéria, Kenya, Tanzanie, Ouganda, Rwanda, Guinée, RD Congo, Gabon, Congo, Maroc, Gambie, Sierra Leone, Liberia, Mozambique, Zambie et Niger..."
             },
             {
               q: "Comment créer des factures PDF professionnelles ?",
@@ -861,12 +861,9 @@ export default function LandingPage() {
               a: "Publiez et découvrez des biens immobiliers dans toute l'Afrique : maisons, appartements, terrains, bureaux. Ajoutez des photos HD, définissez votre prix et recevez des contacts directs d'acheteurs ou locataires intéressés."
             },
             {
-              q: "Comment fonctionnent les investissements ?",
-              a: "Le module Investissements vous aide à suivre vos projets d'épargne et d'investissement. Définissez un objectif, enregistrez vos versements et suivez votre progression avec des graphiques clairs."
-            },
-            {
               
-              q: "Y a-t-il une application mobile ?",
+       
+             q: "Y a-t-il une application mobile ?",
               a: "NEXORA est une application web progressive (PWA) optimisée pour mobile. Vous pouvez l'ajouter à votre écran d'accueil comme une application native et l'utiliser hors ligne pour certaines fonctionnalités."
             },
             {
