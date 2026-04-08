@@ -153,6 +153,9 @@ export default function ProfilPage() {
       setPinError(result.error ?? "Erreur lors de la mise à jour du PIN.");
     }
   };
+
+  return (
+    <AppLayout>
       <div className="max-w-2xl mx-auto space-y-6 animate-fade-in-up pb-10">
 
         <h1 className="font-display font-bold text-xl flex items-center gap-2">
@@ -525,11 +528,20 @@ export default function ProfilPage() {
                 >
                   {pinLoading ? "Enregistrement..." : <><Shield className="w-4 h-4" /> Enregistrer le PIN</>}
                 </Button>
-                <Button variant="outline" onClick={() => { setPinStep("idle"); setPinOld(""); setPinNew(""); setPinConfirm(""); setPinError(null); }} className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={() => { setPinStep("idle"); setPinOld(""); setPinNew(""); setPinConfirm(""); setPinError(null); }}
+                  className="flex-1"
+                >
                   Annuler
-               </Button>
-          </div>
-      
+                </Button>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+      </div>
     </AppLayout>
   );
 }
