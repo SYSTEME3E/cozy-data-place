@@ -47,6 +47,7 @@ type Transaction = {
   montant: number;
   frais: number;
   date: string;
+  rawDate: string;
   pays?: string;
   flag?: string;
   reseau?: string;
@@ -54,7 +55,6 @@ type Transaction = {
   nom_beneficiaire?: string;
   status: "success" | "pending" | "failed";
   reference: string;
-  raw_date: string;
 };
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
@@ -68,7 +68,7 @@ function mapSupabaseRow(row: any): Transaction {
   const montant = isRecharge ? Math.max(0, (row.amount ?? 0) - frais) : (row.amount ?? 0);
 
   let status: "success" | "pending" | "failed";
-  if (row.status === "completed" || row.status === "Achevé") status = "success";
+  if (row.status === "completed") status = "success";
   else if (row.status === "pending") status = "pending";
   else status = "failed";
 
@@ -77,8 +77,8 @@ function mapSupabaseRow(row: any): Transaction {
     type: isRecharge ? "depot" : "transfert",
     montant,
     frais,
-    raw_date: row.created_at ?? "",
     date: row.created_at ? new Date(row.created_at).toLocaleString("fr-FR") : "—",
+    rawDate: row.created_at ?? new Date(0).toISOString(),
     pays: meta.pays ?? undefined,
     flag: meta.pays_flag ?? undefined,
     reseau: meta.reseau ?? undefined,
@@ -596,8 +596,8 @@ export default function TransfertPage() {
           type: "transfert",
           montant: p.amount ?? 0,
           frais: p.frais ?? 0,
-          raw_date: p.created_at ?? "",
           date: p.created_at ? new Date(p.created_at).toLocaleString("fr-FR") : "—",
+          rawDate: p.created_at ?? new Date(0).toISOString(),
           pays: p.pays ?? meta.pays ?? undefined,
           flag: meta.pays_flag ?? undefined,
           reseau: p.reseau ?? meta.reseau ?? undefined,
@@ -609,7 +609,7 @@ export default function TransfertPage() {
       });
 
       const merged = [...payoutRows, ...txOnly.map(mapSupabaseRow)];
-      merged.sort((a, b) => new Date(b.raw_date || b.date).getTime() - new Date(a.raw_date || a.date).getTime());
+      merged.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
       setTransactions(merged);
     } catch (err) {
       console.error("fetchFromSupabase error:", err);
@@ -697,8 +697,8 @@ export default function TransfertPage() {
         type: "transfert",
         montant,
         frais,
-        raw_date: new Date().toISOString(),
         date: new Date().toLocaleString("fr-FR"),
+        rawDate: new Date().toISOString(),
         status: "pending",
         reference: generateRef("TRF"),
         pays: pays.name,
