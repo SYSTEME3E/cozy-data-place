@@ -529,9 +529,7 @@ export default function ProfilPage() {
                   Annuler
                </Button>
           </div>
-        </div>
-
-      </div>
+      
     </AppLayout>
   );
 }
