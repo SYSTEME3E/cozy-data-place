@@ -325,10 +325,12 @@ export default function ProfilPage() {
 
           <div className="space-y-2">
             {[
-              { label: "Factures", detail: isPremium ? "Illimité" : "5 max", ok: true },
+              { label: "Factures", detail: isPremium ? "Illimité" : "10 max", ok: true },
               { label: "Tableau de bord", detail: "Disponible", ok: true },
+              { label: "Entrées & Depenses", detail: "Gratuit", ok: true },
+              { label: "Nexora Transfert", detail: "Pas d'abonnement requis", ok: true },
               { label: "Historique", detail: "Disponible", ok: true },
-              { label: "Boutique", detail: isPremium ? "Disponible" : "Premium uniquement", ok: isPremium },
+              { label: "Nexora Shop", detail: isPremium ? "Disponible" : "Premium uniquement", ok: isPremium },
               { label: "Contacts WhatsApp", detail: isPremium ? "Illimité" : "Premium uniquement", ok: isPremium },
               { label: "🏠 Marché Immobilier", detail: isPremium ? "Publication disponible" : "Premium uniquement", ok: isPremium },
             ].map((f) => (
