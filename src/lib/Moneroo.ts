@@ -19,7 +19,7 @@ export type PaymentType =
 export type PayoutType =
   | "retrait_transfert"
 
-export interface payAndRedirect {
+export interface InitPaymentParams. {
   type: PaymentType;
   amount: number;
   currency?: string;
