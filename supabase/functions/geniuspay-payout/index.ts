@@ -1,7 +1,8 @@
 // supabase/functions/geniuspay-payout/index.ts
-// ✅ FIX 1 : Toujours insérer dans nexora_transactions (même si GeniusPay échoue)
-// ✅ FIX 2 : Mapping du code réseau (ex: "MTN MoMo" → "mtn_money")
-// ✅ FIX 3 : Déduction immédiate du solde + restitution si GeniusPay rejette
+// ✅ FIX PRINCIPAL : nexora_transactions n'a PAS de colonne amount_net → supprimée de tous les inserts
+// ✅ FIX : Mapping réseau (ex: "MTN MoMo" → "mtn_money")
+// ✅ FIX : Déduction immédiate du solde + restitution si GeniusPay rejette
+// ✅ FIX : Toujours insérer dans nexora_transactions (même si GeniusPay échoue)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -20,12 +21,11 @@ const RESEAU_CODES: Record<string, string> = {
   "M-Pesa": "mpesa", "Tigo Pesa": "tigo",
   "Vodacom": "vodacom", "Vodafone Cash": "vodafone",
   "AirtelTigo Money": "airteltigo", "Glo Pay": "glo",
-  "Africell Money": "africell", "Maroc Telecom": "iam",
-  "Lonestar Money": "lonestar",
+  "Africell Money": "africell", "Maroc Telecom": "iam", "Lonestar Money": "lonestar",
 };
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -34,9 +34,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { type, amount, amount_net, frais = 0, user_id, user_email,
-            user_first_name, user_last_name, pays, reseau, reseau_label,
-            numero_mobile, metadata = {} } = body;
+    const {
+      type, amount, frais = 0, user_id, user_email,
+      user_first_name, user_last_name, pays, reseau, reseau_label,
+      numero_mobile, metadata = {}
+    } = body;
 
     if (!user_id || !amount || !type || !numero_mobile) {
       return new Response(JSON.stringify({ success: false, error: "Paramètres manquants" }),
@@ -48,11 +50,11 @@ Deno.serve(async (req: Request) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ✅ Normaliser le code réseau
+    // ✅ Normaliser le code réseau pour GeniusPay
     const reseauCode    = RESEAU_CODES[reseau] ?? reseau.toLowerCase().replace(/\s+/g, "_");
     const reseauDisplay = reseau_label ?? reseau;
     const nomBeneficiaire = `${user_first_name ?? ""} ${user_last_name ?? ""}`.trim();
-    const amountNet = amount_net ?? amount - frais;
+    const amountNet = amount - frais;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -69,7 +71,7 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── 2. Créer le payout en DB ──
+    // ── 2. Créer le payout en DB (status "pending") ──
     const { data: payout, error: payoutErr } = await supabase
       .from("nexora_payouts")
       .insert({
@@ -78,8 +80,12 @@ Deno.serve(async (req: Request) => {
         nom_beneficiaire: nomBeneficiaire,
         numero: numero_mobile, pays,
         reseau: reseauDisplay,
-        metadata: { ...metadata, reseau_code: reseauCode,
-                    pays_flag: metadata.pays_flag ?? "", pays_code: metadata.pays_code ?? "" },
+        metadata: {
+          ...metadata,
+          reseau_code: reseauCode,
+          pays_flag: metadata.pays_flag ?? "",
+          pays_code: metadata.pays_code ?? "",
+        },
       })
       .select().single();
 
@@ -113,7 +119,7 @@ Deno.serve(async (req: Request) => {
           name:         nomBeneficiaire,
           phone:        numero_mobile,
           email:        user_email ?? undefined,
-          mobile_money: reseauCode,   // ✅ code normalisé
+          mobile_money: reseauCode,
           country:      metadata.pays_code ?? "",
         },
         metadata: { ...metadata, user_id, payout_id: payout.id, type },
@@ -126,24 +132,35 @@ Deno.serve(async (req: Request) => {
     // ── 5. GeniusPay rejette → restituer le solde + marquer failed ──
     if (!geniusPayResponse.ok) {
       console.error("GeniusPay payout error:", geniusData);
+
       await supabase.from("nexora_payouts").update({ status: "failed" }).eq("id", payout.id);
 
       // ✅ Restituer le solde
       await supabase.from("nexora_transfert_comptes")
         .upsert({ user_id, solde: soldeActuel, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 
-      // ✅ FIX 1 : Toujours insérer dans nexora_transactions
+      // ✅ INSERT dans nexora_transactions (sans amount_net - colonne inexistante)
       await supabase.from("nexora_transactions").insert({
-        user_id, type: "retrait_transfert", amount, amount_net: amountNet, frais,
-        currency: "XOF", status: "failed", moneroo_id: payout.id,
-        metadata: { ...metadata, nom_beneficiaire: nomBeneficiaire,
-                    telephone: numero_mobile, reseau: reseauDisplay, pays,
-                    error: geniusData.message ?? geniusData.error ?? `HTTP ${geniusPayResponse.status}` },
+        user_id,
+        type: "retrait_transfert",
+        amount,
+        frais,
+        currency: "XOF",
+        status: "failed",
+        moneroo_id: payout.id,
+        metadata: {
+          ...metadata,
+          nom_beneficiaire: nomBeneficiaire,
+          telephone: numero_mobile,
+          reseau: reseauDisplay,
+          pays,
+          error: geniusData.message ?? geniusData.error ?? `HTTP ${geniusPayResponse.status}`,
+        },
       });
 
       await supabase.from("nexora_notifications").insert({
         user_id, titre: "⚠️ Transfert refusé",
-        message: `Transfert de ${amountNet} FCFA vers ${pays} refusé. Solde restitué. Erreur: ${geniusData.message ?? "inconnue"}`,
+        message: `Transfert de ${amountNet} FCFA vers ${pays} refusé. Solde restitué.`,
         type: "error",
       });
 
@@ -153,23 +170,33 @@ Deno.serve(async (req: Request) => {
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const txData      = geniusData.data ?? geniusData;
-    const payoutRef   = txData.reference ?? txData.id ?? payout.id;
-    const isSuccess   = ["success", "completed"].includes(txData.status ?? "");
+    const txData    = geniusData.data ?? geniusData;
+    const payoutRef = txData.reference ?? txData.id ?? payout.id;
+    const isSuccess = ["success", "completed"].includes(txData.status ?? "");
 
     // ── 6. Mettre à jour le payout ──
     await supabase.from("nexora_payouts")
       .update({ status: isSuccess ? "completed" : "pending", moneroo_id: String(payoutRef) })
       .eq("id", payout.id);
 
-    // ── 7. ✅ FIX 1 : Toujours insérer dans nexora_transactions ──
+    // ── 7. ✅ INSERT dans nexora_transactions (sans amount_net) ──
     await supabase.from("nexora_transactions").insert({
-      user_id, type: "retrait_transfert", amount, amount_net: amountNet, frais,
-      currency: "XOF", status: isSuccess ? "completed" : "pending",
+      user_id,
+      type: "retrait_transfert",
+      amount,
+      frais,
+      currency: "XOF",
+      status: isSuccess ? "completed" : "pending",
       completed_at: isSuccess ? new Date().toISOString() : null,
       moneroo_id: String(payoutRef),
-      metadata: { ...metadata, nom_beneficiaire: nomBeneficiaire,
-                  telephone: numero_mobile, reseau: reseauDisplay, pays },
+      metadata: {
+        ...metadata,
+        nom_beneficiaire: nomBeneficiaire,
+        telephone: numero_mobile,
+        reseau: reseauDisplay,
+        pays_flag: metadata.pays_flag ?? "",
+        pays,
+      },
     });
 
     // ── 8. Notification ──
@@ -183,7 +210,8 @@ Deno.serve(async (req: Request) => {
     console.log(`${isSuccess ? "✅" : "⏳"} Payout ${payoutRef} pour ${user_id} — ${amountNet} FCFA → ${pays}`);
 
     return new Response(JSON.stringify({
-      success: true, payout_id: payout.id,
+      success: true,
+      payout_id: payout.id,
       reference: String(payoutRef),
       status: isSuccess ? "completed" : "pending",
       message: isSuccess ? "Transfert envoyé avec succès" : "Transfert en cours de traitement",
