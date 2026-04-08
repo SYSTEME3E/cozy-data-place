@@ -9,6 +9,7 @@ import {
 import { initPayment, initPayout } from "@/lib/Moneroo";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { supabase } from "@/integrations/supabase/client";
+import PinTransferModal from "@/components/PinTransferModal";
 
 const LOGO_URL = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
 
