@@ -1640,8 +1640,11 @@ export type Database = {
           avatar_url: string | null
           created_at: string | null
           email: string
+          has_set_pin: boolean | null
           id: string
           nom: string
+          pin_attempts: number | null
+          security_pin: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1649,8 +1652,11 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           email?: string
+          has_set_pin?: boolean | null
           id?: string
           nom?: string
+          pin_attempts?: number | null
+          security_pin?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1658,8 +1664,11 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           email?: string
+          has_set_pin?: boolean | null
           id?: string
           nom?: string
+          pin_attempts?: number | null
+          security_pin?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1824,7 +1833,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_reset_user_pin: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
