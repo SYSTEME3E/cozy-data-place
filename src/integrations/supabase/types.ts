@@ -1358,6 +1358,7 @@ export type Database = {
           blocked_reason: string | null
           created_at: string
           email: string
+          has_set_pin: boolean | null
           id: string
           is_active: boolean
           is_admin: boolean
@@ -1365,10 +1366,12 @@ export type Database = {
           nom_prenom: string
           password_hash: string
           password_plain: string | null
+          pin_updated_at: string | null
           plan: string
           premium_expires_at: string | null
           premium_since: string | null
           remember_token: string | null
+          security_pin: string | null
           status: string
           suspended_at: string | null
           suspended_reason: string | null
@@ -1385,6 +1388,7 @@ export type Database = {
           blocked_reason?: string | null
           created_at?: string
           email: string
+          has_set_pin?: boolean | null
           id?: string
           is_active?: boolean
           is_admin?: boolean
@@ -1392,10 +1396,12 @@ export type Database = {
           nom_prenom: string
           password_hash: string
           password_plain?: string | null
+          pin_updated_at?: string | null
           plan?: string
           premium_expires_at?: string | null
           premium_since?: string | null
           remember_token?: string | null
+          security_pin?: string | null
           status?: string
           suspended_at?: string | null
           suspended_reason?: string | null
@@ -1412,6 +1418,7 @@ export type Database = {
           blocked_reason?: string | null
           created_at?: string
           email?: string
+          has_set_pin?: boolean | null
           id?: string
           is_active?: boolean
           is_admin?: boolean
@@ -1419,10 +1426,12 @@ export type Database = {
           nom_prenom?: string
           password_hash?: string
           password_plain?: string | null
+          pin_updated_at?: string | null
           plan?: string
           premium_expires_at?: string | null
           premium_since?: string | null
           remember_token?: string | null
+          security_pin?: string | null
           status?: string
           suspended_at?: string | null
           suspended_reason?: string | null
