@@ -849,7 +849,17 @@ export default function TransfertPage() {
 
         {/* MODALS */}
         {showRecharge && <ModalRecharge onClose={() => setShowRecharge(false)} onSuccess={handleRechargeSuccess} />}
-        {showTransfert && <ModalTransfert onClose={() => setShowTransfert(false)} onConfirm={handleTransfert} balance={balance} />}
+        {showTransfert && <ModalTransfert onClose={() => setShowTransfert(false)} onConfirm={handleTransfertRequest} balance={balance} />}
+        <PinTransferModal
+          isOpen={showPinModal}
+          onClose={() => { setShowPinModal(false); setPendingTransfer(null); }}
+          onSuccess={handlePinSuccess}
+          transferDetails={pendingTransfer ? {
+            amount: pendingTransfer.montant,
+            currency: "FCFA",
+            recipient: `${pendingTransfer.pays.flag} ${pendingTransfer.nomComplet} — ${pendingTransfer.reseau}`,
+          } : undefined}
+        />
       </div>
     </AppLayout>
   );
