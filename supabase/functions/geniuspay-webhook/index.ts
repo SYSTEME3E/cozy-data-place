@@ -273,7 +273,17 @@ Deno.serve(async (req) => {
           .update({ status: "failed" })
           .eq("moneroo_id", reference);
 
-        // ❌ NE PAS déduire le solde (il n'a jamais été déduit en "pending")
+        // ✅ RESTITUER le solde (il a été déduit à l'initiation du payout)
+        const { data: compteEchec } = await supabase
+          .from("nexora_transfert_comptes")
+          .select("solde")
+          .eq("user_id", payoutUserId)
+          .maybeSingle();
+        const soldeEchec = compteEchec?.solde ?? 0;
+        await supabase.from("nexora_transfert_comptes")
+          .upsert({ user_id: payoutUserId, solde: soldeEchec + payoutAmount, updated_at: new Date().toISOString() },
+                  { onConflict: "user_id" });
+        console.log(`💰 Solde restitué: ${payoutUserId} → ${soldeEchec + payoutAmount} FCFA`);
 
         // ── Notification d'échec ──
         const reseau = payout.reseau ?? "";
