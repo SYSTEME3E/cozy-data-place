@@ -559,17 +559,55 @@ export default function TransfertPage() {
 
       setBalance(compte?.solde ?? 0);
 
+      // ── Charger les transactions (recharges)
       const { data: allData } = await supabase
         .from("nexora_transactions")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      const filtered = (allData ?? []).filter(
+      const txFiltered = (allData ?? []).filter(
         row => row.type === "recharge_transfert" || row.type === "retrait_transfert"
       );
 
-      setTransactions(filtered.map(mapSupabaseRow));
+      // ── Charger les payouts (transferts sortants) — source de vérité principale
+      const { data: payoutsData } = await supabase
+        .from("nexora_payouts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      // Fusionner : les payouts ont priorité sur les transactions retrait_transfert
+      const payoutIds = new Set((payoutsData ?? []).map((p: any) => p.moneroo_id).filter(Boolean));
+      const txOnly = txFiltered.filter(row =>
+        row.type !== "retrait_transfert" || !payoutIds.has(row.moneroo_id)
+      );
+
+      const payoutRows = (payoutsData ?? []).map((p: any): Transaction => {
+        const meta = typeof p.metadata === "string" ? JSON.parse(p.metadata) : (p.metadata ?? {});
+        let status: "success" | "pending" | "failed";
+        if (p.status === "completed") status = "success";
+        else if (p.status === "failed") status = "failed";
+        else status = "pending";
+        return {
+          id: p.id,
+          type: "transfert",
+          montant: p.amount ?? 0,
+          frais: p.frais ?? 0,
+          date: p.created_at ? new Date(p.created_at).toLocaleString("fr-FR") : "—",
+          pays: p.pays ?? meta.pays ?? undefined,
+          flag: meta.pays_flag ?? undefined,
+          reseau: p.reseau ?? meta.reseau ?? undefined,
+          telephone: p.numero ?? meta.telephone ?? undefined,
+          nom_beneficiaire: p.nom_beneficiaire ?? meta.nom_beneficiaire ?? undefined,
+          status,
+          reference: p.moneroo_id ?? p.id?.slice(0, 8).toUpperCase() ?? "—",
+        };
+      });
+
+      const merged = [...payoutRows, ...txOnly.map(mapSupabaseRow)];
+      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTransactions(merged);
     } catch (err) {
       console.error("fetchFromSupabase error:", err);
       showErrorMsg("Erreur lors du chargement des données.");
@@ -649,7 +687,8 @@ export default function TransfertPage() {
         return;
       }
 
-      // Add pending transaction to UI (no local balance deduction — server handles it)
+      // Déduire du solde immédiatement dans l'UI (le serveur gère la vraie déduction si success)
+      setBalance(prev => Math.max(0, prev - montant));
       const tx: Transaction = {
         id: `local-${Date.now()}`,
         type: "transfert",
