@@ -632,26 +632,46 @@ export default function TransfertPage() {
     const { montant, frais, reseau, tel, pays, nomComplet } = pendingTransfer;
     setPendingTransfer(null);
 
-    // Add a pending transaction to UI (no balance deduction yet - server handles it)
-    const tx: Transaction = {
-      id: `local-${Date.now()}`,
-      type: "transfert",
-      montant,
-      frais,
-      date: new Date().toLocaleString("fr-FR"),
-      status: "pending",
-      reference: generateRef("TRF"),
-      pays: pays.name,
-      flag: pays.flag,
-      reseau,
-      telephone: tel,
-      nom_beneficiaire: nomComplet,
-    };
-    setTransactions(prev => [tx, ...prev]);
-    showSuccessMsg(`${fmt(montant)} FCFA envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
+    // Actually call the payout edge function now
+    try {
+      const result = await initPayout({
+        type: "retrait_transfert",
+        amount: montant,
+        pays: pays.name,
+        reseau,
+        numero_mobile: tel,
+        nom_beneficiaire: nomComplet,
+        metadata: { pays_code: pays.code, pays_flag: pays.flag },
+      });
 
-    // Refresh from server after a delay to get the real status & balance
-    setTimeout(() => fetchFromSupabase(), 3000);
+      if (!result.success) {
+        showErrorMsg(result.error ?? "Erreur lors du transfert.");
+        return;
+      }
+
+      // Add pending transaction to UI (no local balance deduction — server handles it)
+      const tx: Transaction = {
+        id: `local-${Date.now()}`,
+        type: "transfert",
+        montant,
+        frais,
+        date: new Date().toLocaleString("fr-FR"),
+        status: "pending",
+        reference: generateRef("TRF"),
+        pays: pays.name,
+        flag: pays.flag,
+        reseau,
+        telephone: tel,
+        nom_beneficiaire: nomComplet,
+      };
+      setTransactions(prev => [tx, ...prev]);
+      showSuccessMsg(`${fmt(montant)} FCFA envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
+
+      // Refresh from server to get real status & updated balance
+      setTimeout(() => fetchFromSupabase(), 3000);
+    } catch (err: any) {
+      showErrorMsg(err.message ?? "Erreur réseau. Veuillez réessayer.");
+    }
   };
 
   return (
