@@ -20,9 +20,8 @@ const FEATURES_COMPARE = [
     icon: TrendingUp,
     items: [
       { label: "Entrées & Dépenses",     gratuit: "10 / mois",       premium: "Illimité" },
-      { label: "Historique financier",   gratuit: "7 jours",        premium: "Illimité" },
       { label: "Factures",               gratuit: "10 factures",    premium: "Illimité" },
-      { label: "Contacts WhatsApp",         gratuit: "0 fichier de contact",        premium: "Illimité" },
+      { label: "Contacts WhatsApp",         gratuit: "0 fichier de contact",  premium: "Illimité" },
     ],
   },
   {
