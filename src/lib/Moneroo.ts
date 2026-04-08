@@ -14,14 +14,12 @@ import { getNexoraUser } from "@/lib/nexora-auth";
 export type PaymentType =
   | "abonnement_premium"
   | "recharge_transfert"
-  | "depot_epargne";
+  
 
 export type PayoutType =
-  | "retrait_epargne"
   | "retrait_transfert"
-  | "retrait_boutique";
 
-export interface InitPaymentParams {
+export interface payAndRedirect {
   type: PaymentType;
   amount: number;
   currency?: string;
@@ -115,7 +113,7 @@ async function extractErrorMessage(error: any): Promise<string> {
 // INITIALISER UN PAIEMENT
 // ─────────────────────────────────────────────
 
-export async function initPayment(params: InitPaymentParams): Promise<GeniusPayResult> {
+export async function payAndRedirect(params: InitPaymentParams): Promise<GeniusPayResult> {
   const user = getNexoraUser();
   if (!user) return { success: false, error: "Utilisateur non connecté" };
 
