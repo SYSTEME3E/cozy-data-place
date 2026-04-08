@@ -113,7 +113,7 @@ async function extractErrorMessage(error: any): Promise<string> {
 // INITIALISER UN PAIEMENT
 // ─────────────────────────────────────────────
 
-export async function payAndRedirect(params: InitPaymentParams): Promise<GeniusPayResult> {
+export async function InitPaymentParams (params: InitPaymentParams): Promise<GeniusPayResult> {
   const user = getNexoraUser();
   if (!user) return { success: false, error: "Utilisateur non connecté" };
 
