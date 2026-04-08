@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { getNexoraUser } from "@/lib/nexora-auth";
-import { initPayment } from "@/lib/Moneroo";
+import { initPayment, payAndRedirect } from "@/lib/Moneroo";
 import {
   Crown, Check, X, Zap, ShieldCheck, Star, Sparkles,
   TrendingUp, Store, PiggyBank, ArrowLeftRight, Home,
