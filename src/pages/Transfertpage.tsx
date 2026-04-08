@@ -393,30 +393,10 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
     setReseau(p.networks[0]);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!valid || !pays) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const result = await initPayout({
-        type: "retrait_transfert",
-        amount: montantNum,
-        pays: pays.name,
-        reseau,
-        numero_mobile: telephone,
-        nom_beneficiaire: nomComplet,
-        metadata: { pays_code: pays.code, pays_flag: pays.flag },
-      });
-      if (!result.success) {
-        setError(result.error ?? "Erreur lors du transfert. Veuillez réessayer.");
-        setLoading(false);
-        return;
-      }
-      onConfirm(montantNum, frais, reseau, telephone, pays, nomComplet);
-    } catch (err: any) {
-      setError(err.message ?? "Erreur réseau. Veuillez réessayer.");
-      setLoading(false);
-    }
+    // Just pass details to parent — actual payout happens after PIN
+    onConfirm(montantNum, frais, reseau, telephone, pays, nomComplet);
   };
 
   return (
