@@ -527,13 +527,11 @@ export default function ProfilPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setPinStep("idle"); setPinOld(""); setPinNew(""); setPinConfirm(""); setPinError(null); }} className="flex-1">
                   Annuler
-                </Button>
-              </div>
-            </div>
-          )}
+               </Button>
+          </div>
         </div>
 
-      <div>
+      </div>
     </AppLayout>
   );
 }
