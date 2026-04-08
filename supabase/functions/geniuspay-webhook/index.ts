@@ -165,6 +165,7 @@ Deno.serve(async (req) => {
         console.log(`✅ Premium activé pour ${finalUserId}`);
       }
 
+    }
 
     // ══════════════════════════════════════════════════════════════
     // ② PAYOUT RÉUSSI (payout.success)
