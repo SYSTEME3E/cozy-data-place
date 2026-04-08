@@ -5,6 +5,7 @@ export const NEXORA_SESSION_KEY = "nexora_session_token";
 export const NEXORA_USER_KEY = "nexora_current_user";
 export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 heures
 
+
 // ─── Types & Limites ──────────────────────────────────────────────────────────
 export type NexoraPlan = "gratuit" | "boss" | "roi" | "admin";
 
