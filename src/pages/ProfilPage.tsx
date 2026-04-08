@@ -326,15 +326,10 @@ export default function ProfilPage() {
           <div className="space-y-2">
             {[
               { label: "Factures", detail: isPremium ? "Illimité" : "5 max", ok: true },
-              { label: "Coffre-fort", detail: isPremium ? "Illimité" : "10 comptes max", ok: true },
-              { label: "Liens & Contacts", detail: "Illimité", ok: true },
               { label: "Tableau de bord", detail: "Disponible", ok: true },
               { label: "Historique", detail: "Disponible", ok: true },
               { label: "Boutique", detail: isPremium ? "Disponible" : "Premium uniquement", ok: isPremium },
-              { label: "Entrées & Dépenses", detail: isPremium ? "Illimité" : "Premium uniquement", ok: isPremium },
-              { label: "Investissements", detail: isPremium ? "Illimité" : "Premium uniquement", ok: isPremium },
-              { label: "Prêts & Dettes", detail: isPremium ? "Illimité" : "Premium uniquement", ok: isPremium },
-              { label: "Médias", detail: isPremium ? "Illimité" : "Premium uniquement", ok: isPremium },
+              { label: "Contacts WhatsApp", detail: isPremium ? "Illimité" : "Premium uniquement", ok: isPremium },
               { label: "🏠 Marché Immobilier", detail: isPremium ? "Publication disponible" : "Premium uniquement", ok: isPremium },
             ].map((f) => (
               <div key={f.label}
