@@ -71,7 +71,7 @@ function generateToken(): string {
 
 // ─── Vérification des Quotas ──────────────────────────────────────────────────
 export async function canUserAdd(
-  type: "produits" | "factures" | "prets"
+  type: "produits" | "factures"
 ): Promise<{ can: boolean; current: number; limit: number }> {
   const user = getNexoraUser();
   if (!user) return { can: false, current: 0, limit: 0 };
