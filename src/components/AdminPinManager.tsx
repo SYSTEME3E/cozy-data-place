@@ -11,6 +11,7 @@ interface AdminPinManagerProps {
   onDone?: () => void;
 }
 
+
 type Mode = "idle" | "reset" | "set";
 
 export default function AdminPinManager({
