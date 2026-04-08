@@ -146,7 +146,7 @@ export async function registerUser(data: {
         email: data.email.toLowerCase(),
         password_hash,
         is_admin: false,
-        plan: "gratuit",
+        plan: "free",
         badge_premium: false,
         whatsapp: data.whatsapp || null,
         is_active: true,   // ✅ Champ manquant — cause de l'erreur
