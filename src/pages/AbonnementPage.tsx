@@ -22,7 +22,7 @@ const FEATURES_COMPARE = [
       { label: "Entrées & Dépenses",     gratuit: "10 / mois",       premium: "Illimité" },
       { label: "Historique financier",   gratuit: "7 jours",        premium: "Illimité" },
       { label: "Factures",               gratuit: "10 factures",    premium: "Illimité" },
-      { label: "Contacts WhatsApp",        Pas gratuit ,        premium: "Illimité" },
+      { label: "Contacts WhatsApp",         gratuit: "0 fichier de contact",        premium: "Illimité" },
     ],
   },
   {
@@ -31,6 +31,7 @@ const FEATURES_COMPARE = [
     items: [
       { label: "Accès boutique",         gratuit: true,              premium: true },
       { label: "Produits physiques",     gratuit: true,      premium: "Illimité" },
+      { label: "Produits digitaux",      gratuit: true,             premium: true },
       { label: "Gestion commandes",      gratuit: true,             premium: true },
       { label: "Facebook Pixel",         gratuit: true,             premium: true },
       { label: "Domaine personnalisé",   gratuit: true,             premium: true },
