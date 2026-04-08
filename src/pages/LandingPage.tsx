@@ -50,12 +50,7 @@ const FEATURES = [
     points: ["Annonces illimitées", "Profil vendeur vérifié", "Photos HD", "Contact direct sécurisé"],
   },
   {
-    icon: Lock, color: "#f59e0b", bg: "#fffbeb",
-    title: "Coffre-Fort Digital", tag: "Disponible",
-    desc: "Stockez vos informations personnelles, codes secrets et données confidentielles dans un espace ultra-sécurisé.",
-    points: ["Chiffrement bout-en-bout", "Mots de passe & documents", "Accès sécurisé", "Sauvegarde cloud"],
-  },
-  {
+    
     icon: Users, color: "#25d366", bg: "#f0fdf4",
     title: "Contacts WhatsApp", tag: "Disponible",
     desc: "Accédez aux contacts WhatsApp des membres NEXORA. Téléchargez-les en format .vcf pour les importer directement dans votre téléphone. Réseau de confiance, membres vérifiés.",
@@ -434,7 +429,7 @@ export default function LandingPage() {
             <div className="aspect-video bg-black">
               <iframe
                 width="100%" height="100%"
-                src="https://www.youtube.com/embed/On6T3pVLc_Q?autoplay=1&rel=0"
+                src="https://youtu.be/2whA5HSFhio?si=0IhWYz1oPrLYgTcI"
                 title="Présentation NEXORA"
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -861,26 +856,15 @@ export default function LandingPage() {
               a: "Vous pouvez nous joindre par email à support@nexora.africa. Notre équipe répond dans les meilleurs délais. Vous pouvez aussi utiliser le chat intégré à la plateforme une fois connecté."
             },
             {
-              q: "Qu'est-ce que le Coffre-Fort Digital ?",
-              a: "Le Coffre-Fort Digital vous permet de stocker en toute sécurité vos mots de passe, identifiants de comptes, numéros de téléphone et notes confidentielles. Toutes vos données sont chiffrées et accessibles uniquement par vous."
-            },
-            {
               q: "Comment fonctionne le marché immobilier ?",
               a: "Publiez et découvrez des biens immobiliers dans toute l'Afrique : maisons, appartements, terrains, bureaux. Ajoutez des photos HD, définissez votre prix et recevez des contacts directs d'acheteurs ou locataires intéressés."
-            },
-            {
-              q: "Puis-je gérer mes prêts et dettes ?",
-              a: "Oui ! Le module Prêts & Dettes vous permet de suivre l'argent que vous avez prêté ou emprunté. Ajoutez des signatures électroniques, des témoins, et recevez des rappels pour les échéances de remboursement."
             },
             {
               q: "Comment fonctionnent les investissements ?",
               a: "Le module Investissements vous aide à suivre vos projets d'épargne et d'investissement. Définissez un objectif, enregistrez vos versements et suivez votre progression avec des graphiques clairs."
             },
             {
-              q: "Comment fonctionne la plateforme Crypto P2P ?",
-              a: "Notre marketplace Crypto P2P permet d'acheter et vendre des cryptomonnaies (USDT, BTC, ETH…) directement entre utilisateurs avec paiement via Mobile Money. Les transactions sont sécurisées et vérifiées par la plateforme."
-            },
-            {
+              
               q: "Y a-t-il une application mobile ?",
               a: "NEXORA est une application web progressive (PWA) optimisée pour mobile. Vous pouvez l'ajouter à votre écran d'accueil comme une application native et l'utiliser hors ligne pour certaines fonctionnalités."
             },
