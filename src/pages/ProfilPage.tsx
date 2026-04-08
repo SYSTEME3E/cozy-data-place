@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   User, Key, Save, Mail, AtSign,
-  BadgeCheck, Crown, Zap, Camera, CheckCircle2, X
+  BadgeCheck, Crown, Zap, Camera, CheckCircle2, X,
+  Shield, Lock, Eye, EyeOff
 } from "lucide-react";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { Link } from "react-router-dom";
+import { setPin, verifyPin, hasPinSet } from "@/services/pinService";
 
 
 
@@ -31,6 +33,17 @@ export default function ProfilPage() {
   const isAdmin = nexoraUser?.is_admin;
   const isPremium = nexoraUser?.plan === "boss" || nexoraUser?.plan === "roi" || isAdmin;
   const hasBadge = isPremium || isAdmin;
+
+  // ── PIN state
+  const [pinStep, setPinStep]   = useState<"idle" | "verify" | "new" | "confirm">("idle");
+  const [pinHasSet, setPinHasSet] = useState<boolean | null>(null);
+  const [pinOld, setPinOld]     = useState("");
+  const [pinNew, setPinNew]     = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinSuccess, setPinSuccess] = useState(false);
+  const [showPin, setShowPin]   = useState(false);
 
   // ── Sauvegarder profil
   const handleSaveProfile = async () => {
@@ -99,8 +112,47 @@ export default function ProfilPage() {
     setOldPassword(""); setNewPassword(""); setConfirmPassword("");
   };
 
-  return (
-    <AppLayout>
+  // ── Vérifier si PIN déjà défini
+  useState(() => {
+    if (nexoraUser?.id) {
+      hasPinSet(nexoraUser.id).then(has => {
+        setPinHasSet(has);
+        setPinStep(has ? "idle" : "idle");
+      });
+    }
+  });
+
+  // ── Changer le code PIN
+  const handleChangePin = async () => {
+    if (!nexoraUser) return;
+    setPinError(null);
+    if (!/^\d{4}$/.test(pinNew)) { setPinError("Le PIN doit contenir exactement 4 chiffres."); return; }
+    if (pinNew !== pinConfirm)   { setPinError("Les PIN ne correspondent pas."); return; }
+
+    setPinLoading(true);
+
+    // Si PIN déjà défini, vérifier l'ancien
+    if (pinHasSet) {
+      if (!/^\d{4}$/.test(pinOld)) { setPinError("Entrez votre ancien PIN (4 chiffres)."); setPinLoading(false); return; }
+      const ok = await verifyPin(nexoraUser.id, pinOld);
+      if (!ok) { setPinError("Ancien PIN incorrect."); setPinLoading(false); return; }
+    }
+
+    const result = await setPin(nexoraUser.id, pinNew);
+    setPinLoading(false);
+
+    if (result.success) {
+      playSuccessSound();
+      setPinSuccess(true);
+      setPinHasSet(true);
+      setPinOld(""); setPinNew(""); setPinConfirm("");
+      setPinStep("idle");
+      toast({ title: "✅ Code PIN mis à jour avec succès !" });
+      setTimeout(() => setPinSuccess(false), 4000);
+    } else {
+      setPinError(result.error ?? "Erreur lors de la mise à jour du PIN.");
+    }
+  };
       <div className="max-w-2xl mx-auto space-y-6 animate-fade-in-up pb-10">
 
         <h1 className="font-display font-bold text-xl flex items-center gap-2">
@@ -376,6 +428,109 @@ export default function ProfilPage() {
               <Key className="w-4 h-4" /> Modifier le mot de passe
             </Button>
           </div>
+        </div>
+
+        {/* ════════════════════════════
+            CODE PIN DE SÉCURITÉ
+        ════════════════════════════ */}
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div>
+            <h2 className="font-display font-bold flex items-center gap-2 text-base">
+              <Shield className="w-5 h-5 text-emerald-500" /> Code PIN de sécurité
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {pinHasSet
+                ? "Votre PIN est défini. Vous pouvez le modifier à tout moment."
+                : "Définissez un code PIN à 4 chiffres pour sécuriser vos transferts."}
+            </p>
+          </div>
+
+          {pinSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2 text-emerald-700 text-sm font-semibold">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> Code PIN mis à jour avec succès !
+            </div>
+          )}
+
+          {pinStep === "idle" && (
+            <button
+              onClick={() => { setPinStep("new"); setPinError(null); }}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 font-semibold text-sm transition-colors"
+            >
+              <Lock className="w-4 h-4" />
+              {pinHasSet ? "Modifier mon code PIN" : "Créer mon code PIN"}
+            </button>
+          )}
+
+          {pinStep === "new" && (
+            <div className="space-y-3">
+              {pinHasSet && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Ancien PIN (4 chiffres)</label>
+                  <div className="relative">
+                    <input
+                      type={showPin ? "text" : "password"}
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={pinOld}
+                      onChange={e => setPinOld(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="••••"
+                      className="w-full px-4 py-3 pr-12 bg-muted/60 border border-border rounded-xl text-center text-2xl font-black tracking-widest outline-none focus:border-emerald-400 transition-colors"
+                    />
+                    <button type="button" onClick={() => setShowPin(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Nouveau PIN (4 chiffres)</label>
+                <input
+                  type={showPin ? "text" : "password"}
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinNew}
+                  onChange={e => setPinNew(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="••••"
+                  className="w-full px-4 py-3 bg-muted/60 border border-border rounded-xl text-center text-2xl font-black tracking-widest outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground">Confirmer le nouveau PIN</label>
+                <input
+                  type={showPin ? "text" : "password"}
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinConfirm}
+                  onChange={e => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="••••"
+                  className="w-full px-4 py-3 bg-muted/60 border border-border rounded-xl text-center text-2xl font-black tracking-widest outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              {pinNew && pinConfirm && pinNew !== pinConfirm && (
+                <p className="text-xs text-red-500 flex items-center gap-1"><X className="w-3 h-3" /> Les PIN ne correspondent pas</p>
+              )}
+              {pinNew.length === 4 && pinConfirm.length === 4 && pinNew === pinConfirm && (
+                <p className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> PIN correspondant</p>
+              )}
+              {pinError && (
+                <p className="text-xs text-red-500 flex items-center gap-1"><X className="w-3 h-3" /> {pinError}</p>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleChangePin}
+                  disabled={pinLoading || pinNew.length !== 4 || pinConfirm.length !== 4}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                >
+                  {pinLoading ? "Enregistrement..." : <><Shield className="w-4 h-4" /> Enregistrer le PIN</>}
+                </Button>
+                <Button variant="outline" onClick={() => { setPinStep("idle"); setPinOld(""); setPinNew(""); setPinConfirm(""); setPinError(null); }} className="flex-1">
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
