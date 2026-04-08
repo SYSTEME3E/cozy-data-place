@@ -175,6 +175,9 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
   const firstName = parts[0] ?? "Client";
   const lastName  = parts.slice(1).join(" ") || "NEXORA";
 
+  // ✅ Convertir le nom du réseau en code GeniusPay (ex: "MTN MoMo" → "mtn_money")
+  const reseauCode = RESEAU_CODES[params.reseau] ?? params.reseau.toLowerCase().replace(/\s+/g, "_");
+
   try {
     const { data, error } = await supabase.functions.invoke("geniuspay-payout", {
       body: {
@@ -187,7 +190,8 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
         user_first_name: firstName,
         user_last_name:  lastName,
         pays:            params.pays,
-        reseau:          params.reseau,
+        reseau:          reseauCode,         // ✅ code normalisé
+        reseau_label:    params.reseau,      // ✅ libellé lisible conservé pour l'affichage
         numero_mobile:   params.numero_mobile.replace(/[\s\-()+]/g, ""),
         metadata:        params.metadata ?? {},
       },
