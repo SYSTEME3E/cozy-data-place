@@ -9,6 +9,7 @@ import {
 import { initPayment, initPayout } from "@/lib/Moneroo";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { supabase } from "@/integrations/supabase/client";
+import PinTransferModal from "@/components/PinTransferModal";
 
 const LOGO_URL = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
 
@@ -392,30 +393,10 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
     setReseau(p.networks[0]);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!valid || !pays) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const result = await initPayout({
-        type: "retrait_transfert",
-        amount: montantNum,
-        pays: pays.name,
-        reseau,
-        numero_mobile: telephone,
-        nom_beneficiaire: nomComplet,
-        metadata: { pays_code: pays.code, pays_flag: pays.flag },
-      });
-      if (!result.success) {
-        setError(result.error ?? "Erreur lors du transfert. Veuillez réessayer.");
-        setLoading(false);
-        return;
-      }
-      onConfirm(montantNum, frais, reseau, telephone, pays, nomComplet);
-    } catch (err: any) {
-      setError(err.message ?? "Erreur réseau. Veuillez réessayer.");
-      setLoading(false);
-    }
+    // Just pass details to parent — actual payout happens after PIN
+    onConfirm(montantNum, frais, reseau, telephone, pays, nomComplet);
   };
 
   return (
@@ -553,47 +534,42 @@ export default function TransfertPage() {
   const [filterType, setFilterType] = useState<"all" | "depot" | "transfert">("all");
   const [pollingRecharge, setPollingRecharge] = useState(false);
 
-  // ✅ FIX : ref pour mémoriser le solde avant la recharge
+  // PIN modal state for transfers
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState<{
+    montant: number; frais: number; reseau: string; tel: string; pays: ActiveCountry; nomComplet: string;
+  } | null>(null);
+
   const balanceBeforeRecharge = useRef<number>(0);
 
   const showSuccessMsg = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 6000); };
   const showErrorMsg = (msg: string) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(null), 6000); };
 
-  // ✅ FIX : lit le solde depuis nexora_transfert_comptes (source de vérité)
   const fetchFromSupabase = useCallback(async () => {
     setLoadingData(true);
     try {
       const user = getNexoraUser();
-      console.log("👤 user:", user);
       if (!user?.id) { setLoadingData(false); return; }
 
-      // ✅ Lire le solde depuis la table gérée par le webhook
-      const { data: compte, error: compteError } = await supabase
+      const { data: compte } = await supabase
         .from("nexora_transfert_comptes")
         .select("solde")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      console.log("💰 compte:", compte, "compteError:", compteError);
       setBalance(compte?.solde ?? 0);
 
-      // Charger TOUTES les transactions sans filtre de type pour debug
-      const { data: allData, error: allError } = await supabase
+      const { data: allData } = await supabase
         .from("nexora_transactions")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      console.log("📋 toutes les transactions:", allData, "error:", allError);
-
-      // Filtrer côté client pour voir ce qui correspond
       const filtered = (allData ?? []).filter(
         row => row.type === "recharge_transfert" || row.type === "retrait_transfert"
       );
 
-      console.log("🔍 transactions filtrées:", filtered);
       setTransactions(filtered.map(mapSupabaseRow));
-
     } catch (err) {
       console.error("fetchFromSupabase error:", err);
       showErrorMsg("Erreur lors du chargement des données.");
@@ -606,7 +582,6 @@ export default function TransfertPage() {
     fetchFromSupabase();
   }, [fetchFromSupabase]);
 
-  // Polling après recharge (vérifie toutes les 3s pendant 60s)
   useEffect(() => {
     if (!pollingRecharge) return;
     let attempts = 0;
@@ -625,7 +600,6 @@ export default function TransfertPage() {
     return () => clearInterval(interval);
   }, [pollingRecharge]);
 
-  // ✅ FIX : compare avec le solde snapshot AVANT la recharge, pas juste > 0
   useEffect(() => {
     if (pollingRecharge && balance > balanceBeforeRecharge.current) {
       setPollingRecharge(false);
@@ -637,33 +611,67 @@ export default function TransfertPage() {
   const totalTransferts = transactions.filter(t => t.type === "transfert" && t.status === "success").reduce((s, t) => s + t.montant, 0);
   const filtered = transactions.filter(t => filterType === "all" || t.type === filterType);
 
-  // ✅ FIX : snapshot du solde actuel avant d'ouvrir le paiement
   const handleRechargeSuccess = () => {
     balanceBeforeRecharge.current = balance;
     setPollingRecharge(true);
     showSuccessMsg("⏳ Paiement ouvert. Votre solde sera mis à jour automatiquement après confirmation.");
   };
 
-  const handleTransfert = (montant: number, frais: number, reseau: string, tel: string, pays: ActiveCountry, nomComplet: string) => {
-    setBalance(prev => Math.max(0, prev - montant));
-    const tx: Transaction = {
-      id: `local-${Date.now()}`,
-      type: "transfert",
-      montant,
-      frais,
-      date: new Date().toLocaleString("fr-FR"),
-      status: "pending",
-      reference: generateRef("TRF"),
-      pays: pays.name,
-      flag: pays.flag,
-      reseau,
-      telephone: tel,
-      nom_beneficiaire: nomComplet,
-    };
-    setTransactions(prev => [tx, ...prev]);
+  // Step 1: ModalTransfert calls this → save details & open PIN modal
+  const handleTransfertRequest = (montant: number, frais: number, reseau: string, tel: string, pays: ActiveCountry, nomComplet: string) => {
+    setPendingTransfer({ montant, frais, reseau, tel, pays, nomComplet });
     setShowTransfert(false);
-    showSuccessMsg(`${fmt(montant)} FCFA envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
-    setTimeout(() => fetchFromSupabase(), 3000);
+    setShowPinModal(true);
+  };
+
+  // Step 2: PIN verified → actually execute the payout
+  const handlePinSuccess = async () => {
+    setShowPinModal(false);
+    if (!pendingTransfer) return;
+
+    const { montant, frais, reseau, tel, pays, nomComplet } = pendingTransfer;
+    setPendingTransfer(null);
+
+    // Actually call the payout edge function now
+    try {
+      const result = await initPayout({
+        type: "retrait_transfert",
+        amount: montant,
+        pays: pays.name,
+        reseau,
+        numero_mobile: tel,
+        nom_beneficiaire: nomComplet,
+        metadata: { pays_code: pays.code, pays_flag: pays.flag },
+      });
+
+      if (!result.success) {
+        showErrorMsg(result.error ?? "Erreur lors du transfert.");
+        return;
+      }
+
+      // Add pending transaction to UI (no local balance deduction — server handles it)
+      const tx: Transaction = {
+        id: `local-${Date.now()}`,
+        type: "transfert",
+        montant,
+        frais,
+        date: new Date().toLocaleString("fr-FR"),
+        status: "pending",
+        reference: generateRef("TRF"),
+        pays: pays.name,
+        flag: pays.flag,
+        reseau,
+        telephone: tel,
+        nom_beneficiaire: nomComplet,
+      };
+      setTransactions(prev => [tx, ...prev]);
+      showSuccessMsg(`${fmt(montant)} FCFA envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
+
+      // Refresh from server to get real status & updated balance
+      setTimeout(() => fetchFromSupabase(), 3000);
+    } catch (err: any) {
+      showErrorMsg(err.message ?? "Erreur réseau. Veuillez réessayer.");
+    }
   };
 
   return (
@@ -841,7 +849,17 @@ export default function TransfertPage() {
 
         {/* MODALS */}
         {showRecharge && <ModalRecharge onClose={() => setShowRecharge(false)} onSuccess={handleRechargeSuccess} />}
-        {showTransfert && <ModalTransfert onClose={() => setShowTransfert(false)} onConfirm={handleTransfert} balance={balance} />}
+        {showTransfert && <ModalTransfert onClose={() => setShowTransfert(false)} onConfirm={handleTransfertRequest} balance={balance} />}
+        <PinTransferModal
+          isOpen={showPinModal}
+          onClose={() => { setShowPinModal(false); setPendingTransfer(null); }}
+          onSuccess={handlePinSuccess}
+          transferDetails={pendingTransfer ? {
+            amount: pendingTransfer.montant,
+            currency: "FCFA",
+            recipient: `${pendingTransfer.pays.flag} ${pendingTransfer.nomComplet} — ${pendingTransfer.reseau}`,
+          } : undefined}
+        />
       </div>
     </AppLayout>
   );
