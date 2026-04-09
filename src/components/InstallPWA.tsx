@@ -1,13 +1,12 @@
 // ============================================================
-//  InstallPWA.tsx — Composant d'installation Nexora PWA
-//  Android/Chrome : prompt natif
-//  iOS Safari     : bannière instructions pas à pas
-//  Design         : bordure néon verte, fond noir, texte blanc
+//  InstallPWA.tsx — Bouton d'installation Nexora PWA
+//  S'affiche UNIQUEMENT si l'app n'est pas encore installée.
+//  Une fois installée → disparaît définitivement.
+//  Fonctionne comme une vraie app (mode standalone, sans Chrome).
 // ============================================================
 
-
-import { useState, useEffect, useRef } from "react";
-import { Download, Share2, X, Smartphone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, Share, X } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -15,141 +14,239 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const InstallPWA = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showAndroidBtn,  setShowAndroidBtn]  = useState(false);
-  const [showIOSBanner,   setShowIOSBanner]   = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [showAndroidButton, setShowAndroidButton] = useState(false);
+  const [showIOSBanner, setShowIOSBanner] = useState(false);
 
   const isIOS = () =>
-    /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
+    /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+    !(window as Window & { MSStream?: unknown }).MSStream;
 
+  // Vérifie si l'app tourne déjà en mode standalone (= installée)
   const isInstalled = () =>
     window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as any).standalone === true ||
-    document.referrer.startsWith("android-app://");
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
   useEffect(() => {
+    // ── Si déjà installée en mode app → ne rien afficher du tout ──
     if (isInstalled()) return;
 
-    // iOS Safari
+    // ── iOS Safari ──────────────────────────────────────────────
     if (isIOS()) {
-      const isSafari = /safari/i.test(navigator.userAgent) && !/chrome|crios|fxios/i.test(navigator.userAgent);
-      if (!isSafari) return;
-      const ts = localStorage.getItem("nexora-ios-dismissed");
-      if (!ts || Date.now() - parseInt(ts) > 7 * 86400000) {
-        timerRef.current = setTimeout(() => setShowIOSBanner(true), 4000);
-      }
+      const dismissed = localStorage.getItem("nexora-ios-dismissed");
+      if (!dismissed) setShowIOSBanner(true);
       return;
     }
 
-    // Android / Chrome / Edge
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
+    // ── Android / Chrome / Edge ─────────────────────────────────
+    const handler = (e: Event) => {
+      e.preventDefault(); // bloque le mini-infobar Chrome natif
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowAndroidBtn(true);
+      setShowAndroidButton(true);
     };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", () => { setShowAndroidBtn(false); setDeferredPrompt(null); });
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    // Si l'app vient d'être installée, cacher le bouton
+    window.addEventListener("appinstalled", () => {
+      setShowAndroidButton(false);
+      setDeferredPrompt(null);
+    });
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  // ── Déclenche le prompt natif d'installation ─────────────────
   const handleInstall = async () => {
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") { setShowAndroidBtn(false); setDeferredPrompt(null); }
+    if (outcome === "accepted") {
+      setShowAndroidButton(false);
+      setDeferredPrompt(null);
+    }
   };
 
-  const dismissIOS = () => {
-    localStorage.setItem("nexora-ios-dismissed", String(Date.now()));
+  const handleIOSDismiss = () => {
+    localStorage.setItem("nexora-ios-dismissed", "true");
     setShowIOSBanner(false);
   };
 
-  const neon = { border: "1.5px solid #84cc16", boxShadow: "0 0 0 1px rgba(132,204,22,0.2), 0 0 32px rgba(132,204,22,0.3)" };
-
   return (
     <>
-      {/* ── Bouton Android ── */}
-      {showAndroidBtn && (
-        <div style={{ position:"fixed", bottom:"28px", left:"50%", transform:"translateX(-50%)",
-          zIndex:9999, display:"flex", alignItems:"center", gap:"10px",
-          backgroundColor:"#0a0a0a", borderRadius:"16px", padding:"14px 22px",
-          whiteSpace:"nowrap", animation:"nexoraSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)", ...neon }}>
-          <div style={{ width:34, height:34, borderRadius:10, background:"rgba(132,204,22,0.15)",
-            display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <Download size={17} color="#84cc16" />
-          </div>
-          <button onClick={handleInstall}
-            style={{ background:"transparent", border:"none", cursor:"pointer",
-              color:"#fff", fontSize:"14px", fontWeight:700, padding:0 }}>
-            Installer l&apos;app Nexora
+      {/* ── Bouton Android / Chrome / Edge ─────────────────────── */}
+      {showAndroidButton && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "28px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            backgroundColor: "#0a0a0a",
+            border: "1.5px solid #84cc16",
+            borderRadius: "14px",
+            padding: "14px 22px",
+            boxShadow:
+              "0 0 0 1px rgba(132,204,22,0.15), 0 0 24px rgba(132,204,22,0.3)",
+            whiteSpace: "nowrap",
+            animation: "nexoraFadeUp 0.4s ease",
+          }}
+        >
+          <Download size={18} color="#84cc16" />
+          <button
+            onClick={handleInstall}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "#ffffff",
+              fontSize: "14px",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+              padding: 0,
+            }}
+          >
+            Installer l&apos;application Nexora
           </button>
-          <button onClick={() => setShowAndroidBtn(false)} aria-label="Fermer"
-            style={{ background:"transparent", border:"none", cursor:"pointer", padding:"0 0 0 4px" }}>
-            <X size={14} color="#555" />
+          <button
+            onClick={() => setShowAndroidButton(false)}
+            aria-label="Fermer"
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "0 0 0 6px",
+              lineHeight: 1,
+            }}
+          >
+            <X size={14} color="#666" />
           </button>
         </div>
       )}
 
-      {/* ── Bannière iOS ── */}
+      {/* ── Bannière iOS Safari ─────────────────────────────────── */}
       {showIOSBanner && (
-        <div style={{ position:"fixed", bottom:"24px", left:"16px", right:"16px", zIndex:9999,
-          backgroundColor:"#0a0a0a", borderRadius:"20px", padding:"20px",
-          animation:"nexoraFadeUpBanner 0.4s cubic-bezier(0.34,1.56,0.64,1)", ...neon }}>
-          {/* Flèche bas */}
-          <div style={{ position:"absolute", bottom:"-10px", left:"50%", transform:"translateX(-50%)",
-            width:0, height:0, borderLeft:"10px solid transparent", borderRight:"10px solid transparent",
-            borderTop:"10px solid #84cc16" }} />
-          {/* Fermer */}
-          <button onClick={dismissIOS} aria-label="Fermer"
-            style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.1)",
-              border:"none", cursor:"pointer", borderRadius:8, width:28, height:28,
-              display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <X size={15} color="#888" />
+        <div
+          style={{
+            position: "fixed",
+            bottom: "28px",
+            left: "16px",
+            right: "16px",
+            zIndex: 9999,
+            backgroundColor: "#0a0a0a",
+            border: "1.5px solid #84cc16",
+            borderRadius: "16px",
+            padding: "18px 18px 16px",
+            boxShadow:
+              "0 0 0 1px rgba(132,204,22,0.15), 0 0 28px rgba(132,204,22,0.25)",
+            animation: "nexoraFadeUp 0.4s ease",
+          }}
+        >
+          {/* Flèche bas pointant vers le bouton Share d'iOS */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-9px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "9px solid transparent",
+              borderRight: "9px solid transparent",
+              borderTop: "9px solid #84cc16",
+            }}
+          />
+
+          {/* Bouton fermer */}
+          <button
+            onClick={handleIOSDismiss}
+            aria-label="Fermer"
+            style={{
+              position: "absolute",
+              top: "12px",
+              right: "14px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            <X size={16} color="#666" />
           </button>
-          {/* Header */}
-          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
-            <div style={{ width:42, height:42, borderRadius:12,
-              background:"rgba(132,204,22,0.15)", border:"1px solid rgba(132,204,22,0.3)",
-              display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <Smartphone size={20} color="#84cc16" />
-            </div>
-            <div>
-              <div style={{ color:"#84cc16", fontWeight:800, fontSize:"15px" }}>Installer Nexora</div>
-              <div style={{ color:"#555", fontSize:"12px" }}>Accès depuis l'écran d'accueil</div>
-            </div>
+
+          {/* Titre */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "12px",
+            }}
+          >
+            <span style={{ fontSize: "22px" }}>📲</span>
+            <span
+              style={{ color: "#84cc16", fontWeight: 700, fontSize: "15px" }}
+            >
+              Installer Nexora sur iOS
+            </span>
           </div>
-          {/* Étapes */}
-          {[
-            { icon:<Share2 size={14} color="#84cc16"/>, text:<>Appuyez sur <strong style={{color:"#fff"}}>Partager</strong> en bas de Safari</> },
-            { icon:<span style={{fontSize:14}}>➕</span>, text:<>Choisissez <strong style={{color:"#84cc16"}}>« Sur l'écran d'accueil »</strong></> },
-            { icon:<span style={{fontSize:14}}>✅</span>, text:<>Appuyez sur <strong style={{color:"#fff"}}>Ajouter</strong> en haut à droite</> },
-          ].map((s, i) => (
-            <div key={i} style={{ display:"flex", alignItems:"center", gap:12,
-              background:"rgba(255,255,255,0.04)", borderRadius:12, padding:"10px 14px", marginBottom:8 }}>
-              <div style={{ width:28, height:28, borderRadius:8, background:"rgba(132,204,22,0.1)",
-                border:"1px solid rgba(132,204,22,0.2)", display:"flex", alignItems:"center",
-                justifyContent:"center", flexShrink:0 }}>{s.icon}</div>
-              <span style={{ color:"#ccc", fontSize:"13px", lineHeight:1.4 }}>{s.text}</span>
-            </div>
-          ))}
-          <p style={{ color:"#444", fontSize:"11px", textAlign:"center", marginTop:12, marginBottom:0 }}>
-            L'app s'ouvrira en plein écran, sans barre Safari.
+
+          {/* Instructions */}
+          <ol
+            style={{
+              color: "#cccccc",
+              fontSize: "13px",
+              lineHeight: "2",
+              margin: 0,
+              paddingLeft: "20px",
+            }}
+          >
+            <li>
+              Appuyez sur{" "}
+              <Share
+                size={13}
+                style={{ verticalAlign: "middle", display: "inline" }}
+                color="#84cc16"
+              />{" "}
+              <strong style={{ color: "#fff" }}>Partager</strong> en bas de
+              Safari
+            </li>
+            <li>
+              Choisissez{" "}
+              <strong style={{ color: "#84cc16" }}>
+                « Sur l&apos;écran d&apos;accueil »
+              </strong>
+            </li>
+            <li>
+              Appuyez sur{" "}
+              <strong style={{ color: "#fff" }}>Ajouter</strong> en haut à
+              droite
+            </li>
+          </ol>
+
+          <p
+            style={{
+              color: "#555",
+              fontSize: "11px",
+              marginTop: "10px",
+              marginBottom: 0,
+            }}
+          >
+            L&apos;app s&apos;ouvrira en plein écran, sans barre Safari.
           </p>
         </div>
       )}
 
+      {/* Animation */}
       <style>{`
-        @keyframes nexoraSlideUp {
-          from { opacity:0; transform:translateX(-50%) translateY(24px) scale(0.95); }
-          to   { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
-        }
-        @keyframes nexoraFadeUpBanner {
-          from { opacity:0; transform:translateY(24px) scale(0.97); }
-          to   { opacity:1; transform:translateY(0) scale(1); }
+        @keyframes nexoraFadeUp {
+          from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
       `}</style>
     </>
