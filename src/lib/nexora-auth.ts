@@ -263,6 +263,10 @@ export async function logoutUser(): Promise<void> {
   localStorage.removeItem(NEXORA_USER_KEY);
   sessionStorage.removeItem(NEXORA_SESSION_KEY);
   sessionStorage.removeItem(NEXORA_USER_KEY);
+  // Toujours effacer le PIN lors de la déconnexion — obligatoire à la reconnexion
+  sessionStorage.removeItem("nexora_pin_unlocked");
+  sessionStorage.removeItem("nexora_pin_attempts");
+  sessionStorage.removeItem("nexora_pin_locked_until");
 }
 
 // ─── Getters de session ───────────────────────────────────────────────────────
