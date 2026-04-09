@@ -115,7 +115,9 @@ export default function AbonnementPage() {
         return;
       }
 
-      window.open(result.payment_url, "_blank");
+      // ✅ FIX : window.open après await est bloqué par le navigateur comme popup
+      // On utilise window.location.href pour une redirection directe fiable
+      window.location.href = result.payment_url;
     } catch (err: any) {
       console.error("Erreur paiement:", err);
       setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
