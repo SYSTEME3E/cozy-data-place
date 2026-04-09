@@ -778,6 +778,14 @@ export default function TransfertPage() {
       const user = getNexoraUser();
       if (!user?.id) { setLoadingData(false); return; }
 
+      // Fetch nexora_id
+      const { data: userData } = await supabase
+        .from("nexora_users")
+        .select("nexora_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      setNexoraId((userData as any)?.nexora_id ?? "");
+
       const { data: compte } = await supabase
         .from("nexora_transfert_comptes")
         .select("solde")
@@ -797,14 +805,13 @@ export default function TransfertPage() {
         row => row.type === "recharge_transfert" || row.type === "retrait_transfert"
       );
 
-      // ── Charger les payouts (transferts sortants) — source de vérité principale
+      // ── Charger les payouts (transferts sortants)
       const { data: payoutsData } = await supabase
         .from("nexora_payouts")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      // Fusionner : les payouts ont priorité sur les transactions retrait_transfert
       const payoutIds = new Set((payoutsData ?? []).map((p: any) => p.moneroo_id).filter(Boolean));
       const txOnly = txFiltered.filter(row =>
         row.type !== "retrait_transfert" || !payoutIds.has(row.moneroo_id)
@@ -833,7 +840,58 @@ export default function TransfertPage() {
         };
       });
 
-      const merged = [...payoutRows, ...txOnly.map(mapSupabaseRow)];
+      // ── Charger les transferts internes
+      const { data: interneSent } = await supabase
+        .from("internal_transfers")
+        .select("*")
+        .eq("sender_id", user.id)
+        .order("created_at", { ascending: false });
+
+      const { data: interneReceived } = await supabase
+        .from("internal_transfers")
+        .select("*")
+        .eq("receiver_id", user.id)
+        .order("created_at", { ascending: false });
+
+      // Fetch names for internal transfers
+      const allInternalIds = new Set<string>();
+      (interneSent ?? []).forEach((t: any) => allInternalIds.add(t.receiver_id));
+      (interneReceived ?? []).forEach((t: any) => allInternalIds.add(t.sender_id));
+      
+      const nameMap: Record<string, string> = {};
+      if (allInternalIds.size > 0) {
+        const { data: names } = await supabase
+          .from("nexora_users")
+          .select("id, nom_prenom")
+          .in("id", Array.from(allInternalIds));
+        (names ?? []).forEach((n: any) => { nameMap[n.id] = n.nom_prenom; });
+      }
+
+      const interneSentRows = (interneSent ?? []).map((t: any): Transaction => ({
+        id: t.id,
+        type: "interne_envoi",
+        montant: t.amount,
+        frais: 0,
+        date: new Date(t.created_at).toLocaleString("fr-FR"),
+        rawDate: t.created_at,
+        nom_beneficiaire: nameMap[t.receiver_id] ?? "Utilisateur",
+        status: "success",
+        reference: t.id?.slice(0, 8).toUpperCase(),
+      }));
+
+      const interneReceivedRows = (interneReceived ?? []).map((t: any): Transaction => ({
+        id: t.id,
+        type: "interne_recu",
+        montant: t.amount,
+        frais: 0,
+        date: new Date(t.created_at).toLocaleString("fr-FR"),
+        rawDate: t.created_at,
+        nom_beneficiaire: nameMap[t.sender_id] ?? "Utilisateur",
+        status: "success",
+        reference: t.id?.slice(0, 8).toUpperCase(),
+      }));
+
+      const merged = [...payoutRows, ...txOnly.map(mapSupabaseRow), ...interneSentRows, ...interneReceivedRows];
       merged.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime());
       setTransactions(merged);
     } catch (err) {
