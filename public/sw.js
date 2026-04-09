@@ -42,6 +42,7 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+
 // ── Fetch ─────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
   const { request } = event;
