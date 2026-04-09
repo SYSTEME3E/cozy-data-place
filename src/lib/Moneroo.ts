@@ -95,15 +95,27 @@ async function extractErrorMessage(error: any): Promise<string> {
       const body = await error.context.responseBody.text?.();
       if (body) {
         const parsed = JSON.parse(body);
-        return parsed?.error ?? parsed?.message ?? body;
+        // ✅ FIX : on cherche error/message, sinon on affiche le status HTTP, jamais "{}"
+        return parsed?.error ?? parsed?.message
+          ?? (parsed?.detail ? `Erreur GeniusPay : ${JSON.stringify(parsed.detail)}` : null)
+          ?? body;
       }
     }
     if (error?.context?.body) {
-      const body = typeof error.context.body === "string"
+      const raw = typeof error.context.body === "string"
         ? error.context.body
         : JSON.stringify(error.context.body);
-      const parsed = JSON.parse(body);
-      return parsed?.error ?? parsed?.message ?? body;
+      try {
+        const parsed = JSON.parse(raw);
+        // ✅ FIX : si l'objet parsé est vide ou sans message exploitable, on retourne un message générique clair
+        if (!parsed || Object.keys(parsed).length === 0) {
+          return "Erreur de paiement — vérifiez votre connexion et réessayez.";
+        }
+        return parsed?.error ?? parsed?.message
+          ?? `Erreur GeniusPay (${raw})`;
+      } catch {
+        return raw || "Erreur inconnue";
+      }
     }
   } catch (_) {}
   return error?.message ?? "Erreur inconnue";
