@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Lock, Image, Link2, User, LogOut, Menu, X,
   Search, ChevronRight, TrendingUp, History, Home,
   HandCoins, ArrowLeft, Receipt, Store, BadgeCheck, Map,
-  ShieldCheck, ArrowLeftRight, Sun, Moon, Phone
+  ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, Download
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
 import { logoutUser, getNexoraUser, isNexoraAdmin, refreshNexoraSession } from "@/lib/nexora-auth";
@@ -55,8 +55,37 @@ export default function AppLayout({
   const [sidebarOpen, setSidebarOpen]             = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [darkMode, setDarkMode]                   = useState(false);
+  const [installPrompt, setInstallPrompt]         = useState<any>(null);
+  const [canInstall, setCanInstall]               = useState(false);
   const location  = useLocation();
   const navigate  = useNavigate();
+
+  // ── PWA Install detection ───────────────────────────────────────
+  useEffect(() => {
+    const isInstalled =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as any).standalone === true;
+    if (isInstalled) return;
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setCanInstall(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setCanInstall(false));
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") {
+      setCanInstall(false);
+      setInstallPrompt(null);
+    }
+  };
 
   /* ── Applique le thème global dès le montage (fonctionne sur TOUTES les pages) ── */
   useEffect(() => {
@@ -223,7 +252,7 @@ export default function AppLayout({
           })}
         </nav>
 
-        {/* Thème + Déconnexion */}
+        {/* Thème + Installer + Déconnexion */}
         <div className="p-2.5 border-t border-sidebar-border dark:border-gray-800 space-y-1">
           <button
             onClick={handleToggleTheme}
@@ -243,6 +272,26 @@ export default function AppLayout({
             </div>
             {sidebarOpen && <span className="text-sm">{darkMode ? "Mode clair" : "Mode sombre"}</span>}
           </button>
+
+          {/* ── Bouton Installer l'app ── */}
+          {canInstall && (
+            <button
+              onClick={handleInstallApp}
+              title="Installer l'application"
+              className={`
+                w-full flex items-center gap-3 rounded-xl transition-all
+                text-sidebar-foreground/70 dark:text-gray-300
+                hover:bg-lime-500/20 hover:text-lime-300
+                border border-lime-500/30 hover:border-lime-500/60
+                ${sidebarOpen ? "px-2.5 py-2" : "px-0 py-2 justify-center"}
+              `}
+            >
+              <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-lime-500/15 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
+                <Download className={`text-lime-400 flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
+              </div>
+              {sidebarOpen && <span className="text-sm font-semibold">Installer l'app</span>}
+            </button>
+          )}
 
           {/* Déconnexion */}
           <button
