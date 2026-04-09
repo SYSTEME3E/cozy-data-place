@@ -8,8 +8,10 @@ interface NexoraAuthGuardProps {
   requirePremium?: boolean;
 }
 
-// PIN is NO LONGER checked here — only at login and for transfers
+// Chemins qui ne nécessitent pas de vérification PIN
 const PIN_FLOW_PATHS = ["/setup-pin", "/unlock-pin", "/login"];
+
+const PIN_UNLOCKED_KEY = "nexora_pin_unlocked";
 
 export default function NexoraAuthGuard({
   children,
@@ -35,6 +37,17 @@ export default function NexoraAuthGuard({
         navigate("/login", { replace: true });
         return;
       }
+
+      // ── Vérification PIN obligatoire ──────────────────────────────────────
+      // Si le PIN n'est pas déverrouillé pour cette session, rediriger vers unlock-pin
+      if (!PIN_FLOW_PATHS.includes(location.pathname)) {
+        const pinUnlocked = sessionStorage.getItem(PIN_UNLOCKED_KEY) === "true";
+        if (!pinUnlocked) {
+          navigate("/unlock-pin", { replace: true });
+          return;
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       if (requireAdmin && !user.is_admin) {
         navigate("/dashboard", { replace: true });
