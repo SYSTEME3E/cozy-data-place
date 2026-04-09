@@ -61,7 +61,9 @@ export default function NexoraLoginPage() {
     initTheme();
 
     if (isNexoraAuthenticated()) {
-      navigate("/dashboard", { replace: true });
+      // Si PIN déjà validé pour cette session, aller au dashboard
+      const pinUnlocked = sessionStorage.getItem("nexora_pin_unlocked") === "true";
+      navigate(pinUnlocked ? "/dashboard" : "/unlock-pin", { replace: true });
       return;
     }
 
@@ -98,7 +100,11 @@ export default function NexoraLoginPage() {
     const result = await loginUser({ identifier, password, remember });
     if (result.success) {
       toast({ title: "✅ Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
-      navigate("/dashboard", { replace: true });
+      // Effacer le PIN précédent — l'utilisateur doit le saisir à chaque connexion
+      sessionStorage.removeItem("nexora_pin_unlocked");
+      sessionStorage.removeItem("nexora_pin_attempts");
+      sessionStorage.removeItem("nexora_pin_locked_until");
+      navigate("/unlock-pin", { replace: true });
     } else {
       toast({ title: "Connexion échouée", description: result.error, variant: "destructive" });
     }
