@@ -13,7 +13,6 @@ import { useNavigate } from "react-router-dom";
 // DONNÉES DE COMPARAISON
 // ─────────────────────────────────────────────
 
-
 const FEATURES_COMPARE = [
   {
     categorie: "Finance personnelle",
