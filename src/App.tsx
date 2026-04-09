@@ -60,6 +60,7 @@ import ContactsWhatsAppPage from "@/pages/ContactsWhatsAppPage";
 import AdminPanelPage from "@/pages/AdminPanelPage";
 
 import NotFound from "@/pages/NotFound";
+import InstallPWA from "@/components/InstallPWA";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <InstallPWA />
         <Routes>
           {/* Public / Auth */}
           <Route path="/login" element={
