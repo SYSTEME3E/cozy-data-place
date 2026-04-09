@@ -91,11 +91,9 @@ function mapSupabaseRow(row: any): Transaction {
 }
 
 function generateInvoicePDF(tx: Transaction) {
-  const win = window.open("", "_blank");
-  if (!win) return;
   const typeLabel = tx.type === "depot" ? "RECHARGE" : "TRANSFERT";
   const color = tx.type === "depot" ? "#10b981" : "#6366f1";
-  win.document.write(`<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8"/><title>Facture ${tx.reference}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -161,8 +159,16 @@ body{font-family:'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;}
     Support : support@nexora.africa<br/>
     © ${new Date().getFullYear()} NEXORA — Tous droits réservés</p>
   </div>
-</div></body></html>`);
-  win.document.close();
+</div></body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Facture-${tx.reference}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // ─── COUNTRY SELECTOR ───
@@ -1150,7 +1156,7 @@ export default function TransfertPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filtered.map(tx => {
                 const isInterne = tx.type === "interne_envoi" || tx.type === "interne_recu";
                 const isReceived = tx.type === "depot" || tx.type === "interne_recu";
@@ -1163,16 +1169,16 @@ export default function TransfertPage() {
                   : `${tx.flag ?? ""} ${tx.nom_beneficiaire ?? tx.pays ?? ""}`;
 
                 return (
-                  <div key={tx.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                  <div key={tx.id} className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl shadow-sm">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${iconBg}`}>
                       {isReceived
-                        ? <ArrowDownLeft className={`w-4 h-4 ${iconColor}`} />
+                        ? <ArrowDownLeft className={`w-5 h-5 ${iconColor}`} />
                         : isInterne
-                          ? <Users className={`w-4 h-4 ${iconColor}`} />
-                          : <ArrowUpRight className={`w-4 h-4 ${iconColor}`} />}
+                          ? <Users className={`w-5 h-5 ${iconColor}`} />
+                          : <ArrowUpRight className={`w-5 h-5 ${iconColor}`} />}
                     </div>
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-sm text-foreground truncate">{label}</span>
                         {isInterne && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
@@ -1186,22 +1192,23 @@ export default function TransfertPage() {
                           {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {tx.reseau && <span>{tx.reseau}</span>}
                         {tx.telephone && <span>{tx.telephone}</span>}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">{tx.date}</div>
+                      <div className="text-xs text-muted-foreground">{tx.date}</div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
-                        <p className={`font-black text-sm ${amountColor}`}>
+                        <p className={`font-black text-base ${amountColor}`}>
                           {isReceived ? "+" : "−"}{fmt(tx.montant)}
                         </p>
+                        <p className="text-[10px] text-muted-foreground">FCFA</p>
                       </div>
                       <button
                         onClick={() => generateInvoicePDF(tx)}
                         title="Télécharger la facture"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground border border-border"
                       >
                         <Download className="w-4 h-4" />
                       </button>
