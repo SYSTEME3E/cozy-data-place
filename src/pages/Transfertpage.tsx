@@ -525,17 +525,241 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   );
 }
 
+// ─── MODAL TRANSFERT INTERNE (par Nexora ID) ───
+function ModalTransfertInterne({ onClose, onSuccess, balance }: {
+  onClose: () => void;
+  onSuccess: () => void;
+  balance: number;
+}) {
+  const [nexoraId, setNexoraId] = useState("");
+  const [montant, setMontant] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [receiverName, setReceiverName] = useState<string | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  const montantNum = parseFloat(montant) || 0;
+  const valid = montantNum >= 100 && montantNum <= balance && receiverName !== null && nexoraId.trim().length >= 4;
+
+  const lookupUser = async () => {
+    if (!nexoraId.trim()) return;
+    setLookingUp(true);
+    setReceiverName(null);
+    setError(null);
+    const { data } = await supabase
+      .from("nexora_users")
+      .select("nom_prenom, nexora_id")
+      .eq("nexora_id", nexoraId.trim().toUpperCase())
+      .maybeSingle();
+    setLookingUp(false);
+    if (data) {
+      setReceiverName((data as any).nom_prenom);
+    } else {
+      setError("Aucun utilisateur trouvé avec cet ID.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!valid) return;
+    setLoading(true);
+    setError(null);
+    const user = getNexoraUser();
+    if (!user?.id) { setError("Non connecté"); setLoading(false); return; }
+
+    // Look up receiver
+    const { data: receiver } = await supabase
+      .from("nexora_users")
+      .select("id, nom_prenom")
+      .eq("nexora_id", nexoraId.trim().toUpperCase())
+      .maybeSingle();
+
+    if (!receiver) { setError("Destinataire introuvable."); setLoading(false); return; }
+    if ((receiver as any).id === user.id) { setError("Vous ne pouvez pas vous envoyer à vous-même."); setLoading(false); return; }
+
+    // Deduct from sender
+    const { error: deductErr } = await supabase.rpc("transfer_internal" as any, {
+      p_sender_id: user.id,
+      p_receiver_id: (receiver as any).id,
+      p_amount: montantNum,
+      p_note: note || null,
+    } as any);
+
+    if (deductErr) {
+      // Fallback: manual update
+      const { data: senderAccount } = await supabase
+        .from("nexora_transfert_comptes")
+        .select("solde")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const senderSolde = senderAccount?.solde ?? 0;
+      if (senderSolde < montantNum) { setError("Solde insuffisant."); setLoading(false); return; }
+
+      // Deduct sender
+      await supabase
+        .from("nexora_transfert_comptes")
+        .update({ solde: senderSolde - montantNum, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+
+      // Credit receiver (upsert)
+      const { data: recvAccount } = await supabase
+        .from("nexora_transfert_comptes")
+        .select("solde")
+        .eq("user_id", (receiver as any).id)
+        .maybeSingle();
+
+      if (recvAccount) {
+        await supabase
+          .from("nexora_transfert_comptes")
+          .update({ solde: (recvAccount.solde ?? 0) + montantNum, updated_at: new Date().toISOString() })
+          .eq("user_id", (receiver as any).id);
+      } else {
+        await supabase
+          .from("nexora_transfert_comptes")
+          .insert({ user_id: (receiver as any).id, solde: montantNum });
+      }
+
+      // Record transfer
+      await supabase
+        .from("internal_transfers")
+        .insert({
+          sender_id: user.id,
+          receiver_id: (receiver as any).id,
+          amount: montantNum,
+          note: note || null,
+        });
+    }
+
+    setLoading(false);
+    onSuccess();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-5 flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+            <Users className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-black text-white">Transfert interne</h2>
+            <p className="text-xs text-emerald-100">Entre utilisateurs Nexora · 0 FCFA de frais</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between p-3 bg-muted/60 rounded-xl">
+            <span className="text-sm text-muted-foreground font-semibold">Solde disponible</span>
+            <span className="font-black text-foreground">{fmt(balance)} FCFA</span>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-muted-foreground">ID Nexora du destinataire</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={nexoraId}
+                  onChange={e => { setNexoraId(e.target.value.toUpperCase()); setReceiverName(null); }}
+                  placeholder="NX-XXXXXX"
+                  className="w-full pl-10 pr-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-emerald-400 transition-colors font-mono uppercase"
+                />
+              </div>
+              <button
+                onClick={lookupUser}
+                disabled={lookingUp || !nexoraId.trim()}
+                className="px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold rounded-xl transition-colors text-sm"
+              >
+                {lookingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              </button>
+            </div>
+            {receiverName && (
+              <div className="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                <Check className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-bold text-emerald-600">{receiverName}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-muted-foreground">Montant</label>
+            <div className="relative">
+              <input
+                type="number"
+                value={montant}
+                onChange={e => setMontant(e.target.value)}
+                placeholder="Ex: 5000"
+                className="w-full px-4 py-3 pr-20 bg-muted/60 border border-border rounded-xl text-lg font-bold outline-none focus:border-emerald-400 transition-colors"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">FCFA</span>
+            </div>
+            <div className="flex gap-2">
+              {[1000, 5000, 10000, 25000].map(v => (
+                <button key={v} onClick={() => setMontant(String(v))} className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-muted hover:bg-accent hover:text-accent-foreground transition-colors">
+                  {fmt(v)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-muted-foreground">Note (optionnel)</label>
+            <input
+              type="text"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="Ex: Remboursement repas"
+              className="w-full px-4 py-3 bg-muted/60 border border-border rounded-xl outline-none focus:border-emerald-400 transition-colors text-sm"
+            />
+          </div>
+
+          <div className="flex items-start gap-2 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-xl">
+            <Zap className="w-4 h-4 mt-0.5 shrink-0" />
+            <p>Transfert instantané entre comptes Nexora. <strong>0 FCFA de frais.</strong> Le destinataire reçoit le montant exact.</p>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-3 rounded-xl">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={!valid || loading}
+            className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            {loading
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Envoi en cours...</>
+              : <><Zap className="w-4 h-4" /> Envoyer {montantNum > 0 ? fmt(montantNum) + " FCFA" : ""}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE PRINCIPALE ───
 export default function TransfertPage() {
   const [balance, setBalance] = useState<number>(0);
+  const [nexoraId, setNexoraId] = useState<string>("");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showRecharge, setShowRecharge] = useState(false);
   const [showTransfert, setShowTransfert] = useState(false);
+  const [showInterne, setShowInterne] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<"all" | "depot" | "transfert">("all");
+  const [filterType, setFilterType] = useState<"all" | "depot" | "transfert" | "interne">("all");
   const [pollingRecharge, setPollingRecharge] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   // PIN modal state for transfers
   const [showPinModal, setShowPinModal] = useState(false);
