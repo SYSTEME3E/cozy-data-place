@@ -1077,12 +1077,28 @@ export default function TransfertPage() {
                 </div>
               )}
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowRecharge(true)} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-black rounded-xl transition-all shadow-lg shadow-yellow-500/30 hover:scale-105 active:scale-95">
+
+            {/* Nexora ID */}
+            {nexoraId && (
+              <div className="flex items-center gap-2 p-2.5 bg-white/10 rounded-xl">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs text-slate-300 font-semibold">Mon ID :</span>
+                <span className="font-mono font-black text-emerald-400 text-sm tracking-wider">{nexoraId}</span>
+                <button onClick={copyNexoraId} className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                  {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white" />}
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button onClick={() => setShowRecharge(true)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-black rounded-xl transition-all shadow-lg shadow-yellow-500/30 hover:scale-105 active:scale-95 text-sm">
                 <ArrowDownLeft className="w-4 h-4" /> Recharger
               </button>
-              <button onClick={() => setShowTransfert(true)} disabled={balance === 0 || loadingData} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-red-500 hover:bg-red-400 border border-red-400/40 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-red-500/30">
+              <button onClick={() => setShowTransfert(true)} disabled={balance === 0 || loadingData} className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-400 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-sm shadow-lg shadow-red-500/30">
                 <ArrowUpRight className="w-4 h-4" /> Envoyer
+              </button>
+              <button onClick={() => setShowInterne(true)} disabled={balance === 0 || loadingData} className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-sm shadow-lg shadow-emerald-500/30">
+                <Users className="w-4 h-4" /> Interne
               </button>
             </div>
           </div>
