@@ -44,7 +44,7 @@ const ACTIVE_COUNTRIES = [
 type ActiveCountry = typeof ACTIVE_COUNTRIES[0];
 type Transaction = {
   id: string;
-  type: "depot" | "transfert";
+  type: "depot" | "transfert" | "interne_envoi" | "interne_recu";
   montant: number;
   frais: number;
   date: string;
