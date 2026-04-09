@@ -1127,10 +1127,10 @@ export default function TransfertPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <History className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-black text-foreground">Historique</h2>
-            <div className="flex gap-1 ml-auto">
-              {(["all", "depot", "transfert"] as const).map(f => (
+            <div className="flex gap-1 ml-auto flex-wrap">
+              {(["all", "depot", "transfert", "interne"] as const).map(f => (
                 <button key={f} onClick={() => setFilterType(f)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${filterType === f ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
-                  {f === "all" ? "Tout" : f === "depot" ? "Recharges" : "Envois"}
+                  {f === "all" ? "Tout" : f === "depot" ? "Recharges" : f === "transfert" ? "Envois" : "Internes"}
                 </button>
               ))}
             </div>
@@ -1151,45 +1151,64 @@ export default function TransfertPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map(tx => (
-                <div key={tx.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tx.type === "depot" ? "bg-yellow-500/10" : "bg-red-500/10"}`}>
-                    {tx.type === "depot" ? <ArrowDownLeft className="w-4 h-4 text-yellow-500" /> : <ArrowUpRight className="w-4 h-4 text-red-500" />}
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-foreground truncate">
-                        {tx.type === "depot" ? "Recharge" : `${tx.flag ?? ""} ${tx.nom_beneficiaire ?? tx.pays ?? ""}`}
-                      </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                        tx.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        : tx.status === "pending" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                        : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
-                        {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
-                      </span>
+              {filtered.map(tx => {
+                const isInterne = tx.type === "interne_envoi" || tx.type === "interne_recu";
+                const isReceived = tx.type === "depot" || tx.type === "interne_recu";
+                const iconBg = isInterne ? "bg-emerald-500/10" : tx.type === "depot" ? "bg-yellow-500/10" : "bg-red-500/10";
+                const iconColor = isInterne ? "text-emerald-500" : tx.type === "depot" ? "text-yellow-500" : "text-red-500";
+                const amountColor = isReceived ? "text-emerald-500" : tx.type === "depot" ? "text-yellow-500" : "text-red-500";
+                const label = tx.type === "depot" ? "Recharge"
+                  : tx.type === "interne_recu" ? `↓ De ${tx.nom_beneficiaire ?? "Utilisateur"}`
+                  : tx.type === "interne_envoi" ? `↑ Vers ${tx.nom_beneficiaire ?? "Utilisateur"}`
+                  : `${tx.flag ?? ""} ${tx.nom_beneficiaire ?? tx.pays ?? ""}`;
+
+                return (
+                  <div key={tx.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                      {isReceived
+                        ? <ArrowDownLeft className={`w-4 h-4 ${iconColor}`} />
+                        : isInterne
+                          ? <Users className={`w-4 h-4 ${iconColor}`} />
+                          : <ArrowUpRight className={`w-4 h-4 ${iconColor}`} />}
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      {tx.reseau && <span>{tx.reseau}</span>}
-                      {tx.telephone && <span>{tx.telephone}</span>}
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-foreground truncate">{label}</span>
+                        {isInterne && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                            0 frais
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                          tx.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : tx.status === "pending" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                          : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                          {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        {tx.reseau && <span>{tx.reseau}</span>}
+                        {tx.telephone && <span>{tx.telephone}</span>}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">{tx.date}</div>
                     </div>
-                    <div className="text-[10px] text-muted-foreground">{tx.date}</div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="text-right">
-                      <p className={`font-black text-sm ${tx.type === "depot" ? "text-yellow-500" : "text-red-500"}`}>
-                        {tx.type === "depot" ? "+" : "−"}{fmt(tx.montant)}
-                      </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <p className={`font-black text-sm ${amountColor}`}>
+                          {isReceived ? "+" : "−"}{fmt(tx.montant)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => generateInvoicePDF(tx)}
+                        title="Télécharger la facture"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => generateInvoicePDF(tx)}
-                      title="Télécharger la facture"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1198,7 +1217,8 @@ export default function TransfertPage() {
         <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-xl text-xs text-muted-foreground">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <p>Frais de recharge : 100 FCFA. Frais de transfert : 3%.</p>
+            <p>Frais de recharge : 100 FCFA. Frais de transfert international : 3%.</p>
+            <p>Transfert interne entre utilisateurs Nexora : <strong className="text-emerald-500">0 FCFA de frais</strong>.</p>
             <p>24 pays disponibles en Afrique.</p>
           </div>
         </div>
@@ -1206,6 +1226,7 @@ export default function TransfertPage() {
         {/* MODALS */}
         {showRecharge && <ModalRecharge onClose={() => setShowRecharge(false)} onSuccess={handleRechargeSuccess} />}
         {showTransfert && <ModalTransfert onClose={() => setShowTransfert(false)} onConfirm={handleTransfertRequest} balance={balance} />}
+        {showInterne && <ModalTransfertInterne onClose={() => setShowInterne(false)} onSuccess={() => { fetchFromSupabase(); showSuccessMsg("✅ Transfert interne effectué avec succès !"); }} balance={balance} />}
         <PinTransferModal
           isOpen={showPinModal}
           onClose={() => { setShowPinModal(false); setPendingTransfer(null); }}
