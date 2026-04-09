@@ -57,11 +57,9 @@ export default function NexoraLoginPage() {
 
   useEffect(() => {
     initAdminUser();
-    // Appliquer le thème sauvegardé même sur la page de connexion
     initTheme();
 
     if (isNexoraAuthenticated()) {
-      // Si PIN déjà validé pour cette session, aller au dashboard
       const pinUnlocked = sessionStorage.getItem("nexora_pin_unlocked") === "true";
       navigate(pinUnlocked ? "/dashboard" : "/unlock-pin", { replace: true });
       return;
@@ -71,22 +69,44 @@ export default function NexoraLoginPage() {
     return () => clearTimeout(ready);
   }, []);
 
-  // ── Splash screen
+  // ── Splash screen — Nexora Spinner
   if (!pageReady) {
     return (
       <div
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-        style={{ background: "radial-gradient(ellipse at center, hsl(217 89% 20%) 0%, hsl(217 89% 10%) 100%)" }}>
-        <div className="flex flex-col items-center gap-6">
-          <img src={nexoraLogo} alt="Nexora" className="w-24 h-24 object-contain drop-shadow-2xl animate-pulse" />
-          <div className="text-3xl font-black text-white tracking-widest">NEXORA</div>
-          <div className="flex gap-4 mt-2">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="w-5 h-5 rounded-full bg-yellow-400"
-                style={{ animation: "bounce 0.7s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-            ))}
-          </div>
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "20px",
+          backgroundColor: "#1a2235",
+        }}
+      >
+        <div style={{ fontSize: "38px", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "'Segoe UI', sans-serif" }}>
+          <span style={{ color: "#ffffff" }}>Nex</span>
+          <span style={{ color: "#2979ff" }}>ora</span>
         </div>
+        <div
+          style={{
+            width: "36px",
+            height: "36px",
+            border: "3px solid transparent",
+            borderTop: "3px solid #4a5568",
+            borderRight: "3px solid #4a5568",
+            borderBottom: "3px solid #4a5568",
+            borderRadius: "50%",
+            animation: "nexora-spin 0.9s linear infinite",
+          }}
+        />
+        <style>{`
+          @keyframes nexora-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -100,7 +120,6 @@ export default function NexoraLoginPage() {
     const result = await loginUser({ identifier, password, remember });
     if (result.success) {
       toast({ title: "✅ Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
-      // Effacer le PIN précédent — l'utilisateur doit le saisir à chaque connexion
       sessionStorage.removeItem("nexora_pin_unlocked");
       sessionStorage.removeItem("nexora_pin_attempts");
       sessionStorage.removeItem("nexora_pin_locked_until");
@@ -168,7 +187,6 @@ export default function NexoraLoginPage() {
 
         {/* Carte principale */}
         <div className="bg-card dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
-          {/* Onglets — masqués sur la page "mot de passe oublié" */}
           {mode !== "forgot" && (
             <div className="flex border-b border-border dark:border-gray-800">
               <button
@@ -235,7 +253,6 @@ export default function NexoraLoginPage() {
                       Restez connecté
                     </label>
                   </div>
-                  {/* ── MOT DE PASSE OUBLIÉ ── */}
                   <button type="button" onClick={() => setMode("forgot")}
                     className="text-xs text-primary hover:underline font-medium flex items-center gap-1">
                     <HelpCircle className="w-3 h-3" /> Mot de passe oublié ?
@@ -362,7 +379,6 @@ export default function NexoraLoginPage() {
                   </p>
                 </div>
 
-                {/* WhatsApp */}
                 <a
                   href="https://wa.me/22951762341?text=Bonjour, j'ai oublié mon mot de passe Nexora et j'ai besoin d'aide pour le réinitialiser."
                   target="_blank"
@@ -380,7 +396,6 @@ export default function NexoraLoginPage() {
                   <ChevronRight className="w-4 h-4 opacity-60" />
                 </a>
 
-                {/* Email */}
                 <a
                   href="mailto:erickpakpo786@gmail.com?subject=Réinitialisation mot de passe Nexora&body=Bonjour, j'ai oublié mon mot de passe. Mon username/email : "
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold bg-blue-600 text-white transition-all hover:bg-blue-700 active:scale-95"

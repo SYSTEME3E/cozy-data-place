@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import nexoraLogo from "@/assets/nexora-logo.png";
 
 interface PageLoaderProps {
   duration?: number;
   children: React.ReactNode;
-  onlyAuth?: boolean; // 🔥 nouveau
+  onlyAuth?: boolean;
 }
 
 export default function PageLoader({
@@ -16,52 +15,70 @@ export default function PageLoader({
   const [loading, setLoading] = useState(true);
   const location = useLocation();
 
-  // 🔥 détecte pages auth
   const isAuthPage =
     location.pathname === "/login" ||
     location.pathname === "/register";
 
   useEffect(() => {
-    // 🔥 si seulement auth et on n'est pas sur auth → skip loader
     if (onlyAuth && !isAuthPage) {
       setLoading(false);
       return;
     }
-
     const timer = setTimeout(() => setLoading(false), duration);
     return () => clearTimeout(timer);
   }, [duration, onlyAuth, isAuthPage]);
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 bg-gradient-to-br from-[#061530] via-[#0d2d6b] to-[#020617]">
-        
-        {/* 🔥 Logo + glow */}
-        <div className="flex flex-col items-center gap-6 animate-fadeIn">
-          <img
-            src={nexoraLogo}
-            alt="Nexora"
-            className="w-20 h-20 object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.3)] animate-pulse"
-          />
-
-          <h1 className="text-3xl font-black tracking-[0.3em] text-white">
-            NEXORA
-          </h1>
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "20px",
+          backgroundColor: "#1a2235",
+        }}
+      >
+        {/* Logo texte Nex + ora */}
+        <div
+          style={{
+            fontSize: "38px",
+            fontWeight: 900,
+            letterSpacing: "0.08em",
+            fontFamily: "'Segoe UI', sans-serif",
+          }}
+        >
+          <span style={{ color: "#ffffff" }}>Nex</span>
+          <span style={{ color: "#2979ff" }}>ora</span>
         </div>
 
-        {/* 🔥 Loader dots modern */}
-        <div className="flex gap-3">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="w-3.5 h-3.5 rounded-full bg-yellow-400 animate-bounce"
-              style={{ animationDelay: `${i * 0.2}s` }}
-            />
-          ))}
-        </div>
+        {/* Spinner */}
+        <div
+          style={{
+            width: "36px",
+            height: "36px",
+            border: "3px solid #4a5568",
+            borderTop: "3px solid #4a5568",
+            borderRight: "3px solid transparent",
+            borderRadius: "50%",
+            animation: "nexora-spin 0.9s linear infinite",
+          }}
+        />
+
+        <style>{`
+          @keyframes nexora-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
   return <>{children}</>;
 }
+
