@@ -279,7 +279,7 @@ export default function LandingPage() {
           </button>
 
           <div className="hidden md:flex items-center gap-7 text-[13.5px] font-semibold text-gray-500 dark:text-gray-400">
-            {[["features","Fonctionnalités"],["transfert","Transfert"],["roadmap","Roadmap"],["faq","FAQ"],["avis","Avis"]].map(([id,label]) => (
+            {[["features","Fonctionnalités"],["transfert","Transfert"],["roadmap","Roadmap"],["faq","FAQ"],["avis","Avis"],["download","📱 App"]].map(([id,label]) => (
               <button key={id} onClick={() => scrollTo(id)} className="hover:text-gray-900 dark:hover:text-white transition-colors">{label}</button>
             ))}
           </div>
@@ -308,7 +308,7 @@ export default function LandingPage() {
 
         {menuOpen && (
           <div className="md:hidden glass border-b border-gray-100 dark:border-white/10 px-6 pb-5 pt-2 flex flex-col gap-1">
-            {[["features","Fonctionnalités"],["transfert","Transfert Africa"],["roadmap","Roadmap"],["faq","FAQ"],["avis","Avis"]].map(([id,label]) => (
+            {[["features","Fonctionnalités"],["transfert","Transfert Africa"],["roadmap","Roadmap"],["faq","FAQ"],["avis","Avis"],["download","📱 App"]].map(([id,label]) => (
               <button key={id} onClick={() => scrollTo(id)} className="text-left px-3 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-colors">
                 {label}
               </button>
@@ -873,6 +873,118 @@ export default function LandingPage() {
           ].map((item, i) => (
             <FAQItem key={i} question={item.q} answer={item.a} />
           ))}
+        </div>
+      </section>
+
+      {/* ── TÉLÉCHARGER L'APP ── */}
+      <section id="download" className="max-w-7xl mx-auto px-5 md:px-8 py-20 md:py-28">
+        <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
+          {/* Glows */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-green-500/10 blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-indigo-600/10 blur-3xl" />
+          </div>
+
+          <div className="relative flex flex-col md:flex-row items-center gap-12 px-8 md:px-16 py-16 md:py-20">
+            {/* Texte */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/30 text-xs font-black text-green-400 mb-6 uppercase tracking-widest">
+                <span>📱</span> Application Mobile
+              </div>
+              <h2 className="text-3xl md:text-5xl font-black text-white mb-5 leading-tight">
+                Nexora dans<br />votre poche
+              </h2>
+              <p className="text-gray-400 text-lg mb-8 max-w-md">
+                Téléchargez l'application Android directement — sans passer par le Play Store. Installez-la en quelques secondes sur votre téléphone.
+              </p>
+
+              {/* Boutons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                {/* Android APK */}
+                <a
+                  href="/nexora.apk"
+                  download="Nexora.apk"
+                  className="group inline-flex items-center gap-3 bg-green-500 hover:bg-green-400 text-white font-black px-8 py-4 rounded-2xl text-base transition-all shadow-lg shadow-green-500/25 hover:scale-105 active:scale-95"
+                >
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.523 15.341a.5.5 0 0 1-.848.35l-4.675-4.675-4.675 4.675a.5.5 0 0 1-.848-.35V4.5a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 .5.5v10.841zM3 18.5A1.5 1.5 0 0 0 4.5 20h15a1.5 1.5 0 0 0 0-3h-15A1.5 1.5 0 0 0 3 18.5z"/>
+                  </svg>
+                  Télécharger pour Android
+                  <span className="text-xs font-medium opacity-75">(.apk)</span>
+                </a>
+
+                {/* iOS PWA */}
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("ios-instructions");
+                    if (el) el.classList.toggle("hidden");
+                  }}
+                  className="inline-flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all hover:scale-105 active:scale-95"
+                >
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                  </svg>
+                  Installer sur iPhone
+                </button>
+              </div>
+
+              {/* Instructions iOS (cachées par défaut) */}
+              <div id="ios-instructions" className="hidden mt-6 p-5 bg-white/5 border border-white/10 rounded-2xl text-left max-w-md">
+                <p className="text-white font-bold mb-3 text-sm">📲 Comment installer sur iPhone :</p>
+                <ol className="text-gray-400 text-sm space-y-2 list-decimal list-inside">
+                  <li>Ouvrez ce site dans <strong className="text-white">Safari</strong></li>
+                  <li>Appuyez sur le bouton <strong className="text-white">Partager</strong> ↑ en bas</li>
+                  <li>Choisissez <strong className="text-green-400">« Sur l'écran d'accueil »</strong></li>
+                  <li>Appuyez sur <strong className="text-white">Ajouter</strong></li>
+                </ol>
+              </div>
+
+              {/* Badge infos */}
+              <div className="mt-8 flex flex-wrap gap-4 justify-center md:justify-start">
+                {[
+                  { emoji: "🔒", label: "100% sécurisé" },
+                  { emoji: "⚡", label: "Installation rapide" },
+                  { emoji: "🆓", label: "Gratuit" },
+                ].map((b, i) => (
+                  <div key={i} className="flex items-center gap-2 text-gray-500 text-sm">
+                    <span>{b.emoji}</span> {b.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mockup téléphone */}
+            <div className="flex-shrink-0 flex items-center justify-center">
+              <div className="relative">
+                {/* Glow derrière le téléphone */}
+                <div className="absolute inset-0 rounded-full bg-green-500/20 blur-3xl scale-150" />
+                {/* Téléphone */}
+                <div className="relative w-48 h-80 bg-gray-800 rounded-[2.5rem] border-4 border-gray-700 shadow-2xl flex flex-col overflow-hidden">
+                  {/* Status bar */}
+                  <div className="bg-gray-900 h-8 flex items-center justify-center">
+                    <div className="w-16 h-1.5 bg-gray-700 rounded-full" />
+                  </div>
+                  {/* Screen */}
+                  <div className="flex-1 bg-[#0a0e27] flex flex-col items-center justify-center gap-3 p-4">
+                    <img
+                      src={LOGO}
+                      alt="Nexora"
+                      className="w-16 h-16 object-contain drop-shadow-lg"
+                    />
+                    <p className="text-white font-black text-lg tracking-widest">NEXORA</p>
+                    <p className="text-green-400 text-xs font-medium">Gestion financière</p>
+                    <div className="w-full bg-green-500/20 border border-green-500/30 rounded-xl p-2 mt-2">
+                      <p className="text-green-400 text-[10px] font-bold text-center">✓ Application installée</p>
+                    </div>
+                  </div>
+                  {/* Home bar */}
+                  <div className="bg-gray-900 h-6 flex items-center justify-center">
+                    <div className="w-20 h-1 bg-gray-600 rounded-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
