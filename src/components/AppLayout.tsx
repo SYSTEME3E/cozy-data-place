@@ -57,30 +57,46 @@ export default function AppLayout({
   const [darkMode, setDarkMode]                   = useState(false);
   const [installPrompt, setInstallPrompt]         = useState<any>(null);
   const [showInstallModal, setShowInstallModal]   = useState(false);
+  const [installing, setInstalling]               = useState(false);
   const location  = useLocation();
   const navigate  = useNavigate();
 
-  // ── PWA Install detection ───────────────────────────────────────
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
   const isInstalled =
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as any).standalone === true;
 
+  // ── Capture beforeinstallprompt le plus tôt possible ─────────
   useEffect(() => {
     if (isInstalled) return;
-    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      console.log("[Nexora PWA] prompt capturé ✅");
+    };
     window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => {
+      setInstallPrompt(null);
+      console.log("[Nexora PWA] App installée ✅");
+    });
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstallClick = async () => {
+    // ✅ Prompt disponible → installation directe (Chrome Android)
     if (installPrompt) {
-      await installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      if (outcome === "accepted") setInstallPrompt(null);
-    } else {
-      setShowInstallModal(true);
+      setInstalling(true);
+      try {
+        await installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === "accepted") setInstallPrompt(null);
+      } finally {
+        setInstalling(false);
+      }
+      return;
     }
+    // Pas de prompt → afficher instructions manuelles
+    setShowInstallModal(true);
   };
 
   /* ── Applique le thème global dès le montage (fonctionne sur TOUTES les pages) ── */
@@ -338,23 +354,42 @@ export default function AppLayout({
             {sidebarOpen && <span className="text-sm">{darkMode ? "Mode clair" : "Mode sombre"}</span>}
           </button>
 
-          {/* ── Bouton Installer l'app (toujours visible si pas installé) ── */}
+          {/* ── Bouton Installer l'app ── */}
           {!isInstalled && (
             <button
               onClick={handleInstallClick}
-              title="Installer l'application"
+              disabled={installing}
+              title={installPrompt ? "Installer l'application sur votre écran d'accueil" : "Instructions d'installation"}
               className={`
                 w-full flex items-center gap-3 rounded-xl transition-all
-                text-lime-300 hover:text-white
-                bg-lime-500/10 hover:bg-lime-500/25
-                border border-lime-500/30 hover:border-lime-500/60
+                border border-lime-500/40 hover:border-lime-400
+                ${installing ? "opacity-60 cursor-wait" : "cursor-pointer"}
+                ${installPrompt
+                  ? "bg-lime-500/20 hover:bg-lime-500/35 text-lime-300 hover:text-white"
+                  : "bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200"
+                }
                 ${sidebarOpen ? "px-2.5 py-2" : "px-0 py-2 justify-center"}
               `}
             >
-              <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-lime-500/20 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
-                <Download className={`text-lime-400 flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
+              <div className={`flex items-center justify-center rounded-lg flex-shrink-0
+                ${installPrompt ? "bg-lime-500/25" : "bg-white/10"}
+                ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
+                {installing
+                  ? <span className={`border-2 border-lime-400/40 border-t-lime-400 rounded-full animate-spin
+                      ${sidebarOpen ? "w-3.5 h-3.5" : "w-4.5 h-4.5"}`} />
+                  : <Download className={`flex-shrink-0
+                      ${installPrompt ? "text-lime-400" : "text-gray-400"}
+                      ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
+                }
               </div>
-              {sidebarOpen && <span className="text-sm font-semibold">Installer l'app</span>}
+              {sidebarOpen && (
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-semibold leading-tight">Installer l'app</span>
+                  {installPrompt && (
+                    <span className="text-[10px] text-lime-500/70 font-normal">Appuyez pour installer →</span>
+                  )}
+                </div>
+              )}
             </button>
           )}
 
