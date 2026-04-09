@@ -78,9 +78,9 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() =>
-          caches.match("/index.html").then(
-            (cached) => cached || new Response("Hors-ligne", { status: 503 })
-          )
+          caches.match("/index.html")
+            .then((cached) => cached || new Response("Hors-ligne", { status: 503 }))
+            .catch(() => new Response("Hors-ligne", { status: 503 })) // ✅ FIX Bug 3 : si /index.html absent du cache
         )
     );
     return;
@@ -118,6 +118,8 @@ self.addEventListener("fetch", (event) => {
               { headers: { "Content-Type": "image/svg+xml" } }
             );
           }
+          // ✅ FIX Bug 2 : retourner une Response vide pour éviter TypeError "Failed to convert value to 'Response'"
+          return new Response("", { status: 503, statusText: "Offline" });
         });
     })
   );
