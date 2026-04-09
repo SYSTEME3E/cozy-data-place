@@ -11,15 +11,19 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false,
   },
   server: {
-    // Pour la production, l'app tourne en local (pas de serveur distant)
     androidScheme: 'https',
     cleartext: false,
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 2500,
+      launchAutoHide: true,
       backgroundColor: '#0a0e27',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
       showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     },
   },
 };
