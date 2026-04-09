@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Lock, Image, Link2, User, LogOut, Menu, X,
   Search, ChevronRight, TrendingUp, History, Home,
   HandCoins, ArrowLeft, Receipt, Store, BadgeCheck, Map,
-  ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, Download
+  ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, Download, Share2, Smartphone
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
 import { logoutUser, getNexoraUser, isNexoraAdmin, refreshNexoraSession } from "@/lib/nexora-auth";
@@ -56,34 +56,30 @@ export default function AppLayout({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [darkMode, setDarkMode]                   = useState(false);
   const [installPrompt, setInstallPrompt]         = useState<any>(null);
-  const [canInstall, setCanInstall]               = useState(false);
+  const [showInstallModal, setShowInstallModal]   = useState(false);
   const location  = useLocation();
   const navigate  = useNavigate();
 
   // ── PWA Install detection ───────────────────────────────────────
-  useEffect(() => {
-    const isInstalled =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as any).standalone === true;
-    if (isInstalled) return;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
+  const isInstalled =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as any).standalone === true;
 
-    const handler = (e: any) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-      setCanInstall(true);
-    };
+  useEffect(() => {
+    if (isInstalled) return;
+    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
     window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => setCanInstall(false));
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleInstallApp = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") {
-      setCanInstall(false);
-      setInstallPrompt(null);
+  const handleInstallClick = async () => {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") setInstallPrompt(null);
+    } else {
+      setShowInstallModal(true);
     }
   };
 
@@ -143,6 +139,75 @@ export default function AppLayout({
 
   return (
     <div className="min-h-screen flex bg-muted/30 dark:bg-gray-950 overflow-x-hidden max-w-[100vw]">
+
+      {/* ── Modal d'installation ── */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowInstallModal(false)}>
+          <div className="w-full max-w-sm bg-gray-900 border border-lime-500/30 rounded-2xl p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-lime-500/20 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-lime-400" />
+                </div>
+                <div>
+                  <h3 className="font-black text-white text-base">Installer Nexora</h3>
+                  <p className="text-xs text-gray-400">Accès rapide depuis l'écran d'accueil</p>
+                </div>
+              </div>
+              <button onClick={() => setShowInstallModal(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <X className="w-4 h-4 text-gray-300" />
+              </button>
+            </div>
+
+            {isIOS ? (
+              /* Instructions iOS Safari */
+              <div>
+                <p className="text-xs text-gray-400 mb-4 text-center">
+                  Ouvrez cette page dans <strong className="text-white">Safari</strong> puis :
+                </p>
+                <ol className="space-y-3">
+                  {[
+                    { icon: <Share2 className="w-4 h-4 text-lime-400" />, text: <>Appuyez sur <strong className="text-white">Partager</strong> <span className="text-gray-400">(icône en bas de Safari)</span></> },
+                    { icon: <span className="text-base">➕</span>, text: <>Choisissez <strong className="text-lime-400">« Sur l'écran d'accueil »</strong></> },
+                    { icon: <span className="text-base">✅</span>, text: <>Appuyez sur <strong className="text-white">Ajouter</strong> en haut à droite</> },
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                      <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center">{step.icon}</span>
+                      <span className="text-sm text-gray-300">{step.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : (
+              /* Instructions Android Chrome */
+              <div>
+                <p className="text-xs text-gray-400 mb-4 text-center">
+                  Dans <strong className="text-white">Chrome</strong> sur Android :
+                </p>
+                <ol className="space-y-3">
+                  {[
+                    { icon: "⋮", text: <>Appuyez sur les <strong className="text-white">3 points</strong> en haut à droite</> },
+                    { icon: <Download className="w-4 h-4 text-lime-400" />, text: <>Choisissez <strong className="text-lime-400">« Ajouter à l'écran d'accueil »</strong></> },
+                    { icon: "✅", text: <>Appuyez sur <strong className="text-white">Ajouter</strong> pour confirmer</> },
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                      <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-lime-400 font-bold text-lg">{step.icon}</span>
+                      <span className="text-sm text-gray-300">{step.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            <p className="text-[11px] text-gray-500 text-center mt-4">
+              L'app s'ouvrira en plein écran, sans barre de navigation.
+            </p>
+          </div>
+        </div>
+      )}
       {mobileSidebarOpen && (
         <div className="fixed inset-0 bg-foreground/30 z-20 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />
       )}
@@ -273,20 +338,20 @@ export default function AppLayout({
             {sidebarOpen && <span className="text-sm">{darkMode ? "Mode clair" : "Mode sombre"}</span>}
           </button>
 
-          {/* ── Bouton Installer l'app ── */}
-          {canInstall && (
+          {/* ── Bouton Installer l'app (toujours visible si pas installé) ── */}
+          {!isInstalled && (
             <button
-              onClick={handleInstallApp}
+              onClick={handleInstallClick}
               title="Installer l'application"
               className={`
                 w-full flex items-center gap-3 rounded-xl transition-all
-                text-sidebar-foreground/70 dark:text-gray-300
-                hover:bg-lime-500/20 hover:text-lime-300
+                text-lime-300 hover:text-white
+                bg-lime-500/10 hover:bg-lime-500/25
                 border border-lime-500/30 hover:border-lime-500/60
                 ${sidebarOpen ? "px-2.5 py-2" : "px-0 py-2 justify-center"}
               `}
             >
-              <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-lime-500/15 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
+              <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-lime-500/20 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
                 <Download className={`text-lime-400 flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
               </div>
               {sidebarOpen && <span className="text-sm font-semibold">Installer l'app</span>}
