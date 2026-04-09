@@ -932,8 +932,22 @@ export default function TransfertPage() {
   }, [balance, pollingRecharge]);
 
   const totalDepots = transactions.filter(t => t.type === "depot" && t.status === "success").reduce((s, t) => s + t.montant, 0);
-  const totalTransferts = transactions.filter(t => t.type === "transfert" && t.status === "success").reduce((s, t) => s + t.montant, 0);
-  const filtered = transactions.filter(t => filterType === "all" || t.type === filterType);
+  const totalTransferts = transactions.filter(t => (t.type === "transfert" || t.type === "interne_envoi") && t.status === "success").reduce((s, t) => s + t.montant, 0);
+  const filtered = transactions.filter(t => {
+    if (filterType === "all") return true;
+    if (filterType === "depot") return t.type === "depot";
+    if (filterType === "transfert") return t.type === "transfert";
+    if (filterType === "interne") return t.type === "interne_envoi" || t.type === "interne_recu";
+    return true;
+  });
+
+  const copyNexoraId = () => {
+    if (nexoraId) {
+      navigator.clipboard.writeText(nexoraId);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
 
   const handleRechargeSuccess = () => {
     balanceBeforeRecharge.current = balance;
