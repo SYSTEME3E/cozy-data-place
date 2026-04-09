@@ -4,7 +4,8 @@ import {
   Send, Plus, History, Globe,
   ArrowDownLeft, ArrowUpRight, X, Check, AlertCircle,
   Download, Phone, Search, ChevronDown, Loader2,
-  BadgeCheck, Lock, RefreshCw, User, MapPin
+  BadgeCheck, Lock, RefreshCw, User, MapPin,
+  Copy, Users, Zap, Shield, QrCode
 } from "lucide-react";
 import { initPayment, initPayout } from "@/lib/Moneroo";
 import { getNexoraUser } from "@/lib/nexora-auth";
