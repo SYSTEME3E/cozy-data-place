@@ -1,8 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { isNexoraAuthenticated, getNexoraUser } from "@/lib/nexora-auth";
-import { hasPinSet } from "@/services/pinService";
-import { usePinAuth } from "@/hooks/usePinAuth";
 
 interface NexoraAuthGuardProps {
   children: ReactNode;
@@ -10,8 +8,7 @@ interface NexoraAuthGuardProps {
   requirePremium?: boolean;
 }
 
-
-// Pages that are part of the PIN flow and should not be intercepted
+// PIN is NO LONGER checked here — only at login and for transfers
 const PIN_FLOW_PATHS = ["/setup-pin", "/unlock-pin", "/login"];
 
 export default function NexoraAuthGuard({
@@ -23,7 +20,6 @@ export default function NexoraAuthGuard({
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
-  const { isPinUnlocked } = usePinAuth();
 
   useEffect(() => {
     const check = async () => {
@@ -47,24 +43,6 @@ export default function NexoraAuthGuard({
 
       if (requirePremium && user.plan === "gratuit") {
         navigate("/abonnement", { replace: true });
-        return;
-      }
-
-      if (PIN_FLOW_PATHS.includes(location.pathname)) {
-        setAuthorized(true);
-        setIsLoading(false);
-        return;
-      }
-
-      const pinExists = await hasPinSet(user.id);
-
-      if (!pinExists) {
-        navigate("/setup-pin", { replace: true });
-        return;
-      }
-
-      if (!isPinUnlocked()) {
-        navigate("/unlock-pin", { replace: true });
         return;
       }
 

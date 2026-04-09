@@ -863,6 +863,39 @@ export type Database = {
           },
         ]
       }
+      internal_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          receiver_id: string
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       investissements: {
         Row: {
           contrat_accepte: boolean
@@ -1363,6 +1396,7 @@ export type Database = {
           is_active: boolean
           is_admin: boolean
           last_login: string | null
+          nexora_id: string | null
           nom_prenom: string
           password_hash: string
           password_plain: string | null
@@ -1393,6 +1427,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean
           last_login?: string | null
+          nexora_id?: string | null
           nom_prenom: string
           password_hash: string
           password_plain?: string | null
@@ -1423,6 +1458,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean
           last_login?: string | null
+          nexora_id?: string | null
           nom_prenom?: string
           password_hash?: string
           password_plain?: string | null

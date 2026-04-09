@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { getNexoraUser } from "@/lib/nexora-auth";
-import { payAndRedirect } from "@/lib/Moneroo";
+import { initPayment } from "@/lib/Moneroo";
 import {
   Crown, Check, X, Zap, ShieldCheck, Star, Sparkles,
   TrendingUp, Store, PiggyBank, ArrowLeftRight, Home,
@@ -100,14 +100,22 @@ export default function AbonnementPage() {
     setError(null);
 
     try {
-      await payAndRedirect({
-        type:   "abonnement_premium",
-        amount: 100, // 100 FCFA / mois (+ 100 FCFA frais = 200 FCFA débités)
+      const result = await initPayment({
+        type: "abonnement_premium",
+        amount: 100,
         metadata: {
-          user_id: user.id,  // ✅ Indispensable pour la callback
-          type:    "abonnement_premium",
+          user_id: user.id,
+          type: "abonnement_premium",
         },
       });
+
+      if (!result.success || !result.payment_url) {
+        setError(result.error ?? "Impossible d'initialiser le paiement.");
+        setLoading(false);
+        return;
+      }
+
+      window.open(result.payment_url, "_blank");
     } catch (err: any) {
       console.error("Erreur paiement:", err);
       setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
