@@ -43,7 +43,6 @@ export default function PageLoader({
           backgroundColor: "#1a2235",
         }}
       >
-        {/* Logo texte Nex + ora */}
         <div
           style={{
             fontSize: "38px",
@@ -56,14 +55,14 @@ export default function PageLoader({
           <span style={{ color: "#2979ff" }}>ora</span>
         </div>
 
-        {/* Spinner */}
         <div
           style={{
             width: "36px",
             height: "36px",
-            border: "3px solid #4a5568",
+            border: "3px solid transparent",
             borderTop: "3px solid #4a5568",
-            borderRight: "3px solid transparent",
+            borderRight: "3px solid #4a5568",
+            borderBottom: "3px solid #4a5568",
             borderRadius: "50%",
             animation: "nexora-spin 0.9s linear infinite",
           }}
@@ -81,4 +80,3 @@ export default function PageLoader({
 
   return <>{children}</>;
 }
-
