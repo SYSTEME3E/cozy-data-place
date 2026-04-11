@@ -106,27 +106,37 @@ export default function VitrinePage() {
     initTheme();
     const load = async () => {
       setLoading(true);
-      const { data: b } = await supabase
+      const { data: b, error: boutiqueError } = await supabase
         .from("boutiques" as any)
         .select("*")
         .eq("slug", slug)
-        .eq("actif", true)
         .maybeSingle();
 
-      if (!b) { setNotFound(true); setLoading(false); return; }
+      if (boutiqueError) console.error("[VitrinePage] Erreur boutique:", boutiqueError);
+      // Boutique introuvable ou explicitement désactivée (actif === false)
+      if (!b || (b as any).actif === false) { setNotFound(true); setLoading(false); return; }
       setBoutique(b as any);
 
-      const { data: prods } = await supabase
+      // On filtre côté client pour garder uniquement les produits publiés
+      // (actif = true OU actif non défini).
+      const { data: prods, error: prodsError } = await supabase
         .from("produits" as any)
         .select("*")
         .eq("boutique_id", (b as any).id)
-        .eq("actif", true)
         .order("vedette", { ascending: false });
 
-      const list = (prods as any[] || []).map(p => ({
-        ...p,
-        moyens_paiement: p.moyens_paiement || [],
-      }));
+      if (prodsError) {
+        console.error("[VitrinePage] Erreur chargement produits:", prodsError);
+      }
+
+      const list = (prods as any[] || [])
+        // Affiche les produits dont actif est true OU null/undefined (non défini)
+        .filter((p: any) => p.actif !== false)
+        .map((p: any) => ({
+          ...p,
+          photos: p.photos || [],
+          moyens_paiement: p.moyens_paiement || [],
+        }));
       setProduits(list);
 
       const cats = [...new Set(list.map((p: any) => p.categorie).filter(Boolean))] as string[];
