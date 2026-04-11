@@ -26,10 +26,7 @@ interface Boutique {
   telephone: string;
 }
 
-function fmt(n: number, devise: string) {
-  if (devise === "USD") return `$${n.toFixed(2)}`;
-  return `${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${devise}`;
-}
+import { formatPrix as fmt } from "@/lib/devise-utils";
 
 export default function CommandeTrackingPage() {
   const { commandeId } = useParams<{ commandeId: string }>();
