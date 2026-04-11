@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Lock, User, Mail, AtSign, ChevronRight, CheckCircle2, XCircle, Phone, MessageCircle, HelpCircle } from "lucide-react";
+import { Eye, EyeOff, Lock, User, Mail, AtSign, ChevronRight, CheckCircle2, XCircle, MessageCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
@@ -36,21 +36,19 @@ export default function NexoraLoginPage() {
   const [loading, setLoading]     = useState(false);
   const [pageReady, setPageReady] = useState(false);
 
-  // Login fields
   const [identifier, setIdentifier]     = useState("");
   const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember]         = useState(false);
 
-  // Register fields
-  const [nomPrenom, setNomPrenom]               = useState("");
-  const [username, setUsername]                 = useState("");
-  const [email, setEmail]                       = useState("");
-  const [regPassword, setRegPassword]           = useState("");
-  const [confirmPassword, setConfirmPassword]   = useState("");
-  const [showRegPassword, setShowRegPassword]   = useState(false);
-  const [showConfirm, setShowConfirm]           = useState(false);
-  const [whatsapp, setWhatsapp]                 = useState("");
+  const [nomPrenom, setNomPrenom]             = useState("");
+  const [username, setUsername]               = useState("");
+  const [email, setEmail]                     = useState("");
+  const [regPassword, setRegPassword]         = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showConfirm, setShowConfirm]         = useState(false);
+  const [whatsapp, setWhatsapp]               = useState("");
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -69,7 +67,6 @@ export default function NexoraLoginPage() {
     return () => clearTimeout(ready);
   }, []);
 
-  // ── Splash screen — Nexora Spinner
   if (!pageReady) {
     return (
       <div style={{
@@ -172,6 +169,7 @@ export default function NexoraLoginPage() {
       `}</style>
 
       <div className="w-full max-w-sm fade-in">
+
         {/* Logo */}
         <div className="flex flex-col items-center mb-6">
           <img src={nexoraLogo} alt="Nexora" className="w-16 h-16 object-contain drop-shadow-2xl mb-3" />
@@ -373,6 +371,7 @@ export default function NexoraLoginPage() {
                   </p>
                 </div>
 
+                {/* ✅ LIEN WHATSAPP — balise <a corrigée */}
                 
                   href="https://wa.me/22951762341?text=Bonjour, j'ai oublié mon mot de passe Nexora et j'ai besoin d'aide pour le réinitialiser."
                   target="_blank"
@@ -390,6 +389,7 @@ export default function NexoraLoginPage() {
                   <ChevronRight className="w-4 h-4 opacity-60" />
                 </a>
 
+                {/* ✅ LIEN EMAIL — balise <a corrigée */}
                 
                   href="mailto:erickpakpo786@gmail.com?subject=Réinitialisation mot de passe Nexora&body=Bonjour, j'ai oublié mon mot de passe. Mon username/email : "
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold bg-blue-600 text-white transition-all hover:bg-blue-700 active:scale-95"
