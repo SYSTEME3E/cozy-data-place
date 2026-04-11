@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
+import { getSymboleDevise } from "@/lib/devise-utils";
 import {
   ShoppingBag, Package, TrendingUp, Clock,
   CheckCircle, Truck, XCircle, BarChart2,
@@ -211,7 +212,7 @@ export default function BoutiqueAccueilPage() {
             <p className="text-2xl font-black text-gray-800 dark:text-gray-100 leading-none">
               {Math.round(totalMontant).toLocaleString()}
             </p>
-            <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mt-1 uppercase">{boutique.devise || "FCFA"}</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mt-1 uppercase">{getSymboleDevise(boutique.devise) || "FCFA"}</p>
           </div>
         </div>
 
