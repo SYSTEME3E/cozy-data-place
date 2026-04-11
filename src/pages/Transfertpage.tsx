@@ -1398,6 +1398,15 @@ export default function TransfertPage() {
                         {tx.telephone && <span>{tx.telephone}</span>}
                       </div>
                       <div className="text-xs text-muted-foreground">{tx.date}</div>
+                      {/* Bouton Poursuivre sous la date */}
+                      {tx.type === "depot" && tx.status === "pending" && (
+                        <button
+                          onClick={() => handlePoursuivreRecharge(tx)}
+                          className="mt-1.5 w-full py-1.5 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-blue-600/30"
+                        >
+                          <ArrowDownLeft className="w-3 h-3" /> Poursuivre la recharge
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
@@ -1411,23 +1420,6 @@ export default function TransfertPage() {
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
-                    {/* Boutons Poursuivre / Annuler pour recharges en attente */}
-                    {tx.type === "depot" && tx.status === "pending" && (
-                      <div className="w-full flex gap-2 mt-2 pt-3 border-t border-border/60">
-                        <button
-                          onClick={() => handleAnnulerRecharge(tx)}
-                          className="flex-1 py-2 text-xs font-bold rounded-xl bg-muted hover:bg-destructive/10 hover:text-destructive border border-border hover:border-destructive/30 transition-colors flex items-center justify-center gap-1.5"
-                        >
-                          <X className="w-3.5 h-3.5" /> Annuler
-                        </button>
-                        <button
-                          onClick={() => handlePoursuivreRecharge(tx)}
-                          className="flex-[2] py-2 text-xs font-black rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-900 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-yellow-500/30"
-                        >
-                          <ArrowDownLeft className="w-3.5 h-3.5" /> Poursuivre la recharge
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })}
