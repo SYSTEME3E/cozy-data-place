@@ -16,7 +16,26 @@ const PAYS = [
   "Nigeria", "France", "États-Unis", "Canada", "Autre"
 ];
 
-const DEVISES = ["XOF", "USD", "EUR", "GHS", "NGN"];
+const DEVISES = [
+  { code: "XOF", symbole: "FCFA",  label: "XOF — Franc CFA (UEMOA)" },
+  { code: "XAF", symbole: "FCFA",  label: "XAF — Franc CFA (CEMAC)" },
+  { code: "GHS", symbole: "₵",     label: "GHS — Cédi ghanéen" },
+  { code: "NGN", symbole: "₦",     label: "NGN — Naira nigérian" },
+  { code: "KES", symbole: "KSh",   label: "KES — Shilling kényan" },
+  { code: "TZS", symbole: "TSh",   label: "TZS — Shilling tanzanien" },
+  { code: "UGX", symbole: "USh",   label: "UGX — Shilling ougandais" },
+  { code: "RWF", symbole: "RF",    label: "RWF — Franc rwandais" },
+  { code: "GNF", symbole: "GNF",   label: "GNF — Franc guinéen" },
+  { code: "CDF", symbole: "FC",    label: "CDF — Franc congolais" },
+  { code: "MAD", symbole: "MAD",   label: "MAD — Dirham marocain" },
+  { code: "GMD", symbole: "GMD",   label: "GMD — Dalasi gambien" },
+  { code: "SLL", symbole: "SLL",   label: "SLL — Leone sierra-léonais" },
+  { code: "LRD", symbole: "L$",    label: "LRD — Dollar libérien" },
+  { code: "MZN", symbole: "MT",    label: "MZN — Metical mozambicain" },
+  { code: "ZMW", symbole: "ZMW",   label: "ZMW — Kwacha zambien" },
+  { code: "USD", symbole: "$",     label: "USD — Dollar américain" },
+  { code: "EUR", symbole: "€",     label: "EUR — Euro" },
+];
 
 const TABS = [
   { id: "general",       label: "Général",         icon: Store    },
@@ -230,7 +249,7 @@ export default function BoutiqueParametresPage() {
                 <select value={boutique.devise}
                   onChange={e => setBoutique(prev => ({ ...prev, devise: e.target.value }))}
                   className={`mt-1 ${selectCls}`}>
-                  {DEVISES.map(d => <option key={d} value={d}>{d}</option>)}
+                  {DEVISES.map(d => <option key={d.code} value={d.code}>{d.label} ({d.symbole})</option>)}
                 </select>
               </div>
             </div>
