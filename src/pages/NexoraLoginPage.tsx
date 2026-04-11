@@ -72,39 +72,37 @@ export default function NexoraLoginPage() {
   // ── Splash screen — Nexora Spinner
   if (!pageReady) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "20px",
-          backgroundColor: "#1a2235",
-        }}
-      >
-        <div style={{ fontSize: "38px", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "'Segoe UI', sans-serif" }}>
+      <div style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "24px",
+        backgroundColor: "#1a2235",
+      }}>
+        <div style={{
+          fontSize: "40px",
+          fontWeight: 900,
+          letterSpacing: "0.08em",
+          fontFamily: "'Segoe UI', sans-serif",
+        }}>
           <span style={{ color: "#ffffff" }}>Nex</span>
           <span style={{ color: "#2979ff" }}>ora</span>
         </div>
-        <div
-          style={{
-            width: "36px",
-            height: "36px",
-            border: "3px solid transparent",
-            borderTop: "3px solid #4a5568",
-            borderRight: "3px solid #4a5568",
-            borderBottom: "3px solid #4a5568",
-            borderRadius: "50%",
-            animation: "nexora-spin 0.9s linear infinite",
-          }}
-        />
+        <div style={{
+          width: "38px",
+          height: "38px",
+          borderRadius: "50%",
+          border: "3.5px solid rgba(255,255,255,0.1)",
+          borderTopColor: "#2979ff",
+          animation: "nexora-spin 0.85s cubic-bezier(0.4,0,0.6,1) infinite",
+        }} />
         <style>{`
           @keyframes nexora-spin {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
           }
         `}</style>
       </div>
@@ -166,10 +164,6 @@ export default function NexoraLoginPage() {
       style={{ background: "radial-gradient(ellipse at top, hsl(217 89% 18%) 0%, hsl(217 89% 8%) 100%)" }}
     >
       <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
@@ -375,11 +369,11 @@ export default function NexoraLoginPage() {
                   </div>
                   <h2 className="font-black text-lg text-gray-900 dark:text-white">Mot de passe oublié ?</h2>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                    Contactez notre service client pour réinitialiser votre mot de passe. Nous vous aiderons rapidement !
+                    Contactez notre service client pour réinitialiser votre mot de passe.
                   </p>
                 </div>
 
-                <a
+                
                   href="https://wa.me/22951762341?text=Bonjour, j'ai oublié mon mot de passe Nexora et j'ai besoin d'aide pour le réinitialiser."
                   target="_blank"
                   rel="noopener noreferrer"
@@ -396,7 +390,7 @@ export default function NexoraLoginPage() {
                   <ChevronRight className="w-4 h-4 opacity-60" />
                 </a>
 
-                <a
+                
                   href="mailto:erickpakpo786@gmail.com?subject=Réinitialisation mot de passe Nexora&body=Bonjour, j'ai oublié mon mot de passe. Mon username/email : "
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold bg-blue-600 text-white transition-all hover:bg-blue-700 active:scale-95"
                 >
@@ -411,7 +405,7 @@ export default function NexoraLoginPage() {
                 </a>
 
                 <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                  Précisez votre <strong>username</strong> ou <strong>email</strong> ainsi que votre nom complet pour une réponse rapide.
+                  Précisez votre <strong>username</strong> ou <strong>email</strong> ainsi que votre nom complet.
                 </p>
 
                 <button onClick={() => setMode("login")}
