@@ -75,18 +75,17 @@ export default function NexoraLoginPage() {
   if (!pageReady) {
     return (
       <div
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-        style={{ background: "radial-gradient(ellipse at center, hsl(217 89% 20%) 0%, hsl(217 89% 10%) 100%)" }}>
-        <div className="flex flex-col items-center gap-6">
-          <img src={nexoraLogo} alt="Nexora" className="w-24 h-24 object-contain drop-shadow-2xl animate-pulse" />
-          <div className="text-3xl font-black text-white tracking-widest">NEXORA</div>
-          <div className="flex gap-4 mt-2">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="w-5 h-5 rounded-full bg-yellow-400"
-                style={{ animation: "bounce 0.7s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-            ))}
-          </div>
-        </div>
+        className="fixed inset-0 z-50 flex items-center justify-center"
+        style={{ backgroundColor: "#1a2235" }}>
+        <div style={{
+          width: "38px",
+          height: "38px",
+          borderRadius: "50%",
+          border: "3.5px solid rgba(255,255,255,0.1)",
+          borderTopColor: "#2979ff",
+          animation: "nexora-spin 0.85s cubic-bezier(0.4,0,0.6,1) infinite",
+        }} />
+        <style>{`@keyframes nexora-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
