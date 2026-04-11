@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Lock, Image, Link2, User, LogOut, Menu, X,
-  Search, ChevronRight, TrendingUp, History, Home,
-  HandCoins, ArrowLeft, Receipt, Store, BadgeCheck, Map,
+  Search, ChevronRight, TrendingUp, History,
+  HandCoins, Receipt, Store, BadgeCheck, Map,
   ShieldCheck, ArrowLeftRight, Sun, Moon, Phone
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
@@ -16,7 +16,6 @@ import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
 
 const getNavItems = (isAdmin: boolean) => {
   const items = [
-    { path: "/",                 icon: Home,            label: "Accueil",             color: "text-indigo-400",  bg: "bg-indigo-400/10"  },
     { path: "/dashboard",        icon: LayoutDashboard, label: "Tableau de bord",     color: "text-red-400",     bg: "bg-red-400/10"     },
     { path: "/entrees-depenses", icon: TrendingUp,      label: "Entrées & Dépenses",  color: "text-green-400",   bg: "bg-green-400/10"   },
     { path: "/historique",       icon: History,         label: "Historique",           color: "text-accent",      bg: "bg-accent/10"      },
@@ -94,7 +93,6 @@ export default function AppLayout({
     : "Gratuit";
   const hasBadge    = nexoraUser?.badge_premium || nexoraUser?.is_admin;
   const isAdminPage = location.pathname === "/admin";
-  const canGoBack   = location.pathname !== "/dashboard";
 
   const currentPage = navItems.find(
     (i) =>
@@ -273,16 +271,6 @@ export default function AppLayout({
           >
             {mobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-
-          {canGoBack && (
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted dark:hover:bg-gray-800 transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
-              title="Retour au Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          )}
 
           <div className="flex-1 min-w-0 flex items-center gap-2">
             {currentPage && (
