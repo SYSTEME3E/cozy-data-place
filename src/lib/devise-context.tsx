@@ -68,6 +68,8 @@ interface DeviseContextValue {
   fmtXOF: (montantXOF: number) => string;
   /** Formate un montant déjà dans une devise donnée */
   fmtRaw: (montant: number, code: DeviseCode) => string;
+  /** Convertit un montant USD → XOF avec le taux live */
+  usdToXof: (montantUSD: number) => number;
   /** Symbole de la devise active */
   symbole: string;
   /** Taux XOF → devise active */
@@ -199,6 +201,12 @@ export function DeviseProvider({ children }: { children: React.ReactNode }) {
     return montantXOF * t;
   }, [rates, devise]);
 
+  // USD→XOF via taux live : 1/taux(XOF→USD) = 1/rates.USD
+  const usdToXof = useCallback((montantUSD: number) => {
+    const rateXofToUsd = rates["USD"] ?? FALLBACK_RATES_FROM_XOF["USD"] ?? 0.00163;
+    return rateXofToUsd > 0 ? montantUSD / rateXofToUsd : montantUSD * 613;
+  }, [rates]);
+
   const fmtXOF = useCallback((montantXOF: number) => {
     return formatMontant(fromXOF(montantXOF), devise);
   }, [fromXOF, devise]);
@@ -213,6 +221,7 @@ export function DeviseProvider({ children }: { children: React.ReactNode }) {
     <DeviseContext.Provider value={{
       devise, setDevise,
       fromXOF, fmtXOF, fmtRaw,
+      usdToXof,
       symbole, taux,
       ratesLoading, ratesFresh, lastUpdated,
     }}>
