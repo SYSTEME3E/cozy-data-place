@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { addToCart, clearCart, readCart, saveCart, type ShopCartItem } from "@/lib/shop-cart";
-import { initTheme } from "@/lib/theme";
+// dark mode désactivé sur cette page
 import {
   ShoppingCart, Plus, Minus, X, Phone, MessageCircle,
   Search, Star, Tag, Package
@@ -100,7 +100,8 @@ export default function VitrinePage() {
 
   // ── Chargement
   useEffect(() => {
-    initTheme();
+    // Forcer le mode clair sur cette page
+    document.documentElement.classList.remove("dark");
     const load = async () => {
       setLoading(true);
       const { data: b, error: boutiqueError } = await supabase
