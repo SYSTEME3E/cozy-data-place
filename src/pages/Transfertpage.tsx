@@ -292,8 +292,8 @@ function CountrySelector({ selected, onSelect, label }: {
 function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { fmtXOF, rates, devise } = useDevise();
 
-  // Devise locale persistée depuis le dashboard
-  const deviseLocale = getDevisePersistee();
+  // Devise active depuis le contexte global (réactive au changement du dashboard)
+  const deviseLocale = devise;
   const symboleLocal = getSymboleDevise(deviseLocale);
   const isXof = deviseLocale === "XOF" || deviseLocale === "XAF";
 
@@ -490,9 +490,9 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   onConfirm: (montantFcfa: number, frais: number, reseau: string, tel: string, pays: ActiveCountry, nomComplet: string) => void;
   balance: number; // balance en FCFA
 }) {
-  const { fmtXOF, xofTo, rates } = useDevise();
+  const { fmtXOF, xofTo, rates, devise } = useDevise();
 
-  const deviseLocale  = getDevisePersistee();
+  const deviseLocale  = devise; // Réactif au contexte global
   const symboleLocal  = getSymboleDevise(deviseLocale);
   const isXof         = deviseLocale === "XOF" || deviseLocale === "XAF";
   const tauxLocParXof = rates[deviseLocale] ?? 1;
@@ -696,9 +696,9 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
   onSuccess: () => void;
   balance: number; // en FCFA
 }) {
-  const { fmtXOF, rates } = useDevise();
+  const { fmtXOF, rates, devise } = useDevise();
 
-  const deviseLocale  = getDevisePersistee();
+  const deviseLocale  = devise; // Réactif au contexte global
   const symboleLocal  = getSymboleDevise(deviseLocale);
   const isXof         = deviseLocale === "XOF" || deviseLocale === "XAF";
   const tauxLocParXof = rates[deviseLocale] ?? 1;
@@ -963,9 +963,9 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
 // PAGE PRINCIPALE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function TransfertPage() {
-  const { fmtXOF, rates } = useDevise();
+  const { fmtXOF, rates, devise } = useDevise();
 
-  const deviseLocale  = getDevisePersistee();
+  const deviseLocale  = devise; // Réactif au contexte global (changement depuis dashboard)
   const symboleLocal  = getSymboleDevise(deviseLocale);
   const isXof         = deviseLocale === "XOF" || deviseLocale === "XAF";
   const tauxLocParXof = rates[deviseLocale] ?? 1;
