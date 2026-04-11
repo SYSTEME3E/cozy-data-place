@@ -6,7 +6,7 @@ import {
   MessageCircle, Package, Phone, Truck
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { initTheme } from "@/lib/theme";
+// dark mode désactivé sur cette page
 
 
 interface ProduitInfo {
@@ -57,7 +57,8 @@ export default function AcheterPage() {
   const [acheteurNom, setAcheteurNom] = useState("");
   const [acheteurTel, setAcheteurTel] = useState("");
 
-  useEffect(() => { initTheme(); }, []);
+  // Forcer le mode clair sur cette page
+  useEffect(() => { document.documentElement.classList.remove("dark"); }, []);
 
   useEffect(() => {
     const load = async () => {
