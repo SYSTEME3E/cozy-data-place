@@ -61,10 +61,7 @@ const ORDRE_STATUTS: StatutCommande[] = [
   "en_attente", "nouvelle", "confirmee", "en_preparation", "expediee", "livree", "annulee"
 ];
 
-function formatMontant(amount: number, devise: string = "XOF"): string {
-  if (devise === "USD") return `$${amount.toFixed(2)}`;
-  return Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " " + devise;
-}
+import { formatPrix as formatMontant } from "@/lib/devise-utils";
 
 function formatDate(dt: string): string {
   return new Date(dt).toLocaleDateString("fr-FR", {
@@ -190,7 +187,7 @@ export default function CommandesPage() {
           <div className="bg-pink-50 dark:bg-pink-950/40 border border-pink-100 dark:border-pink-900 rounded-2xl p-4 col-span-2">
             <p className="text-xs text-pink-600 dark:text-pink-400 font-medium">Chiffre d'affaires</p>
             <p className="text-2xl font-black text-pink-700 dark:text-pink-300">
-              {Math.round(stats.chiffre).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} {boutique?.devise || "FCFA"}
+              {formatMontant(stats.chiffre, boutique?.devise || "XOF")}
             </p>
           </div>
         </div>
