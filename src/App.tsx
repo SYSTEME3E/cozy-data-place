@@ -11,8 +11,6 @@ import { Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 
-
-
 // Auth
 import NexoraLoginPage from "@/pages/NexoraLoginPage";
 import LandingPage from "@/pages/LandingPage";
@@ -22,7 +20,6 @@ import PrivacyPage from "@/pages/PrivacyPage";
 // PIN Security
 import SetupPinPage from "@/pages/SetupPinPage";
 import UnlockPinPage from "@/pages/UnlockPinPage";
-
 
 // Pages Dashboard / Finance
 import DashboardPage from "@/pages/DashboardPage";
@@ -68,7 +65,7 @@ const queryClient = new QueryClient();
 const LOADER_LOGIN = 800;
 const LOADER_PAGE = 800;
 
-// --- Composants de Garde (Guards) ---
+// ─── Guards ────────────────────────────────────────────────────────────────────
 
 const ProtectedPage = ({ children }: { children: React.ReactNode }) => (
   <NexoraAuthGuard>
@@ -82,8 +79,10 @@ const AdminPage = ({ children }: { children: React.ReactNode }) => (
   </NexoraAuthGuard>
 );
 
+// ✅ CORRECTION : PremiumWall défini ICI (à l'intérieur du contexte router)
+// Il sera utilisé uniquement à l'intérieur de <BrowserRouter>
 function PremiumWall() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // ✅ Valide car utilisé dans <BrowserRouter>
   return (
     <AppLayout>
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
@@ -92,7 +91,8 @@ function PremiumWall() {
         </div>
         <h2 className="text-2xl font-black text-foreground mb-2">Fonctionnalité Premium</h2>
         <p className="text-muted-foreground text-sm mb-1 max-w-xs">
-          Cette section est réservée aux membres <span className="font-bold text-yellow-600">Premium</span>.
+          Cette section est réservée aux membres{" "}
+          <span className="font-bold text-yellow-600">Premium</span>.
         </p>
         <p className="text-muted-foreground text-xs mb-8 max-w-xs">
           Passez au plan Premium pour accéder à toutes les fonctionnalités sans limite.
@@ -114,85 +114,92 @@ function PremiumWall() {
   );
 }
 
-const PremiumPage = ({ children }: { children: React.ReactNode }) => (
-  <NexoraAuthGuard>
-    <PageLoader duration={LOADER_PAGE}>
-      {hasNexoraPremium() ? children : <PremiumWall />}
-    </PageLoader>
-  </NexoraAuthGuard>
-);
+// ✅ CORRECTION : PremiumPage utilise un composant interne pour que
+// hasNexoraPremium() soit évalué au moment du rendu, dans le bon contexte
+const PremiumPage = ({ children }: { children: React.ReactNode }) => {
+  const isPremium = hasNexoraPremium();
+  return (
+    <NexoraAuthGuard>
+      <PageLoader duration={LOADER_PAGE}>
+        {isPremium ? children : <PremiumWall />}
+      </PageLoader>
+    </NexoraAuthGuard>
+  );
+};
 
-// --- Application Principale ---
+// ─── Application Principale ────────────────────────────────────────────────────
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <DeviseProvider>
-    <BrowserRouter>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+      {/* ✅ BrowserRouter englobe TOUT, y compris PremiumWall via PremiumPage */}
+      <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
 
-        <Routes>
-          {/* Public / Auth */}
-          <Route path="/login" element={
-            <PageLoader duration={LOADER_LOGIN}>
-              <NexoraLoginPage />
-            </PageLoader>
-          } />
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/cgu" element={<CGUPage />} />
-          <Route path="/confidentialite" element={<PrivacyPage />} />
+          <Routes>
+            {/* Public / Auth */}
+            <Route
+              path="/login"
+              element={
+                <PageLoader duration={LOADER_LOGIN}>
+                  <NexoraLoginPage />
+                </PageLoader>
+              }
+            />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/cgu" element={<CGUPage />} />
+            <Route path="/confidentialite" element={<PrivacyPage />} />
 
-          {/* PIN Security Routes */}
-          <Route path="/setup-pin" element={<SetupPinPage />} />
-          <Route path="/unlock-pin" element={<UnlockPinPage />} />
+            {/* PIN Security */}
+            <Route path="/setup-pin" element={<SetupPinPage />} />
+            <Route path="/unlock-pin" element={<UnlockPinPage />} />
 
-          {/* Routes Dashboard / Finance */}
-          <Route path="/dashboard"         element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
-          <Route path="/historique"        element={<ProtectedPage><HistoriquePage /></ProtectedPage>} />
-          <Route path="/coffre-fort"       element={<AdminPage><CoffreFortPage /></AdminPage>} />
-          <Route path="/liens"             element={<AdminPage><LiensPage /></AdminPage>} />
-          <Route path="/profil"            element={<ProtectedPage><ProfilPage /></ProtectedPage>} />
-          <Route path="/abonnement"        element={<ProtectedPage><AbonnementPage /></ProtectedPage>} />
-          <Route path="/transfert"         element={<ProtectedPage><TransfertPage /></ProtectedPage>} />
-          <Route path="/factures"          element={<ProtectedPage><FacturesPage /></ProtectedPage>} />
-          <Route path="/prets"             element={<AdminPage><PretsPage /></AdminPage>} />
-          <Route path="/entrees-depenses"  element={<ProtectedPage><EntreesDepensesPage /></ProtectedPage>} />
+            {/* Dashboard / Finance */}
+            <Route path="/dashboard"        element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
+            <Route path="/historique"       element={<ProtectedPage><HistoriquePage /></ProtectedPage>} />
+            <Route path="/coffre-fort"      element={<AdminPage><CoffreFortPage /></AdminPage>} />
+            <Route path="/liens"            element={<AdminPage><LiensPage /></AdminPage>} />
+            <Route path="/profil"           element={<ProtectedPage><ProfilPage /></ProtectedPage>} />
+            <Route path="/abonnement"       element={<ProtectedPage><AbonnementPage /></ProtectedPage>} />
+            <Route path="/transfert"        element={<ProtectedPage><TransfertPage /></ProtectedPage>} />
+            <Route path="/factures"         element={<ProtectedPage><FacturesPage /></ProtectedPage>} />
+            <Route path="/prets"            element={<AdminPage><PretsPage /></AdminPage>} />
+            <Route path="/entrees-depenses" element={<ProtectedPage><EntreesDepensesPage /></ProtectedPage>} />
 
-          {/* Callback Paiement Moneroo */}
-          <Route path="/payment/callback"  element={<ProtectedPage><PaymentCallbackPage /></ProtectedPage>} />
+            {/* Callback Paiement */}
+            <Route path="/payment/callback" element={<ProtectedPage><PaymentCallbackPage /></ProtectedPage>} />
 
-          {/* Redirections */}
-          <Route path="/entrees"           element={<Navigate to="/entrees-depenses" replace />} />
-          <Route path="/depenses"          element={<Navigate to="/entrees-depenses" replace />} />
+            {/* Redirections */}
+            <Route path="/entrees"  element={<Navigate to="/entrees-depenses" replace />} />
+            <Route path="/depenses" element={<Navigate to="/entrees-depenses" replace />} />
 
-          {/* Routes Premium */}
-          <Route path="/contacts-whatsapp"      element={<PremiumPage><ContactsWhatsAppPage /></PremiumPage>} />
-          <Route path="/immobilier"             element={<ImmobilierPage />} />
-          <Route path="/immobilier/annonce/:id" element={<AnnonceDetailPage />} />
-          <Route path="/boutique"               element={<PremiumPage><BoutiqueAccueilPage /></PremiumPage>} />
-          <Route path="/boutique/produits"      element={<PremiumPage><BoutiqueProduitsPage /></PremiumPage>} />
-          <Route path="/boutique/commandes"     element={<PremiumPage><CommandesPage /></PremiumPage>} />
-          <Route path="/boutique/parametres"    element={<PremiumPage><BoutiqueParametresPage /></PremiumPage>} />
+            {/* Premium */}
+            <Route path="/contacts-whatsapp"      element={<PremiumPage><ContactsWhatsAppPage /></PremiumPage>} />
+            <Route path="/immobilier"             element={<ImmobilierPage />} />
+            <Route path="/immobilier/annonce/:id" element={<AnnonceDetailPage />} />
+            <Route path="/boutique"               element={<PremiumPage><BoutiqueAccueilPage /></PremiumPage>} />
+            <Route path="/boutique/produits"      element={<PremiumPage><BoutiqueProduitsPage /></PremiumPage>} />
+            <Route path="/boutique/commandes"     element={<PremiumPage><CommandesPage /></PremiumPage>} />
+            <Route path="/boutique/parametres"    element={<PremiumPage><BoutiqueParametresPage /></PremiumPage>} />
 
-          {/* Vitrines (Accessibles via slugs) */}
-          <Route path="/shop/:slug"                               element={<BoutiqueVitrinePage />} />
-          <Route path="/shop/:slug/produit/:produitId"            element={<ProduitDetailPage />} />
-          <Route path="/shop/:slug/acheter/:produitId"            element={<AcheterPage />} />
-          <Route path="/immobilier/vendeur/:userId"               element={<ProfilVendeurPage />} />
-          
-          <Route path="/commande/:commandeId"                     element={<CommandeTrackingPage />} />
+            {/* Vitrines publiques */}
+            <Route path="/shop/:slug"                    element={<BoutiqueVitrinePage />} />
+            <Route path="/shop/:slug/produit/:produitId" element={<ProduitDetailPage />} />
+            <Route path="/shop/:slug/acheter/:produitId" element={<AcheterPage />} />
+            <Route path="/immobilier/vendeur/:userId"    element={<ProfilVendeurPage />} />
+            <Route path="/commande/:commandeId"          element={<CommandeTrackingPage />} />
 
-          {/* Admin */}
-          <Route path="/admin"        element={<AdminPage><AdminPanelPage /></AdminPage>} />
-          
-          <Route path="/medias" element={<AdminPage><MediasPage /></AdminPage>} />
+            {/* Admin */}
+            <Route path="/admin"  element={<AdminPage><AdminPanelPage /></AdminPage>} />
+            <Route path="/medias" element={<AdminPage><MediasPage /></AdminPage>} />
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
     </DeviseProvider>
   </QueryClientProvider>
 );
