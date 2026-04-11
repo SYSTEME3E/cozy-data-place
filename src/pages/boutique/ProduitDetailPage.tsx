@@ -73,7 +73,7 @@ export default function ProduitDetailPage() {
         .from("boutiques" as any)
         .select("id, nom, slug, devise")
         .eq("slug", slug)
-        .eq("actif", true)
+        .neq("actif", false)
         .maybeSingle();
 
       if (!boutiqueData) {
@@ -88,7 +88,7 @@ export default function ProduitDetailPage() {
         .select("*, variations_produit(*)")
         .eq("id", produitId)
         .eq("boutique_id", (boutiqueData as any).id)
-        .eq("actif", true)
+        .neq("actif", false)
         .maybeSingle();
 
       if (produitData) {
