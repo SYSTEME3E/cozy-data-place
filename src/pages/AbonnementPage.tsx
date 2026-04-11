@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDevise } from "@/lib/devise-context";
 import AppLayout from "@/components/AppLayout";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { initPayment } from "@/lib/Moneroo";
@@ -102,6 +103,7 @@ export default function AbonnementPage() {
   const user        = getNexoraUser();
   const currentPlan = user?.plan || "gratuit";
   const isPremium   = currentPlan !== "gratuit";
+  const { fmtXOF, symbole } = useDevise();
   const [openCat, setOpenCat]       = useState<string | null>("Finance personnelle");
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
@@ -199,7 +201,7 @@ export default function AbonnementPage() {
             <p className="text-xs text-muted-foreground mb-4">Découverte de l'écosystème</p>
             <div className="mb-6">
               <span className="text-4xl font-black text-foreground">0</span>
-              <span className="text-sm text-muted-foreground ml-1">FCFA / mois</span>
+              <span className="text-sm text-muted-foreground ml-1">{symbole} / mois</span>
             </div>
             <button disabled className="w-full py-3 bg-muted text-muted-foreground font-bold rounded-xl text-sm mb-4">
               {currentPlan === "gratuit" ? "Plan actuel" : "Inclus par défaut"}
@@ -233,17 +235,16 @@ export default function AbonnementPage() {
 
             <div className="mb-2">
               <span className="text-3xl font-black text-white">
-                {new Intl.NumberFormat("fr-FR").format(montantTotal)}
+                {fmtXOF(montantTotal)}
               </span>
-              <span className="text-sm text-white/50 ml-1">FCFA</span>
               <p className="text-[10px] text-white/40 mt-0.5">
                 {planChoisi.mois === 1
                   ? "Paiement mensuel"
-                  : `Soit ${new Intl.NumberFormat("fr-FR").format(Math.round(montantTotal / planChoisi.mois))} FCFA/mois · ${planChoisi.label}`}
+                  : `Soit ${fmtXOF(Math.round(montantTotal / planChoisi.mois))}/mois · ${planChoisi.label}`}
               </p>
               {planChoisi.remise > 0 && (
                 <p className="text-[10px] text-yellow-400 font-bold mt-0.5">
-                  Économie : {new Intl.NumberFormat("fr-FR").format(PRIX_MENSUEL * planChoisi.mois - montantTotal)} FCFA
+                  Économie : {fmtXOF(PRIX_MENSUEL * planChoisi.mois - montantTotal)}
                 </p>
               )}
             </div>
