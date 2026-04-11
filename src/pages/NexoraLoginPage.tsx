@@ -75,8 +75,12 @@ export default function NexoraLoginPage() {
   if (!pageReady) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ backgroundColor: "#1a2235" }}>
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+        style={{ backgroundColor: "#1a2235", gap: "24px" }}>
+        <div style={{ fontSize: "36px", fontWeight: 900, fontFamily: "'Segoe UI', sans-serif", letterSpacing: "0.02em" }}>
+          <span style={{ color: "#ffffff" }}>Nex</span>
+          <span style={{ color: "#2979ff" }}>ora</span>
+        </div>
         <div style={{
           width: "38px",
           height: "38px",
