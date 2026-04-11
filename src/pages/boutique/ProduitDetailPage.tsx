@@ -45,10 +45,7 @@ interface BoutiqueInfo {
   devise: string;
 }
 
-function formatPrix(prix: number, devise: string = "XOF") {
-  if (devise === "USD") return `$${prix.toFixed(2)}`;
-  return `${Math.round(prix).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${devise}`;
-}
+import { formatPrix } from "@/lib/devise-utils";
 
 export default function ProduitDetailPage() {
   const { slug, produitId } = useParams<{ slug: string; produitId: string }>();
