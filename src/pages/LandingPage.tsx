@@ -902,8 +902,9 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                 {/* Android APK */}
                 <a
-                  href="/nexora.apk"
-                  download="Nexora.apk"
+                  href="https://drive.google.com/uc?export=download&id=1li2T219za53QcPW2iSHTWgARtDiO1hQw"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group inline-flex items-center gap-3 bg-green-500 hover:bg-green-400 text-white font-black px-8 py-4 rounded-2xl text-base transition-all shadow-lg shadow-green-500/25 hover:scale-105 active:scale-95"
                 >
                   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
