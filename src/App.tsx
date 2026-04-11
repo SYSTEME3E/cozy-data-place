@@ -9,10 +9,6 @@ import { hasNexoraPremium } from "@/lib/nexora-auth";
 import { Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
-import InstallPWA from "@/components/InstallPWA";
-import SwUpdateNotifier from "@/components/SwUpdateNotifier";
-
-
 // Auth
 import NexoraLoginPage from "@/pages/NexoraLoginPage";
 import LandingPage from "@/pages/LandingPage";
@@ -130,8 +126,6 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <InstallPWA />
-        <SwUpdateNotifier />
         <Routes>
           {/* Public / Auth */}
           <Route path="/login" element={
