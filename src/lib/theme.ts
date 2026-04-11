@@ -4,6 +4,8 @@
 // Usage : importez initTheme() dans chaque layout/page pour appliquer le thème.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useEffect } from "react";
+
 export const THEME_KEY = "nexora-theme";
 export type NexoraTheme = "light" | "dark";
 
@@ -41,4 +43,25 @@ export function toggleTheme(): NexoraTheme {
  */
 export function initTheme() {
   applyTheme(getTheme());
+}
+
+/**
+ * Hook React — force le mode CLAIR sur une page spécifique
+ * sans modifier le thème sauvegardé dans localStorage.
+ * Au démontage, restaure automatiquement le thème de l'utilisateur.
+ * Utilisation : appelez useLightMode() en haut du composant de la page.
+ */
+export function useLightMode() {
+  useEffect(() => {
+    // Forcer le mode clair visuellement (sans écrire dans localStorage)
+    document.documentElement.classList.remove("dark");
+
+    // Au démontage (navigation vers une autre page), restaurer le vrai thème
+    return () => {
+      const saved = getTheme();
+      if (saved === "dark") {
+        document.documentElement.classList.add("dark");
+      }
+    };
+  }, []);
 }
