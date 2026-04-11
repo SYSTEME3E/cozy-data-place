@@ -65,14 +65,14 @@ export default function AcheterPage() {
       setLoading(true);
       const { data: b } = await supabase
         .from("boutiques" as any).select("id,nom,slug,devise,whatsapp,telephone")
-        .eq("slug", slug).eq("actif", true).maybeSingle();
+        .eq("slug", slug).neq("actif", false).maybeSingle();
       if (!b) { setLoading(false); return; }
       setBoutique(b as unknown as BoutiqueInfo);
 
       const { data: p } = await supabase
         .from("produits" as any)
         .select("id,nom,prix,prix_promo,photos,paiement_lien,paiement_reception,moyens_paiement,type")
-        .eq("id", produitId).eq("boutique_id", (b as any).id).eq("actif", true).maybeSingle();
+        .eq("id", produitId).eq("boutique_id", (b as any).id).neq("actif", false).maybeSingle();
 
       if (p) {
         setProduit({
