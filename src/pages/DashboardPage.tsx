@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { convertAmount } from "@/lib/app-utils";
 import { useDevise, DEVISES_LISTE } from "@/lib/devise-context";
 import AppLayout from "@/components/AppLayout";
 import {
@@ -181,7 +180,7 @@ function WhatsAppFloatingButton() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { devise, setDevise, fmtXOF, ratesFresh, lastUpdated, ratesLoading } = useDevise();
+  const { devise, setDevise, fmtXOF, usdToXof, ratesFresh, lastUpdated, ratesLoading } = useDevise();
   const [time, setTime]       = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [stats, setStats]     = useState({
@@ -203,7 +202,7 @@ export default function DashboardPage() {
   const loadStats = async () => {
     setLoading(true);
     const toXOF = (m: number, dev: string) =>
-      dev === "USD" ? convertAmount(m, "USD", "XOF") : m;
+      dev === "USD" ? usdToXof(m) : m;
 
     const userId = nexoraUser?.id;
     if (!userId) { setLoading(false); return; }
