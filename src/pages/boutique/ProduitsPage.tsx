@@ -187,19 +187,44 @@ export default function ProduitsPage() {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validation type de fichier
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Format non supporté", description: "Utilisez JPG, PNG, WEBP ou GIF.", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+    // Validation taille (max 5 MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Fichier trop lourd", description: "La photo doit faire moins de 5 MB.", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
     setUploadingPhoto(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `produits/${""}${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("mes-secrets-media").upload(path, file, { upsert: true });
-      if (error) throw error;
+      const userId = getNexoraUser()?.id ?? "anonymous";
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const path = `boutique-produits/${userId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("mes-secrets-media").upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+      if (error) {
+        // Fallback : essayer avec un bucket public si mes-secrets-media est inaccessible
+        console.error("[upload photo] erreur bucket:", error.message);
+        throw new Error(`Erreur upload : ${error.message}`);
+      }
       const { data: urlData } = supabase.storage.from("mes-secrets-media").getPublicUrl(path);
       setFormP(prev => ({ ...prev, photos: [...prev.photos, urlData.publicUrl] }));
-      toast({ title: "Photo ajoutée !" });
+      toast({ title: "✅ Photo ajoutée !" });
     } catch (err: any) {
-      toast({ title: "Erreur upload", description: err.message, variant: "destructive" });
+      toast({ title: "Erreur upload photo", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = "";
     }
-    setUploadingPhoto(false);
   };
 
   const handleFichierUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
