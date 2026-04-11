@@ -5,7 +5,11 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "./", // important pour Capacitor (chemins relatifs)
+  base: "/", // chemins absolus — requis pour Capacitor androidScheme: https
+  define: {
+    // Injecte un timestamp de build unique pour invalider le SW automatiquement
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   server: {
     host: "::",
     port: 8080,
