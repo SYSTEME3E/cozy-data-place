@@ -12,10 +12,10 @@ type Mode = "login" | "register" | "forgot";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "8 caractères minimum",  ok: password.length >= 8 },
-    { label: "Une lettre",            ok: /[a-zA-Z]/.test(password) },
-    { label: "Un chiffre",            ok: /[0-9]/.test(password) },
-    { label: "Un caractère spécial",  ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
+    { label: "8 caractères minimum", ok: password.length >= 8 },
+    { label: "Une lettre",           ok: /[a-zA-Z]/.test(password) },
+    { label: "Un chiffre",           ok: /[0-9]/.test(password) },
+    { label: "Un caractère spécial", ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
   ];
   return (
     <div className="mt-1 space-y-1">
@@ -114,7 +114,7 @@ export default function NexoraLoginPage() {
     setLoading(true);
     const result = await loginUser({ identifier, password, remember });
     if (result.success) {
-      toast({ title: "✅ Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
+      toast({ title: "Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
       sessionStorage.removeItem("nexora_pin_unlocked");
       sessionStorage.removeItem("nexora_pin_attempts");
       sessionStorage.removeItem("nexora_pin_locked_until");
@@ -146,7 +146,7 @@ export default function NexoraLoginPage() {
     setLoading(true);
     const result = await registerUser({ nom_prenom: nomPrenom, username, email, password: regPassword, whatsapp: whatsapp.trim() });
     if (result.success) {
-      toast({ title: "✅ Compte créé !", description: "Connectez-vous maintenant." });
+      toast({ title: "Compte créé !", description: "Connectez-vous maintenant." });
       setMode("login");
       setIdentifier(username);
     } else {
@@ -163,21 +163,19 @@ export default function NexoraLoginPage() {
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         .fade-in { animation: fadeIn 0.4s ease forwards; }
       `}</style>
 
       <div className="w-full max-w-sm fade-in">
 
-        {/* Logo */}
         <div className="flex flex-col items-center mb-6">
           <img src={nexoraLogo} alt="Nexora" className="w-16 h-16 object-contain drop-shadow-2xl mb-3" />
           <h1 className="text-2xl font-black text-white tracking-wider">NEXORA</h1>
           <p className="text-blue-300/70 text-xs mt-1">Plateforme financière tout-en-un</p>
         </div>
 
-        {/* Carte principale */}
         <div className="bg-card dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
           {mode !== "forgot" && (
             <div className="flex border-b border-border dark:border-gray-800">
@@ -204,7 +202,6 @@ export default function NexoraLoginPage() {
 
           <div className="px-6 py-6">
 
-            {/* ── CONNEXION ── */}
             {mode === "login" && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
@@ -212,7 +209,8 @@ export default function NexoraLoginPage() {
                     <User className="w-3.5 h-3.5" /> Username ou Email
                   </label>
                   <Input
-                    value={identifier} onChange={e => setIdentifier(e.target.value)}
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value)}
                     placeholder="username ou email@example.com"
                     className="h-11 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     autoFocus
@@ -226,7 +224,8 @@ export default function NexoraLoginPage() {
                   <div className="relative">
                     <Input
                       type={showPassword ? "text" : "password"}
-                      value={password} onChange={e => setPassword(e.target.value)}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
                       className="h-11 pr-12 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     />
@@ -261,7 +260,6 @@ export default function NexoraLoginPage() {
               </form>
             )}
 
-            {/* ── INSCRIPTION ── */}
             {mode === "register" && (
               <form onSubmit={handleRegister} className="space-y-3.5">
                 <div>
@@ -358,7 +356,6 @@ export default function NexoraLoginPage() {
               </form>
             )}
 
-            {/* ── MOT DE PASSE OUBLIÉ ── */}
             {mode === "forgot" && (
               <div className="space-y-5">
                 <div className="text-center">
@@ -371,9 +368,8 @@ export default function NexoraLoginPage() {
                   </p>
                 </div>
 
-                {/* ✅ LIEN WHATSAPP — balise <a corrigée */}
                 
-                  href="https://wa.me/22951762341?text=Bonjour, j'ai oublié mon mot de passe Nexora et j'ai besoin d'aide pour le réinitialiser."
+                  href="https://wa.me/22951762341"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold text-white transition-all hover:opacity-90 active:scale-95"
@@ -389,9 +385,8 @@ export default function NexoraLoginPage() {
                   <ChevronRight className="w-4 h-4 opacity-60" />
                 </a>
 
-                {/* ✅ LIEN EMAIL — balise <a corrigée */}
                 
-                  href="mailto:erickpakpo786@gmail.com?subject=Réinitialisation mot de passe Nexora&body=Bonjour, j'ai oublié mon mot de passe. Mon username/email : "
+                  href="mailto:erickpakpo786@gmail.com"
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold bg-blue-600 text-white transition-all hover:bg-blue-700 active:scale-95"
                 >
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -408,12 +403,15 @@ export default function NexoraLoginPage() {
                   Précisez votre <strong>username</strong> ou <strong>email</strong> ainsi que votre nom complet.
                 </p>
 
-                <button onClick={() => setMode("login")}
-                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
-                  ← Retour à la connexion
+                <button
+                  onClick={() => setMode("login")}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                  Retour à la connexion
                 </button>
               </div>
             )}
+
           </div>
         </div>
 
