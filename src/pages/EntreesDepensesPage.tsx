@@ -5,8 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { playSuccessSound } from "@/lib/app-utils";
-import { useDevise } from "@/lib/devise-context";
+import { formatAmount, convertAmount, playSuccessSound } from "@/lib/app-utils";
 import { hasNexoraPremium, getNexoraUser } from "@/lib/nexora-auth";
 import { useNavigate } from "react-router-dom";
 
@@ -90,7 +89,6 @@ function EntreesContent() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isPremium = hasNexoraPremium();
-  const { fmtXOF } = useDevise();
 
   const [entrees, setEntrees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +145,7 @@ function EntreesContent() {
     toast({ title: "Supprimée" }); load();
   };
 
-  const total = entrees.reduce((s, e) => s + (e.devise === "USD" ? Number(e.montant) * 600 : Number(e.montant)), 0);
+  const total = entrees.reduce((s, e) => s + (e.devise === "USD" ? convertAmount(Number(e.montant), "USD", "XOF") : Number(e.montant)), 0);
 
   return (
     <div className="space-y-4">
@@ -155,7 +153,7 @@ function EntreesContent() {
         <div>
           <h2 className="text-xl font-black">Entrées</h2>
           <p className="text-sm text-muted-foreground">
-            Total : <strong className="text-green-600">{fmtXOF(total)}</strong>
+            Total : <strong className="text-green-600">{formatAmount(total, "XOF")}</strong>
             {!isPremium && <span className="ml-2 text-xs text-muted-foreground">({nbEntrees}/{LIMITE_GRATUIT})</span>}
           </p>
         </div>
@@ -241,7 +239,7 @@ function EntreesContent() {
                   <div className="font-medium text-sm truncate">{e.titre}</div>
                   <div className="text-xs text-muted-foreground">{e.date_entree} · {e.categorie}</div>
                 </div>
-                <div className="text-sm font-bold text-green-600 whitespace-nowrap">+{fmtXOF(e.devise === "USD" ? Number(e.montant) * 600 : Number(e.montant))}</div>
+                <div className="text-sm font-bold text-green-600 whitespace-nowrap">+{formatAmount(Number(e.montant), e.devise)}</div>
                 <button onClick={() => handleDelete(e.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -259,7 +257,6 @@ function DepensesContent() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isPremium = hasNexoraPremium();
-  const { fmtXOF } = useDevise();
 
   const [depenses, setDepenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -316,7 +313,7 @@ function DepensesContent() {
     toast({ title: "Supprimée" }); load();
   };
 
-  const total = depenses.reduce((s, d) => s + (d.devise === "USD" ? Number(d.montant) * 600 : Number(d.montant)), 0);
+  const total = depenses.reduce((s, d) => s + (d.devise === "USD" ? convertAmount(Number(d.montant), "USD", "XOF") : Number(d.montant)), 0);
 
   return (
     <div className="space-y-4">
@@ -324,7 +321,7 @@ function DepensesContent() {
         <div>
           <h2 className="text-xl font-black">Dépenses</h2>
           <p className="text-sm text-muted-foreground">
-            Total : <strong className="text-destructive">{fmtXOF(total)}</strong>
+            Total : <strong className="text-destructive">{formatAmount(total, "XOF")}</strong>
             {!isPremium && <span className="ml-2 text-xs text-muted-foreground">({nbDepenses}/{LIMITE_GRATUIT})</span>}
           </p>
         </div>
@@ -411,7 +408,7 @@ function DepensesContent() {
                   <div className="font-medium text-sm truncate">{d.titre}</div>
                   <div className="text-xs text-muted-foreground">{d.date_depense} · {d.categorie}</div>
                 </div>
-                <div className="text-sm font-bold text-destructive whitespace-nowrap">-{fmtXOF(d.devise === "USD" ? Number(d.montant) * 600 : Number(d.montant))}</div>
+                <div className="text-sm font-bold text-destructive whitespace-nowrap">-{formatAmount(Number(d.montant), d.devise)}</div>
                 <button onClick={() => handleDelete(d.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
                   <Trash2 className="w-4 h-4" />
                 </button>
