@@ -13,6 +13,32 @@ import { Link } from "react-router-dom";
 
 type TypeBien = "maison" | "terrain" | "appartement" | "boutique";
 type Statut = "disponible" | "vendu" | "loue";
+type Devise = "XOF"|"XAF"|"GHS"|"NGN"|"KES"|"TZS"|"UGX"|"RWF"|"GNF"|"CDF"|"MAD"|"GMD"|"SLL"|"LRD"|"MZN"|"ZMW"|"USD"|"EUR";
+
+const DEVISES_IMMO: { code: Devise; label: string; symbole: string }[] = [
+  { code: "XOF", label: "Franc CFA UEMOA (XOF)", symbole: "FCFA" },
+  { code: "XAF", label: "Franc CFA CEMAC (XAF)", symbole: "FCFA" },
+  { code: "GHS", label: "Cédi ghanéen (GHS)",    symbole: "₵"    },
+  { code: "NGN", label: "Naira nigérian (NGN)",   symbole: "₦"    },
+  { code: "KES", label: "Shilling kényan (KES)",  symbole: "KSh"  },
+  { code: "TZS", label: "Shilling tanzanien (TZS)",symbole: "TSh" },
+  { code: "UGX", label: "Shilling ougandais (UGX)",symbole: "USh" },
+  { code: "RWF", label: "Franc rwandais (RWF)",   symbole: "RF"   },
+  { code: "GNF", label: "Franc guinéen (GNF)",    symbole: "GNF"  },
+  { code: "CDF", label: "Franc congolais (CDF)",  symbole: "FC"   },
+  { code: "MAD", label: "Dirham marocain (MAD)",  symbole: "MAD"  },
+  { code: "GMD", label: "Dalasi gambien (GMD)",   symbole: "GMD"  },
+  { code: "SLL", label: "Leone sierra-léon. (SLL)",symbole: "SLL" },
+  { code: "LRD", label: "Dollar libérien (LRD)",  symbole: "L$"   },
+  { code: "MZN", label: "Metical mozamb. (MZN)",  symbole: "MT"   },
+  { code: "ZMW", label: "Kwacha zambien (ZMW)",   symbole: "ZMW"  },
+  { code: "USD", label: "Dollar américain (USD)", symbole: "$"    },
+  { code: "EUR", label: "Euro (EUR)",             symbole: "€"    },
+];
+
+function getSymboleImmo(devise?: string): string {
+  return DEVISES_IMMO.find(d => d.code === devise)?.symbole ?? "FCFA";
+}
 
 interface Annonce {
   id: string;
@@ -28,6 +54,7 @@ interface Annonce {
   contact: string;
   whatsapp: string;
   statut: Statut;
+  devise: Devise;
   favoris: string[];
   created_at: string;
 }
@@ -45,8 +72,14 @@ const STATUTS = [
   { value: "loue" as Statut,       label: "Loué",       bg: "#eab308" },
 ];
 
-function formatPrix(prix: number) {
-  return prix.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " FCFA";
+function formatPrix(prix: number, devise?: string) {
+  const symbole = getSymboleImmo(devise);
+  const isDecimal = ["USD", "EUR", "GHS", "MAD"].includes(devise ?? "");
+  const rounded = isDecimal ? Number(prix.toFixed(2)) : Math.round(prix);
+  const formatted = new Intl.NumberFormat("fr-FR").format(rounded);
+  if (devise === "USD") return `$${formatted}`;
+  if (devise === "EUR") return `${formatted} €`;
+  return `${formatted} ${symbole}`;
 }
 
 function CopyBtn({ text }: { text: string }) {
@@ -113,7 +146,7 @@ function AnnonceCard({ annonce, userId, onFavori, onEdit, onDelete, isOwner }: {
         </div>
 
         <div style={{ fontWeight: 900, fontSize: "22px", color: "#7c3aed" }}>
-          {formatPrix(annonce.prix)}
+          {formatPrix(annonce.prix, annonce.devise)}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
@@ -207,7 +240,7 @@ export default function ImmobilierPage() {
   const [filterPrixMax, setFilterPrixMax] = useState("");
   const [filterStatut, setFilterStatut] = useState<Statut | "">("");
 
-  const emptyForm = { titre: "", description: "", prix: "", type: "maison" as TypeBien, ville: "", quartier: "", contact: "", whatsapp: "", statut: "disponible" as Statut, images: [] as string[] };
+  const emptyForm = { titre: "", description: "", prix: "", type: "maison" as TypeBien, ville: "", quartier: "", contact: "", whatsapp: "", statut: "disponible" as Statut, devise: "XOF" as Devise, images: [] as string[] };
   const [form, setForm] = useState(emptyForm);
   const monProfilUrl = `${window.location.origin}/immobilier/vendeur/${userId}`;
 
@@ -242,7 +275,7 @@ export default function ImmobilierPage() {
     e.preventDefault();
     if (!form.titre || !form.prix || !form.ville || !form.contact) { toast({ title: "Remplissez tous les champs obligatoires", variant: "destructive" }); return; }
     setSaving(true);
-    const payload = { user_id: userId, auteur_nom: user?.nom_prenom || "Utilisateur", titre: form.titre, description: form.description || null, prix: parseFloat(form.prix), type: form.type, ville: form.ville, quartier: form.quartier || null, contact: form.contact, whatsapp: form.whatsapp || null, statut: form.statut, images: form.images, favoris: [] };
+    const payload = { user_id: userId, auteur_nom: user?.nom_prenom || "Utilisateur", titre: form.titre, description: form.description || null, prix: parseFloat(form.prix), type: form.type, ville: form.ville, quartier: form.quartier || null, contact: form.contact, whatsapp: form.whatsapp || null, statut: form.statut, devise: form.devise, images: form.images, favoris: [] };
     let error;
     if (editingId) { ({ error } = await supabase.from("nexora_annonces_immo" as any).update(payload).eq("id", editingId)); }
     else { ({ error } = await supabase.from("nexora_annonces_immo" as any).insert(payload)); }
@@ -251,7 +284,7 @@ export default function ImmobilierPage() {
     setSaving(false);
   };
 
-  const handleEdit = (a: Annonce) => { setForm({ titre: a.titre, description: a.description || "", prix: String(a.prix), type: a.type, ville: a.ville, quartier: a.quartier || "", contact: a.contact, whatsapp: a.whatsapp || "", statut: a.statut, images: a.images || [] }); setEditingId(a.id); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const handleEdit = (a: Annonce) => { setForm({ titre: a.titre, description: a.description || "", prix: String(a.prix), type: a.type, ville: a.ville, quartier: a.quartier || "", contact: a.contact, whatsapp: a.whatsapp || "", statut: a.statut, devise: a.devise || "XOF", images: a.images || [] }); setEditingId(a.id); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const handleDelete = async (id: string) => { if (!confirm("Supprimer ?")) return; await supabase.from("nexora_annonces_immo" as any).delete().eq("id", id); toast({ title: "Annonce supprimée" }); loadAnnonces(); };
   const handleFavori = async (id: string) => {
     if (userId === "guest") return; // Non connecté = pas de favori
@@ -396,8 +429,18 @@ export default function ImmobilierPage() {
               </div>
 
               <div>
-                <label style={{ fontSize: "13px", fontWeight: 700, color: "#374151", display: "block", marginBottom: "5px" }}>Prix (FCFA) *</label>
-                <input type="number" value={form.prix} onChange={e => setForm({ ...form, prix: e.target.value })} placeholder="Ex: 25000000" style={inputStyle} />
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "#374151", display: "block", marginBottom: "5px" }}>Prix *</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input type="number" value={form.prix} onChange={e => setForm({ ...form, prix: e.target.value })} placeholder="Ex: 25000000"
+                    style={{ ...inputStyle, flex: 2 }} />
+                  <select value={form.devise} onChange={e => setForm({ ...form, devise: e.target.value as Devise })}
+                    style={{ ...inputStyle, flex: 1, padding: "0 10px", minWidth: 0 }}>
+                    {DEVISES_IMMO.map(d => <option key={d.code} value={d.code}>{d.code}</option>)}
+                  </select>
+                </div>
+                <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>
+                  {form.prix && `= ${formatPrix(parseFloat(form.prix)||0, form.devise)}`}
+                </p>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -507,7 +550,7 @@ export default function ImmobilierPage() {
                   <input value={filterVille} onChange={e => setFilterVille(e.target.value)} placeholder="Cotonou" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#6b7280", display: "block", marginBottom: "4px" }}>Prix max (FCFA)</label>
+                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#6b7280", display: "block", marginBottom: "4px" }}>Prix max</label>
                   <input type="number" value={filterPrixMax} onChange={e => setFilterPrixMax(e.target.value)} placeholder="50000000" style={inputStyle} />
                 </div>
               </div>
