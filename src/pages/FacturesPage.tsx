@@ -8,7 +8,32 @@ import { Plus, FileDown, Trash2, ChevronDown, ChevronUp, Receipt, History, Crown
 import AppLayout from "@/components/AppLayout";
 import { useNavigate } from "react-router-dom";
 
-type Devise = "XOF" | "USD";
+type Devise = "XOF" | "XAF" | "GHS" | "NGN" | "KES" | "TZS" | "UGX" | "RWF" | "GNF" | "CDF" | "MAD" | "GMD" | "SLL" | "LRD" | "MZN" | "ZMW" | "USD" | "EUR";
+
+const DEVISES: { code: Devise; label: string; symbole: string }[] = [
+  { code: "XOF", label: "Franc CFA UEMOA (XOF)", symbole: "FCFA" },
+  { code: "XAF", label: "Franc CFA CEMAC (XAF)", symbole: "FCFA" },
+  { code: "GHS", label: "Cédi ghanéen (GHS)",    symbole: "₵"    },
+  { code: "NGN", label: "Naira nigérian (NGN)",   symbole: "₦"    },
+  { code: "KES", label: "Shilling kényan (KES)",  symbole: "KSh"  },
+  { code: "TZS", label: "Shilling tanzanien (TZS)",symbole: "TSh" },
+  { code: "UGX", label: "Shilling ougandais (UGX)",symbole: "USh" },
+  { code: "RWF", label: "Franc rwandais (RWF)",   symbole: "RF"   },
+  { code: "GNF", label: "Franc guinéen (GNF)",    symbole: "GNF"  },
+  { code: "CDF", label: "Franc congolais (CDF)",  symbole: "FC"   },
+  { code: "MAD", label: "Dirham marocain (MAD)",  symbole: "MAD"  },
+  { code: "GMD", label: "Dalasi gambien (GMD)",   symbole: "GMD"  },
+  { code: "SLL", label: "Leone sierra-léon. (SLL)",symbole: "SLL" },
+  { code: "LRD", label: "Dollar libérien (LRD)",  symbole: "L$"   },
+  { code: "MZN", label: "Metical mozamb. (MZN)",  symbole: "MT"   },
+  { code: "ZMW", label: "Kwacha zambien (ZMW)",   symbole: "ZMW"  },
+  { code: "USD", label: "Dollar américain (USD)", symbole: "$"    },
+  { code: "EUR", label: "Euro (EUR)",             symbole: "€"    },
+];
+
+function getSymbole(devise: Devise): string {
+  return DEVISES.find(d => d.code === devise)?.symbole ?? devise;
+}
 type Statut = "payee" | "en_attente" | "annulee";
 
 interface Article {
@@ -57,8 +82,13 @@ const INDICATIFS: Record<string, string> = { "Bénin":"+229","Togo":"+228","Côt
 const LIMITE_GRATUIT = 10;
 
 function fmt(amount: number, devise: Devise): string {
-  if (devise === "USD") return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
-  return Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " FCFA";
+  const symbole = getSymbole(devise);
+  const isDecimal = ["USD", "EUR", "GHS", "MAD"].includes(devise);
+  const rounded = isDecimal ? Number(amount.toFixed(2)) : Math.round(amount);
+  const formatted = new Intl.NumberFormat("fr-FR").format(rounded);
+  if (devise === "USD") return `$${formatted}`;
+  if (devise === "EUR") return `${formatted} €`;
+  return `${formatted} ${symbole}`;
 }
 
 function genNumero(): string {
@@ -459,7 +489,7 @@ export default function FacturesPage() {
                 ))}
                 <div className="flex justify-end">
                   <div className="bg-primary text-white rounded-xl px-5 py-3 font-bold text-lg shadow-md">
-                    Total : {Math.round(total).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ")} {form.devise==="XOF"?"FCFA":"USD"}
+                    Total : {Math.round(total).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ")} {getSymbole(form.devise)}
                   </div>
                 </div>
               </div>
@@ -473,7 +503,7 @@ export default function FacturesPage() {
                   </div>
                   <div><label className="text-sm font-medium">Devise</label>
                     <select value={form.devise} onChange={e => setForm({...form, devise: e.target.value as Devise})} className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm">
-                      <option value="XOF">FCFA (XOF)</option><option value="USD">Dollar (USD)</option>
+                      {DEVISES.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
                     </select>
                   </div>
                 </div>
