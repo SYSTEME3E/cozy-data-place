@@ -88,6 +88,7 @@ export default function AbonnementPage() {
   const [openCat, setOpenCat] = useState<string | null>("Finance personnelle");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   // ✅ FIX : on passe user_id dans les metadata
   // La Edge Function utilisera metadata.user_id pour construire success_url
@@ -103,7 +104,7 @@ export default function AbonnementPage() {
     try {
       const result = await initPayment({
         type: "abonnement_premium",
-        amount: 100,
+        amount: 7000,
         metadata: {
           user_id: user.id,
           type: "abonnement_premium",
@@ -116,9 +117,12 @@ export default function AbonnementPage() {
         return;
       }
 
-      // ✅ FIX : window.open après await est bloqué par le navigateur comme popup
-      // On utilise window.location.href pour une redirection directe fiable
-      window.location.href = result.payment_url;
+      // Ouvrir dans un nouvel onglet externe (évite le blocage iframe/preview)
+      const opened = window.open(result.payment_url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        // Si le navigateur a bloqué le popup, afficher le lien manuellement
+        setPaymentUrl(result.payment_url);
+      }
     } catch (err: any) {
       console.error("Erreur paiement:", err);
       setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
@@ -152,6 +156,29 @@ export default function AbonnementPage() {
           </div>
         )}
 
+        {/* BOUTON MANUEL SI POPUP BLOQUÉ */}
+        {paymentUrl && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl px-5 py-4 space-y-3">
+            <p className="text-sm text-yellow-300 font-semibold">
+              🔒 Le paiement a été créé. Cliquez ci-dessous pour accéder à la page de paiement GeniusPay.
+            </p>
+            <a
+              href={paymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 bg-yellow-400 text-black font-black rounded-xl hover:bg-yellow-300 transition-colors text-sm"
+            >
+              <Zap className="w-4 h-4" /> Ouvrir le paiement
+            </a>
+            <button
+              onClick={() => setPaymentUrl(null)}
+              className="text-xs text-muted-foreground hover:text-foreground w-full text-center"
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+
         {/* CARTES DE PRIX */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Plan Gratuit */}
@@ -173,7 +200,7 @@ export default function AbonnementPage() {
             <h3 className="text-lg font-black text-white mb-1">Premium</h3>
             <p className="text-xs text-white/50 mb-4">Puissance & Liberté</p>
             <div className="mb-6">
-              <span className="text-4xl font-black text-white">100</span>
+              <span className="text-4xl font-black text-white">7 000</span>
               <span className="text-sm text-white/50 ml-1">FCFA / mois</span>
               <p className="text-[10px] text-white/30 mt-1">Paiement via Mobile Money</p>
             </div>
