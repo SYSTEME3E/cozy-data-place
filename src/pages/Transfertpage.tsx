@@ -299,6 +299,7 @@ function CountrySelector({ selected, onSelect, label }: {
 
 // ─── MODAL RECHARGE ───
 function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { fmtXOF } = useDevise();
   const [montant, setMontant] = useState("");
   const [email, setEmail] = useState(getNexoraUser()?.email ?? "");
   const [loading, setLoading] = useState(false);
@@ -396,16 +397,16 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             <div className="bg-muted/60 border border-border rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Montant crédité</span>
-                <span className="font-bold text-yellow-600">{fmt(montantNum)} FCFA</span>
+                <span className="font-bold text-yellow-600">{fmtXOF(montantNum)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Frais de service</span>
-                <span>+ {fmt(fraisFixe)} FCFA</span>
+                <span>+ {fmtXOF(fraisFixe)}</span>
               </div>
               <div className="h-px bg-border" />
               <div className="flex justify-between font-black">
                 <span>Total débité</span>
-                <span className="text-foreground">{fmt(totalPaye)} FCFA</span>
+                <span className="text-foreground">{fmtXOF(totalPaye)}</span>
               </div>
             </div>
           )}
@@ -443,7 +444,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           >
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Préparation...</>
-              : <>Recharger {montantNum > 0 ? fmt(totalPaye) + " FCFA" : ""}</>}
+              : <>Recharger {montantNum > 0 ? fmtXOF(totalPaye) : ""}</>}
           </button>
         </div>
       </div>
@@ -457,9 +458,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   onConfirm: (montant: number, frais: number, reseau: string, tel: string, pays: ActiveCountry, nomComplet: string) => void;
   balance: number;
 }) {
-  const { fmtXOF, taux: _taux, devise: deviseActive, ...deviseCtx } = useDevise();
-  // Accès aux rates live pour la conversion vers devise du pays destinataire
-  const liveRates: Record<string, number> = (deviseCtx as any)._rates ?? TAUX_VS_XOF_FALLBACK;
+  const { fmtXOF, xofTo } = useDevise();
   const [nomComplet, setNomComplet] = useState("");
   const [montant, setMontant] = useState("");
   const [pays, setPays] = useState<ActiveCountry | null>(null);
@@ -474,10 +473,10 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   const soldeInsuffisant = montantNum > balance;
   const valid = montantNum >= 200 && !soldeInsuffisant && pays !== null && reseau !== "" && telephone.length >= 8 && nomComplet.trim().length >= 3;
 
-  // Devise du pays destinataire
-  const deviseDestinataire = pays ? (TAUX_VS_XOF[pays.currency] ? pays.currency : "XOF") : "XOF";
+  // Devise du pays destinataire — taux live via contexte DeviseProvider
+  const deviseDestinataire = pays?.currency ?? "XOF";
   const memeDevise = deviseDestinataire === "XOF" || deviseDestinataire === "XAF";
-  const montantConverti = netRecu > 0 ? convertXofTo(netRecu, deviseDestinataire) : 0;
+  const montantConverti = netRecu > 0 ? xofTo(netRecu, deviseDestinataire) : 0;
 
   const handlePaysSelect = (p: ActiveCountry) => {
     setPays(p);
@@ -560,7 +559,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-muted-foreground">Montant à envoyer (min. 200 FCFA)</label>
+            <label className="text-sm font-semibold text-muted-foreground">Montant à envoyer (min. 200 XOF)</label>
             <div className="relative">
               <input
                 type="number"
@@ -636,6 +635,7 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
   onSuccess: () => void;
   balance: number;
 }) {
+    const { fmtXOF } = useDevise();
   const [nexoraId, setNexoraId] = useState("");
   const [montant, setMontant] = useState("");
   const [note, setNote] = useState("");
