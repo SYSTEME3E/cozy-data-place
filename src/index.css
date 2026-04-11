@@ -117,3 +117,65 @@ All colors MUST be HSL.
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RÈGLES GLOBALES MODE SOMBRE — appliquées à toutes les pages avec AppLayout
+   Corrige les textes, cartes, inputs et cadres qui n'ont pas de dark: companion
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Textes gris foncés → clairs en dark mode */
+.dark .text-gray-900 { color: hsl(210 40% 95%) !important; }
+.dark .text-gray-800 { color: hsl(210 40% 90%) !important; }
+.dark .text-gray-700 { color: hsl(210 40% 82%) !important; }
+.dark .text-gray-600 { color: hsl(215 25% 70%) !important; }
+.dark .text-gray-500 { color: hsl(215 20% 58%) !important; }
+.dark .text-black    { color: hsl(210 40% 95%) !important; }
+
+/* Fonds blancs → bleu nuit en dark mode */
+.dark .bg-white { background-color: hsl(222 44% 10%) !important; }
+
+/* Fonds gris clairs → variantes sombres */
+.dark .bg-gray-50  { background-color: hsl(222 40% 9%) !important; }
+.dark .bg-gray-100 { background-color: hsl(222 40% 13%) !important; }
+.dark .bg-gray-200 { background-color: hsl(222 38% 18%) !important; }
+
+/* Bordures grises → sombres */
+.dark .border-gray-100 { border-color: hsl(222 35% 16%) !important; }
+.dark .border-gray-200 { border-color: hsl(222 35% 20%) !important; }
+.dark .border-gray-300 { border-color: hsl(222 30% 25%) !important; }
+
+/* Inputs et zones de saisie → fond sombre, texte clair, bien visible */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: hsl(222 40% 14%) !important;
+  color: hsl(210 40% 92%) !important;
+  border-color: hsl(222 35% 22%) !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: hsl(215 20% 50%) !important;
+}
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: hsl(217 91% 60%) !important;
+  outline: none;
+}
+
+/* Labels et libellés de formulaires */
+.dark label { color: hsl(210 40% 85%) !important; }
+
+/* Tableaux */
+.dark table th { color: hsl(210 40% 80%) !important; }
+.dark table td { color: hsl(210 40% 88%) !important; }
+.dark .divide-gray-100 > * + * { border-color: hsl(222 35% 16%) !important; }
+.dark .divide-gray-200 > * + * { border-color: hsl(222 35% 20%) !important; }
+
+/* Badges et tags avec fonds gris */
+.dark .bg-gray-100.text-gray-600,
+.dark .bg-gray-100.text-gray-700,
+.dark .bg-gray-100.text-gray-800 {
+  background-color: hsl(222 38% 16%) !important;
+  color: hsl(210 40% 80%) !important;
+}
