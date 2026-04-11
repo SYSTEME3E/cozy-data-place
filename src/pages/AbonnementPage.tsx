@@ -80,49 +80,61 @@ function FAQItem({ question, reponse }: { question: string; reponse: string }) {
 // PAGE PRINCIPALE
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// PLANS DURÉE
+// ─────────────────────────────────────────────
+const PRIX_MENSUEL = 7000;
+
+const PLANS_DUREE = [
+  { mois: 1,  label: "1 mois",  badge: null,          remise: 0 },
+  { mois: 3,  label: "3 mois",  badge: "-5%",         remise: 5 },
+  { mois: 6,  label: "6 mois",  badge: "-10%",        remise: 10 },
+  { mois: 12, label: "1 an",    badge: "-15% 🔥",     remise: 15 },
+  { mois: 24, label: "2 ans",   badge: "-20% 💎",     remise: 20 },
+];
+
+function calcMontant(mois: number, remise: number): number {
+  return Math.round(PRIX_MENSUEL * mois * (1 - remise / 100));
+}
+
 export default function AbonnementPage() {
   const navigate    = useNavigate();
   const user        = getNexoraUser();
   const currentPlan = user?.plan || "gratuit";
   const isPremium   = currentPlan !== "gratuit";
-  const [openCat, setOpenCat] = useState<string | null>("Finance personnelle");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [openCat, setOpenCat]       = useState<string | null>("Finance personnelle");
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [dureeIdx, setDureeIdx]     = useState(0); // index dans PLANS_DUREE
 
-  // ✅ FIX : on passe user_id dans les metadata
-  // La Edge Function utilisera metadata.user_id pour construire success_url
+  const planChoisi = PLANS_DUREE[dureeIdx];
+  const montantTotal = calcMontant(planChoisi.mois, planChoisi.remise);
+
   const handleUpgrade = async () => {
     if (!user?.id) {
       setError("Vous devez être connecté pour souscrire.");
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
       const result = await initPayment({
         type: "abonnement_premium",
-        amount: 7000,
+        amount: montantTotal,
         metadata: {
           user_id: user.id,
           type: "abonnement_premium",
+          duree_mois: String(planChoisi.mois),
         },
       });
-
       if (!result.success || !result.payment_url) {
         setError(result.error ?? "Impossible d'initialiser le paiement.");
         setLoading(false);
         return;
       }
-
-      // Ouvrir dans un nouvel onglet externe (évite le blocage iframe/preview)
       const opened = window.open(result.payment_url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        // Si le navigateur a bloqué le popup, afficher le lien manuellement
-        setPaymentUrl(result.payment_url);
-      }
+      if (!opened) setPaymentUrl(result.payment_url);
     } catch (err: any) {
       console.error("Erreur paiement:", err);
       setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
@@ -196,18 +208,50 @@ export default function AbonnementPage() {
 
           {/* Plan Premium */}
           <div className="relative bg-gradient-to-br from-slate-900 to-indigo-950 rounded-3xl p-6 flex flex-col shadow-xl border-2 border-indigo-500/30">
-            <div className="absolute top-4 right-4 bg-yellow-400 text-black text-[10px] font-black px-2 py-1 rounded-md">HOT</div>
+            {planChoisi.badge && (
+              <div className="absolute top-4 right-4 bg-yellow-400 text-black text-[10px] font-black px-2 py-1 rounded-md">{planChoisi.badge}</div>
+            )}
             <h3 className="text-lg font-black text-white mb-1">Premium</h3>
-            <p className="text-xs text-white/50 mb-4">Puissance & Liberté</p>
-            <div className="mb-6">
-              <span className="text-4xl font-black text-white">7 000</span>
-              <span className="text-sm text-white/50 ml-1">FCFA / mois</span>
-              <p className="text-[10px] text-white/30 mt-1">Paiement via Mobile Money</p>
+            <p className="text-xs text-white/50 mb-3">Puissance & Liberté</p>
+
+            {/* Sélecteur de durée */}
+            <div className="grid grid-cols-5 gap-1 mb-4">
+              {PLANS_DUREE.map((p, i) => (
+                <button
+                  key={p.mois}
+                  onClick={() => setDureeIdx(i)}
+                  className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                    dureeIdx === i
+                      ? "bg-yellow-400 text-black"
+                      : "bg-white/10 text-white/60 hover:bg-white/20"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
+
+            <div className="mb-2">
+              <span className="text-3xl font-black text-white">
+                {new Intl.NumberFormat("fr-FR").format(montantTotal)}
+              </span>
+              <span className="text-sm text-white/50 ml-1">FCFA</span>
+              <p className="text-[10px] text-white/40 mt-0.5">
+                {planChoisi.mois === 1
+                  ? "Paiement mensuel"
+                  : `Soit ${new Intl.NumberFormat("fr-FR").format(Math.round(montantTotal / planChoisi.mois))} FCFA/mois · ${planChoisi.label}`}
+              </p>
+              {planChoisi.remise > 0 && (
+                <p className="text-[10px] text-yellow-400 font-bold mt-0.5">
+                  Économie : {new Intl.NumberFormat("fr-FR").format(PRIX_MENSUEL * planChoisi.mois - montantTotal)} FCFA
+                </p>
+              )}
+            </div>
+
             <button
               onClick={handleUpgrade}
               disabled={isPremium || loading}
-              className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 ${
+              className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 mt-2 ${
                 isPremium
                   ? "bg-white/10 text-white/40 cursor-default"
                   : loading
@@ -219,7 +263,7 @@ export default function AbonnementPage() {
                 ? <><BadgeCheck className="w-4 h-4" /> Plan Actif</>
                 : loading
                   ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Redirection...</>
-                  : <><Zap className="w-4 h-4" /> Devenir Premium</>
+                  : <><Zap className="w-4 h-4" /> Souscrire — {planChoisi.label}</>
               }
             </button>
           </div>
