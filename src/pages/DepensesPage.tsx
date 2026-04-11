@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatAmount, convertAmount, playSuccessSound, getWeekNumber, getMondayOfWeek } from "@/lib/app-utils";
+import { playSuccessSound, getWeekNumber, getMondayOfWeek } from "@/lib/app-utils";
+import { useDevise } from "@/lib/devise-context";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,8 @@ interface Depense {
 }
 
 export default function DepensesPage() {
+  const { fmtXOF, fromXOF, devise, symbole } = useDevise();
   const [depenses, setDepenses] = useState<Depense[]>([]);
-  const [devise, setDevise] = useState<Devise>("XOF");
   const [period, setPeriod] = useState<Period>("semaine");
   const [histoPeriod, setHistoPeriod] = useState<"semaine" | "mois" | "annee">("mois");
   const [histoValue, setHistoValue] = useState(new Date().getMonth() + 1);
@@ -83,10 +84,10 @@ export default function DepensesPage() {
   });
 
   const totalXOF = filtered.reduce((s, d) => {
-    return s + (d.devise === "USD" ? convertAmount(Number(d.montant), "USD", "XOF") : Number(d.montant));
+    return s + (d.devise === "USD" ? Number(d.montant) * 600 : Number(d.montant));
   }, 0);
 
-  const fmt = (v: number) => formatAmount(devise === "XOF" ? v : convertAmount(v, "XOF", "USD"), devise);
+  const fmt = (v: number) => fmtXOF(v);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,8 +119,8 @@ export default function DepensesPage() {
     const data = filtered.map(d => ({
       "Titre": d.titre,
       "Montant original": `${Number(d.montant).toLocaleString()} ${d.devise}`,
-      "Montant FCFA": d.devise === "USD" ? convertAmount(Number(d.montant), "USD", "XOF") : Number(d.montant),
-      "Montant USD": (d.devise === "XOF" ? convertAmount(Number(d.montant), "XOF", "USD") : Number(d.montant)).toFixed(2),
+      "Montant FCFA": d.devise === "USD" ? Number(d.montant) * 600 : Number(d.montant),
+      "Montant USD": (d.devise === "XOF" ? (Number(d.montant) * 0.00163) : Number(d.montant)).toFixed(2),
       "Catégorie": d.categorie, "Date": d.date_depense, "Note": d.note || "",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -145,10 +146,6 @@ export default function DepensesPage() {
             </h1>
             <p className="text-sm text-muted-foreground">Gérez et suivez vos dépenses</p>
           </div>
-          <select value={devise} onChange={(e) => setDevise(e.target.value as Devise)} className="border border-border rounded-lg px-3 py-2 text-sm bg-card font-semibold">
-            <option value="XOF">XOF - FCFA</option>
-            <option value="USD">USD - $</option>
-          </select>
           <Button onClick={exportExcel} variant="outline" size="sm" className="gap-1.5 text-xs">
             <Download className="w-4 h-4" /> Excel
           </Button>
@@ -255,8 +252,8 @@ export default function DepensesPage() {
           <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
             <BarChart2 className="w-8 h-8 text-muted-foreground" />
             <div>
-              <div className="text-sm text-muted-foreground">Équiv. USD</div>
-              <div className="font-display font-bold text-xl">{formatAmount(convertAmount(totalXOF, "XOF", "USD"), "USD")}</div>
+              <div className="text-sm text-muted-foreground">Equiv. {symbole}</div>
+              <div className="font-display font-bold text-xl">{fmt(totalXOF)}</div>
             </div>
           </div>
         </div>
@@ -280,14 +277,14 @@ export default function DepensesPage() {
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Titre</th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Catégorie</th>
                     <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Montant</th>
-                    <th className="text-right px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">En {devise}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">En {symbole}</th>
                     <th className="text-center px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Date</th>
                     <th className="px-3 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtered.map(d => {
-                    const montantXOF = d.devise === "USD" ? convertAmount(Number(d.montant), "USD", "XOF") : Number(d.montant);
+                    const montantXOF = d.devise === "USD" ? Number(d.montant) * 600 : Number(d.montant);
                     return (
                       <tr key={d.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
