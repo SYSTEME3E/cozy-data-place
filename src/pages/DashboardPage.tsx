@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatAmount, convertAmount } from "@/lib/app-utils";
+import { convertAmount } from "@/lib/app-utils";
+import { useDevise, DEVISES_LISTE } from "@/lib/devise-context";
 import AppLayout from "@/components/AppLayout";
 import {
   TrendingUp, TrendingDown, History, Clock,
@@ -180,7 +181,7 @@ function WhatsAppFloatingButton() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [devise, setDevise]   = useState<"XOF" | "USD">("XOF");
+  const { devise, setDevise, fmtXOF, ratesFresh, lastUpdated, ratesLoading } = useDevise();
   const [time, setTime]       = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [stats, setStats]     = useState({
@@ -227,8 +228,7 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  const fmt   = (v: number) =>
-    formatAmount(devise === "XOF" ? v : convertAmount(v, "XOF", "USD"), devise);
+  const fmt   = (v: number) => fmtXOF(v);
   const solde = stats.totalEntrees - stats.totalDepenses;
 
   const headerActions = (
@@ -263,10 +263,13 @@ export default function DashboardPage() {
               <select
                 value={devise}
                 onChange={(e) => setDevise(e.target.value as any)}
-                className="rounded-xl px-3 py-2 font-bold text-xs outline-none border bg-white/10 border-white/20 text-white backdrop-blur-sm cursor-pointer"
+                className="rounded-xl px-3 py-2 font-bold text-xs outline-none border bg-white/10 border-white/20 text-white backdrop-blur-sm cursor-pointer max-w-[140px]"
               >
-                <option value="XOF" className="text-slate-900 bg-white">XOF</option>
-                <option value="USD" className="text-slate-900 bg-white">USD</option>
+                {DEVISES_LISTE.map(d => (
+                  <option key={d.code} value={d.code} className="text-slate-900 bg-white">
+                    {d.code} — {d.symbole}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -275,6 +278,26 @@ export default function DashboardPage() {
               <span className="text-yellow-300 font-mono font-bold text-xs tracking-widest">
                 {time.toLocaleTimeString("fr-FR")}
               </span>
+            </div>
+
+            {/* Indicateur taux de change */}
+            <div className="flex items-center gap-2 text-[10px]">
+              {ratesLoading ? (
+                <span className="text-white/40 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                  Mise à jour des taux...
+                </span>
+              ) : ratesFresh ? (
+                <span className="text-emerald-400/80 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  Taux live {lastUpdated ? `· ${lastUpdated.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}
+                </span>
+              ) : (
+                <span className="text-yellow-400/70 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                  Taux indicatifs (hors-ligne)
+                </span>
+              )}
             </div>
           </div>
         </div>
