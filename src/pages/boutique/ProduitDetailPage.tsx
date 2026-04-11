@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { addToCart } from "@/lib/shop-cart";
 import SectionAvis from "@/pages/boutique/SectionAvis";
-import { initTheme } from "@/lib/theme";
+// dark mode désactivé sur cette page
 
 interface Variation {
   nom: string;
@@ -59,8 +59,9 @@ export default function ProduitDetailPage() {
   const [quantite, setQuantite] = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string>>({});
 
+  // Forcer le mode clair sur cette page
   useEffect(() => {
-    initTheme();
+    document.documentElement.classList.remove("dark");
   }, []);
 
   useEffect(() => {
