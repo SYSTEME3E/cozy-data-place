@@ -248,11 +248,12 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const [email, setEmail] = useState(getNexoraUser()?.email ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   const montantNum = parseFloat(montant) || 0;
   const fraisFixe = 100;
   const totalPaye = montantNum + fraisFixe;
-  const valid = montantNum >= 100 && email.includes("@");
+  const valid = montantNum >= 200 && email.includes("@");
 
   const handleSubmit = async () => {
     if (!valid) return;
@@ -270,9 +271,13 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
         setLoading(false);
         return;
       }
-      window.open(result.payment_url, "_blank");
-      onSuccess();
-      onClose();
+      const opened = window.open(result.payment_url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        setPaymentUrl(result.payment_url);
+      } else {
+        onSuccess();
+        onClose();
+      }
     } catch (err: any) {
       setError(err.message ?? "Erreur réseau. Veuillez réessayer.");
       setLoading(false);
@@ -332,7 +337,7 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             />
           </div>
 
-          {montantNum >= 100 && (
+          {montantNum >= 200 && (
             <div className="bg-muted/60 border border-border rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Montant crédité</span>
@@ -359,6 +364,20 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-3 rounded-xl">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <p>{error}</p>
+            </div>
+          )}
+
+          {paymentUrl && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 space-y-2">
+              <p className="text-xs text-yellow-400 font-semibold">🔒 Paiement créé. Cliquez pour ouvrir la page GeniusPay.</p>
+              <a
+                href={paymentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-yellow-400 text-black font-black rounded-xl hover:bg-yellow-300 transition-colors text-sm"
+              >
+                Ouvrir le paiement
+              </a>
             </div>
           )}
 
