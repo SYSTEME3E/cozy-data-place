@@ -56,8 +56,9 @@ type Transaction = {
   reseau?: string;
   telephone?: string;
   nom_beneficiaire?: string;
-  status: "success" | "pending" | "failed";
+  status: "success" | "pending" | "failed" | "annulé" | "expiré";
   reference: string;
+  checkout_url?: string;
 };
 
 // ─── Utilitaires ────────────────────────────────────────────────────────────
@@ -104,9 +105,11 @@ function mapSupabaseRow(row: any): Transaction {
   const isRecharge = row.type === "recharge_transfert";
   const frais = row.frais ?? 0;
   const montant = isRecharge ? Math.max(0, (row.amount ?? 0) - frais) : (row.amount ?? 0);
-  let status: "success" | "pending" | "failed";
-  if (row.status === "completed") status = "success";
-  else if (row.status === "pending") status = "pending";
+  let status: Transaction["status"];
+  if (row.status === "completed")  status = "success";
+  else if (row.status === "pending")   status = "pending";
+  else if (row.status === "cancelled") status = "annulé";
+  else if (row.status === "expired")   status = "expiré";
   else status = "failed";
   return {
     id: row.id,
@@ -122,6 +125,7 @@ function mapSupabaseRow(row: any): Transaction {
     nom_beneficiaire: meta.nom_beneficiaire ?? undefined,
     status,
     reference: row.moneroo_id ?? row.id?.slice(0, 8).toUpperCase() ?? "—",
+    checkout_url: row.checkout_url ?? undefined,
   };
 }
 
@@ -1138,6 +1142,26 @@ export default function TransfertPage() {
     setShowPinModal(true);
   };
 
+  const handleAnnulerRecharge = async (tx: Transaction) => {
+    try {
+      await supabase
+        .from("nexora_transactions")
+        .update({ status: "cancelled" })
+        .eq("id", tx.id);
+      clearPendingRecharge();
+      setPendingRecharge(null);
+      setTransactions(prev => prev.map(t => t.id === tx.id ? { ...t, status: "annulé" as const } : t));
+    } catch { showErrorMsg("Impossible d'annuler. Réessayez."); }
+  };
+
+  const handlePoursuivreRecharge = (tx: Transaction) => {
+    const url = tx.checkout_url ?? loadPendingRecharge()?.payment_url;
+    if (!url) { showErrorMsg("URL de paiement introuvable. Créez une nouvelle recharge."); return; }
+    window.open(url, "_blank", "noopener,noreferrer");
+    balanceBeforeRecharge.current = balance;
+    setPollingRecharge(true);
+  };
+
   const handlePinSuccess = async () => {
     setShowPinModal(false);
     if (!pendingTransfer) return;
@@ -1357,10 +1381,16 @@ export default function TransfertPage() {
                           </span>
                         )}
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                          tx.status === "success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          tx.status === "success"  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                           : tx.status === "pending" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                          : tx.status === "annulé"  ? "bg-slate-100 text-slate-600 dark:bg-slate-800/40 dark:text-slate-400"
+                          : tx.status === "expiré"  ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                           : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
-                          {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
+                          {tx.status === "success" ? "✅ Réussi"
+                            : tx.status === "pending" ? "⏳ En cours"
+                            : tx.status === "annulé"  ? "🚫 Annulé"
+                            : tx.status === "expiré"  ? "⌛ Expiré"
+                            : "❌ Échoué"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1381,6 +1411,23 @@ export default function TransfertPage() {
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
+                    {/* Boutons Poursuivre / Annuler pour recharges en attente */}
+                    {tx.type === "depot" && tx.status === "pending" && (
+                      <div className="w-full flex gap-2 mt-2 pt-3 border-t border-border/60">
+                        <button
+                          onClick={() => handleAnnulerRecharge(tx)}
+                          className="flex-1 py-2 text-xs font-bold rounded-xl bg-muted hover:bg-destructive/10 hover:text-destructive border border-border hover:border-destructive/30 transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <X className="w-3.5 h-3.5" /> Annuler
+                        </button>
+                        <button
+                          onClick={() => handlePoursuivreRecharge(tx)}
+                          className="flex-[2] py-2 text-xs font-black rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-900 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-yellow-500/30"
+                        >
+                          <ArrowDownLeft className="w-3.5 h-3.5" /> Poursuivre la recharge
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1398,46 +1445,6 @@ export default function TransfertPage() {
             <p>24 pays disponibles en Afrique.</p>
           </div>
         </div>
-
-        {/* BANNIÈRE RECHARGE EN ATTENTE */}
-        {pendingRecharge && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/95 backdrop-blur border-t border-yellow-500/40 shadow-2xl">
-            <div className="max-w-lg mx-auto">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-5 h-5 text-yellow-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-foreground">Recharge non terminée</p>
-                  <p className="text-xs text-muted-foreground">
-                    {fmtXOF(pendingRecharge.montant)} · Total {fmtNum(pendingRecharge.total)} FCFA
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    clearPendingRecharge();
-                    setPendingRecharge(null);
-                  }}
-                  className="flex-1 py-3 bg-muted hover:bg-destructive/10 hover:text-destructive border border-border hover:border-destructive/40 text-foreground font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
-                >
-                  <X className="w-4 h-4" /> Annuler
-                </button>
-                <button
-                  onClick={() => {
-                    window.open(pendingRecharge.payment_url, "_blank", "noopener,noreferrer");
-                    balanceBeforeRecharge.current = balance;
-                    setPollingRecharge(true);
-                  }}
-                  className="flex-2 flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black rounded-xl transition-colors text-sm flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/30"
-                >
-                  <ArrowDownLeft className="w-4 h-4" /> Poursuivre la recharge
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* MODALS */}
         {showRecharge   && <ModalRecharge onClose={() => setShowRecharge(false)} onSuccess={handleRechargeSuccess} />}
