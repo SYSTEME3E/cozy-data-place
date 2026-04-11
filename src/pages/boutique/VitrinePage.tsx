@@ -112,31 +112,21 @@ export default function VitrinePage() {
         .eq("slug", slug)
         .maybeSingle();
 
-      if (boutiqueError) console.error("[VitrinePage] Erreur boutique:", boutiqueError);
-      // Boutique introuvable ou explicitement désactivée (actif === false)
-      if (!b || (b as any).actif === false) { setNotFound(true); setLoading(false); return; }
+      // Accepte si actif est true OU null/undefined (non configuré)
+      if (!b || boutiqueError || b.actif === false) { setNotFound(true); setLoading(false); return; }
       setBoutique(b as any);
 
-      // On filtre côté client pour garder uniquement les produits publiés
-      // (actif = true OU actif non défini).
-      const { data: prods, error: prodsError } = await supabase
+      const { data: prods } = await supabase
         .from("produits" as any)
         .select("*")
         .eq("boutique_id", (b as any).id)
+        .neq("actif", false)
         .order("vedette", { ascending: false });
 
-      if (prodsError) {
-        console.error("[VitrinePage] Erreur chargement produits:", prodsError);
-      }
-
-      const list = (prods as any[] || [])
-        // Affiche les produits dont actif est true OU null/undefined (non défini)
-        .filter((p: any) => p.actif !== false)
-        .map((p: any) => ({
-          ...p,
-          photos: p.photos || [],
-          moyens_paiement: p.moyens_paiement || [],
-        }));
+      const list = (prods as any[] || []).map(p => ({
+        ...p,
+        moyens_paiement: p.moyens_paiement || [],
+      }));
       setProduits(list);
 
       const cats = [...new Set(list.map((p: any) => p.categorie).filter(Boolean))] as string[];
