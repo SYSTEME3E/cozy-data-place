@@ -499,7 +499,8 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   const tauxXofParLoc = tauxLocParXof > 0 ? 1 / tauxLocParXof : 1;
 
   // Solde affiché en devise locale
-  const soldeLocal = isXof ? balance : Math.round(balance * tauxLocParXof);
+  // Pas de Math.round → précision décimale pour EUR/USD/GBP
+  const soldeLocal = isXof ? balance : balance * tauxLocParXof;
 
   const [nomComplet, setNomComplet] = useState("");
   const [montant, setMontant]       = useState("");  // en devise locale
@@ -552,7 +553,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             <span className="text-sm text-muted-foreground font-semibold">Solde disponible</span>
             <div className="text-right">
               <span className="font-black text-foreground">
-                {fmtNum(soldeLocal)} {symboleLocal}
+                {fmtXOF(balance)}
               </span>
               {!isXof && (
                 <p className="text-[10px] text-muted-foreground">{fmtNum(balance)} FCFA</p>
@@ -664,7 +665,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
             {soldeInsuffisant && (
               <div className="flex items-center gap-1.5 text-xs text-destructive">
                 <AlertCircle className="w-3.5 h-3.5" />
-                Fonds insuffisants. Votre solde est {fmtNum(soldeLocal)} {symboleLocal}.
+                Fonds insuffisants. Votre solde est {fmtXOF(balance)}.
               </div>
             )}
           </div>
@@ -704,7 +705,8 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
   const tauxLocParXof = rates[deviseLocale] ?? 1;
   const tauxXofParLoc = tauxLocParXof > 0 ? 1 / tauxLocParXof : 1;
 
-  const soldeLocal = isXof ? balance : Math.round(balance * tauxLocParXof);
+  // Pas de Math.round → précision décimale pour EUR/USD/GBP
+  const soldeLocal = isXof ? balance : balance * tauxLocParXof;
 
   const [nexoraId, setNexoraId]         = useState("");
   const [montant, setMontant]           = useState(""); // en devise locale
@@ -839,7 +841,7 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
             <span className="text-sm text-muted-foreground font-semibold">Solde disponible</span>
             <div className="text-right">
               <span className="font-black text-foreground">
-                {fmtNum(soldeLocal)} {symboleLocal}
+                {fmtXOF(balance)}
               </span>
               {!isXof && (
                 <p className="text-[10px] text-muted-foreground">{fmtNum(balance)} FCFA</p>
@@ -916,7 +918,7 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
             {montantLocalNum > soldeLocal && (
               <div className="flex items-center gap-1.5 text-xs text-destructive">
                 <AlertCircle className="w-3.5 h-3.5" />
-                Fonds insuffisants. Solde : {fmtNum(soldeLocal)} {symboleLocal}
+                Fonds insuffisants. Solde : {fmtXOF(balance)}
               </div>
             )}
           </div>
@@ -993,8 +995,8 @@ export default function TransfertPage() {
   const showSuccessMsg = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 6000); };
   const showErrorMsg   = (msg: string) => { setErrorMsg(msg);   setTimeout(() => setErrorMsg(null),   6000); };
 
-  // Solde affiché en devise locale
-  const soldeLocal = isXof ? balance : Math.round(balance * tauxLocParXof);
+  // Solde affiché en devise locale (sans arrondi pour précision EUR/USD/GBP)
+  const soldeLocal = isXof ? balance : balance * tauxLocParXof;
 
   const fetchFromSupabase = useCallback(async () => {
     setLoadingData(true);
@@ -1225,7 +1227,7 @@ export default function TransfertPage() {
                   {/* Solde en devise locale */}
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-black text-white tracking-tight">
-                      {fmtNum(soldeLocal)} {symboleLocal}
+                      {fmtXOF(balance)}
                     </span>
                   </div>
                   {/* Équivalent FCFA si devise différente */}
@@ -1276,7 +1278,8 @@ export default function TransfertPage() {
               </div>
               <span className="text-xs font-semibold">Total rechargé</span>
             </div>
-            <p className="text-lg font-black text-foreground">{fmtNum(totalDepots)} FCFA</p>
+            <p className="text-lg font-black text-foreground">{fmtXOF(totalDepots)}</p>
+            {!isXof && <p className="text-[10px] text-muted-foreground">{fmtNum(totalDepots)} FCFA</p>}
           </div>
           <div className="bg-card border border-border rounded-xl p-4 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -1285,7 +1288,8 @@ export default function TransfertPage() {
               </div>
               <span className="text-xs font-semibold">Total envoyé</span>
             </div>
-            <p className="text-lg font-black text-foreground">{fmtNum(totalTransferts)} FCFA</p>
+            <p className="text-lg font-black text-foreground">{fmtXOF(totalTransferts)}</p>
+            {!isXof && <p className="text-[10px] text-muted-foreground">{fmtNum(totalTransferts)} FCFA</p>}
           </div>
         </div>
 
@@ -1367,9 +1371,9 @@ export default function TransfertPage() {
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
                         <p className={`font-black text-base ${amountColor}`}>
-                          {isReceived ? "+" : "−"}{fmtNum(tx.montant)}
+                          {isReceived ? "+" : "−"}{fmtXOF(tx.montant)}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">FCFA</p>
+                        {!isXof && <p className="text-[10px] text-muted-foreground">{fmtNum(tx.montant)} FCFA</p>}
                       </div>
                       <button onClick={() => generateInvoicePDF(tx)}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground border border-border">
