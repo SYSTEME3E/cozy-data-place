@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { formatPrix } from "./devise-utils";
 
 export async function hashCode(code: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -79,17 +80,9 @@ export function convertAmount(amount: number, from: "XOF" | "USD", to: "XOF" | "
   return amount * USD_TO_XOF;
 }
 
-// ✅ CORRIGÉ — plus de / dans les montants
-export function formatAmount(amount: number, devise: "XOF" | "USD"): string {
-  if (devise === "USD") {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency", currency: "USD", maximumFractionDigits: 2,
-    }).format(amount);
-  }
-  const formatted = Math.round(amount)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return formatted + " FCFA";
+// ✅ CORRIGÉ — supporte toutes les devises africaines + USD + EUR
+export function formatAmount(amount: number, devise: string = "XOF"): string {
+  return formatPrix(amount, devise);
 }
 
 // ─── Dates ───────────────────────────────────────────────
