@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 interface PageLoaderProps {
   duration?: number;
@@ -7,15 +8,25 @@ interface PageLoaderProps {
 }
 
 export default function PageLoader({
-  duration = 600,
+  duration = 800,
   children,
+  onlyAuth = false,
 }: PageLoaderProps) {
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
+
+  const isAuthPage =
+    location.pathname === "/login" ||
+    location.pathname === "/register";
 
   useEffect(() => {
+    if (onlyAuth && !isAuthPage) {
+      setLoading(false);
+      return;
+    }
     const timer = setTimeout(() => setLoading(false), duration);
     return () => clearTimeout(timer);
-  }, [duration]);
+  }, [duration, onlyAuth, isAuthPage]);
 
   if (loading) {
     return (
@@ -24,10 +35,25 @@ export default function PageLoader({
         inset: 0,
         zIndex: 9999,
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
+        gap: "24px",
         backgroundColor: "#1a2235",
       }}>
+
+        {/* Logo */}
+        <div style={{
+          fontSize: "40px",
+          fontWeight: 900,
+          letterSpacing: "0.08em",
+          fontFamily: "'Segoe UI', sans-serif",
+        }}>
+          <span style={{ color: "#ffffff" }}>Nex</span>
+          <span style={{ color: "#2979ff" }}>ora</span>
+        </div>
+
+        {/* Spinner */}
         <div style={{
           width: "38px",
           height: "38px",
@@ -36,6 +62,7 @@ export default function PageLoader({
           borderTopColor: "#2979ff",
           animation: "nexora-spin 0.85s cubic-bezier(0.4,0,0.6,1) infinite",
         }} />
+
         <style>{`
           @keyframes nexora-spin {
             to { transform: rotate(360deg); }
