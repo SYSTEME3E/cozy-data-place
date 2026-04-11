@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getTheme, applyTheme } from "@/lib/theme";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { getNexoraUser } from "@/lib/nexora-auth";
@@ -250,6 +251,13 @@ export default function ImmobilierPage() {
     setAnnonces((data || []) as unknown as Annonce[]);
     setLoading(false);
   };
+  // Forcer le mode clair sur la page Immobilier, restaurer au départ
+  useEffect(() => {
+    const previousTheme = getTheme();
+    document.documentElement.classList.remove("dark");
+    return () => { applyTheme(previousTheme); };
+  }, []);
+
   useEffect(() => { loadAnnonces(); }, []);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
