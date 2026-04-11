@@ -75,37 +75,28 @@ function getSymboleDevise(code: string): string {
   return DEVISES_LISTE.find(d => d.code === code)?.symbole ?? code;
 }
 
-// ─── Countdown 5 min ─────────────────────────────────────────────────────────
-function useCountdown(rawDate: string, isPending: boolean): string | null {
-  const [remaining, setRemaining] = useState<number | null>(null);
-  useEffect(() => {
-    if (!isPending) { setRemaining(null); return; }
-    const expiry = new Date(rawDate).getTime() + 5 * 60 * 1000;
-    const tick = () => { const diff = expiry - Date.now(); setRemaining(diff > 0 ? diff : 0); };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [rawDate, isPending]);
-  if (remaining === null) return null;
-  if (remaining === 0) return "Expiré";
-  const m = Math.floor(remaining / 60000);
-  const s = Math.floor((remaining % 60000) / 1000);
-  return `Expire dans ${m}:${s.toString().padStart(2, "0")}`;
-}
+// ─── Clé localStorage pour recharge en attente ───────────────────────────────
+const PENDING_RECHARGE_KEY = "nexora-pending-recharge";
 
-function CountdownBadge({ rawDate }: { rawDate: string }) {
-  const label = useCountdown(rawDate, true);
-  if (!label) return null;
-  const isExpired = label === "Expiré";
-  return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-      isExpired
-        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-        : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-    }`}>
-      ⏱ {label}
-    </span>
-  );
+type PendingRechargeData = {
+  payment_url: string;
+  montant: number;   // FCFA
+  total: number;     // FCFA (montant + frais)
+  email: string;
+  timestamp: number;
+};
+
+function savePendingRecharge(data: PendingRechargeData) {
+  try { localStorage.setItem(PENDING_RECHARGE_KEY, JSON.stringify(data)); } catch {}
+}
+function loadPendingRecharge(): PendingRechargeData | null {
+  try {
+    const raw = localStorage.getItem(PENDING_RECHARGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function clearPendingRecharge() {
+  try { localStorage.removeItem(PENDING_RECHARGE_KEY); } catch {}
 }
 
 function mapSupabaseRow(row: any): Transaction {
@@ -337,6 +328,14 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
         setLoading(false);
         return;
       }
+      // Sauvegarder pour bannière "Poursuivre / Annuler"
+      savePendingRecharge({
+        payment_url: result.payment_url,
+        montant: montantFcfa,
+        total: totalPaye,
+        email,
+        timestamp: Date.now(),
+      });
       const opened = window.open(result.payment_url, "_blank", "noopener,noreferrer");
       if (!opened) { setPaymentUrl(result.payment_url); }
       else { onSuccess(); onClose(); }
@@ -984,6 +983,7 @@ export default function TransfertPage() {
   const [filterType, setFilterType]     = useState<"all" | "depot" | "transfert" | "interne">("all");
   const [pollingRecharge, setPollingRecharge] = useState(false);
   const [copiedId, setCopiedId]         = useState(false);
+  const [pendingRecharge, setPendingRecharge] = useState<PendingRechargeData | null>(() => loadPendingRecharge());
 
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingTransfer, setPendingTransfer] = useState<{
@@ -1105,6 +1105,8 @@ export default function TransfertPage() {
   useEffect(() => {
     if (pollingRecharge && balance > balanceBeforeRecharge.current) {
       setPollingRecharge(false);
+      clearPendingRecharge();
+      setPendingRecharge(null);
       showSuccessMsg("✅ Recharge confirmée ! Votre solde a été mis à jour.");
     }
   }, [balance, pollingRecharge]);
@@ -1360,7 +1362,6 @@ export default function TransfertPage() {
                           : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
                           {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
                         </span>
-                        {tx.status === "pending" && <CountdownBadge rawDate={tx.rawDate} />}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {tx.reseau && <span>{tx.reseau}</span>}
@@ -1397,6 +1398,46 @@ export default function TransfertPage() {
             <p>24 pays disponibles en Afrique.</p>
           </div>
         </div>
+
+        {/* BANNIÈRE RECHARGE EN ATTENTE */}
+        {pendingRecharge && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/95 backdrop-blur border-t border-yellow-500/40 shadow-2xl">
+            <div className="max-w-lg mx-auto">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-yellow-500/20 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5 text-yellow-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-foreground">Recharge non terminée</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtXOF(pendingRecharge.montant)} · Total {fmtNum(pendingRecharge.total)} FCFA
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    clearPendingRecharge();
+                    setPendingRecharge(null);
+                  }}
+                  className="flex-1 py-3 bg-muted hover:bg-destructive/10 hover:text-destructive border border-border hover:border-destructive/40 text-foreground font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <X className="w-4 h-4" /> Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    window.open(pendingRecharge.payment_url, "_blank", "noopener,noreferrer");
+                    balanceBeforeRecharge.current = balance;
+                    setPollingRecharge(true);
+                  }}
+                  className="flex-2 flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black rounded-xl transition-colors text-sm flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/30"
+                >
+                  <ArrowDownLeft className="w-4 h-4" /> Poursuivre la recharge
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* MODALS */}
         {showRecharge   && <ModalRecharge onClose={() => setShowRecharge(false)} onSuccess={handleRechargeSuccess} />}
