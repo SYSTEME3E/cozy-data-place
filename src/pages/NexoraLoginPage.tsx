@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Lock, User, Mail, AtSign, ChevronRight, CheckCircle2, XCircle, MessageCircle, HelpCircle } from "lucide-react";
+import { Eye, EyeOff, Lock, User, Mail, AtSign, ChevronRight, CheckCircle2, XCircle, Phone, MessageCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
@@ -12,10 +12,10 @@ type Mode = "login" | "register" | "forgot";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "8 caractères minimum", ok: password.length >= 8 },
-    { label: "Une lettre",           ok: /[a-zA-Z]/.test(password) },
-    { label: "Un chiffre",           ok: /[0-9]/.test(password) },
-    { label: "Un caractère spécial", ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
+    { label: "8 caractères minimum",  ok: password.length >= 8 },
+    { label: "Une lettre",            ok: /[a-zA-Z]/.test(password) },
+    { label: "Un chiffre",            ok: /[0-9]/.test(password) },
+    { label: "Un caractère spécial",  ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
   ];
   return (
     <div className="mt-1 space-y-1">
@@ -36,28 +36,32 @@ export default function NexoraLoginPage() {
   const [loading, setLoading]     = useState(false);
   const [pageReady, setPageReady] = useState(false);
 
+  // Login fields
   const [identifier, setIdentifier]     = useState("");
   const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember]         = useState(false);
 
-  const [nomPrenom, setNomPrenom]             = useState("");
-  const [username, setUsername]               = useState("");
-  const [email, setEmail]                     = useState("");
-  const [regPassword, setRegPassword]         = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showRegPassword, setShowRegPassword] = useState(false);
-  const [showConfirm, setShowConfirm]         = useState(false);
-  const [whatsapp, setWhatsapp]               = useState("");
+  // Register fields
+  const [nomPrenom, setNomPrenom]               = useState("");
+  const [username, setUsername]                 = useState("");
+  const [email, setEmail]                       = useState("");
+  const [regPassword, setRegPassword]           = useState("");
+  const [confirmPassword, setConfirmPassword]   = useState("");
+  const [showRegPassword, setShowRegPassword]   = useState(false);
+  const [showConfirm, setShowConfirm]           = useState(false);
+  const [whatsapp, setWhatsapp]                 = useState("");
 
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     initAdminUser();
+    // Appliquer le thème sauvegardé même sur la page de connexion
     initTheme();
 
     if (isNexoraAuthenticated()) {
+      // Si PIN déjà validé pour cette session, aller au dashboard
       const pinUnlocked = sessionStorage.getItem("nexora_pin_unlocked") === "true";
       navigate(pinUnlocked ? "/dashboard" : "/unlock-pin", { replace: true });
       return;
@@ -67,41 +71,22 @@ export default function NexoraLoginPage() {
     return () => clearTimeout(ready);
   }, []);
 
+  // ── Splash screen
   if (!pageReady) {
     return (
-      <div style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "24px",
-        backgroundColor: "#1a2235",
-      }}>
-        <div style={{
-          fontSize: "40px",
-          fontWeight: 900,
-          letterSpacing: "0.08em",
-          fontFamily: "'Segoe UI', sans-serif",
-        }}>
-          <span style={{ color: "#ffffff" }}>Nex</span>
-          <span style={{ color: "#2979ff" }}>ora</span>
+      <div
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+        style={{ background: "radial-gradient(ellipse at center, hsl(217 89% 20%) 0%, hsl(217 89% 10%) 100%)" }}>
+        <div className="flex flex-col items-center gap-6">
+          <img src={nexoraLogo} alt="Nexora" className="w-24 h-24 object-contain drop-shadow-2xl animate-pulse" />
+          <div className="text-3xl font-black text-white tracking-widest">NEXORA</div>
+          <div className="flex gap-4 mt-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="w-5 h-5 rounded-full bg-yellow-400"
+                style={{ animation: "bounce 0.7s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
+            ))}
+          </div>
         </div>
-        <div style={{
-          width: "38px",
-          height: "38px",
-          borderRadius: "50%",
-          border: "3.5px solid rgba(255,255,255,0.1)",
-          borderTopColor: "#2979ff",
-          animation: "nexora-spin 0.85s cubic-bezier(0.4,0,0.6,1) infinite",
-        }} />
-        <style>{`
-          @keyframes nexora-spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
@@ -114,7 +99,8 @@ export default function NexoraLoginPage() {
     setLoading(true);
     const result = await loginUser({ identifier, password, remember });
     if (result.success) {
-      toast({ title: "Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
+      toast({ title: "✅ Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
+      // Effacer le PIN précédent — l'utilisateur doit le saisir à chaque connexion
       sessionStorage.removeItem("nexora_pin_unlocked");
       sessionStorage.removeItem("nexora_pin_attempts");
       sessionStorage.removeItem("nexora_pin_locked_until");
@@ -146,7 +132,7 @@ export default function NexoraLoginPage() {
     setLoading(true);
     const result = await registerUser({ nom_prenom: nomPrenom, username, email, password: regPassword, whatsapp: whatsapp.trim() });
     if (result.success) {
-      toast({ title: "Compte créé !", description: "Connectez-vous maintenant." });
+      toast({ title: "✅ Compte créé !", description: "Connectez-vous maintenant." });
       setMode("login");
       setIdentifier(username);
     } else {
@@ -161,22 +147,28 @@ export default function NexoraLoginPage() {
       style={{ background: "radial-gradient(ellipse at top, hsl(217 89% 18%) 0%, hsl(217 89% 8%) 100%)" }}
     >
       <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .fade-in { animation: fadeIn 0.4s ease forwards; }
       `}</style>
 
       <div className="w-full max-w-sm fade-in">
-
+        {/* Logo */}
         <div className="flex flex-col items-center mb-6">
           <img src={nexoraLogo} alt="Nexora" className="w-16 h-16 object-contain drop-shadow-2xl mb-3" />
           <h1 className="text-2xl font-black text-white tracking-wider">NEXORA</h1>
           <p className="text-blue-300/70 text-xs mt-1">Plateforme financière tout-en-un</p>
         </div>
 
+        {/* Carte principale */}
         <div className="bg-card dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
+          {/* Onglets — masqués sur la page "mot de passe oublié" */}
           {mode !== "forgot" && (
             <div className="flex border-b border-border dark:border-gray-800">
               <button
@@ -202,6 +194,7 @@ export default function NexoraLoginPage() {
 
           <div className="px-6 py-6">
 
+            {/* ── CONNEXION ── */}
             {mode === "login" && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
@@ -209,8 +202,7 @@ export default function NexoraLoginPage() {
                     <User className="w-3.5 h-3.5" /> Username ou Email
                   </label>
                   <Input
-                    value={identifier}
-                    onChange={e => setIdentifier(e.target.value)}
+                    value={identifier} onChange={e => setIdentifier(e.target.value)}
                     placeholder="username ou email@example.com"
                     className="h-11 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     autoFocus
@@ -224,8 +216,7 @@ export default function NexoraLoginPage() {
                   <div className="relative">
                     <Input
                       type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
+                      value={password} onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
                       className="h-11 pr-12 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     />
@@ -244,6 +235,7 @@ export default function NexoraLoginPage() {
                       Restez connecté
                     </label>
                   </div>
+                  {/* ── MOT DE PASSE OUBLIÉ ── */}
                   <button type="button" onClick={() => setMode("forgot")}
                     className="text-xs text-primary hover:underline font-medium flex items-center gap-1">
                     <HelpCircle className="w-3 h-3" /> Mot de passe oublié ?
@@ -260,6 +252,7 @@ export default function NexoraLoginPage() {
               </form>
             )}
 
+            {/* ── INSCRIPTION ── */}
             {mode === "register" && (
               <form onSubmit={handleRegister} className="space-y-3.5">
                 <div>
@@ -356,6 +349,7 @@ export default function NexoraLoginPage() {
               </form>
             )}
 
+            {/* ── MOT DE PASSE OUBLIÉ ── */}
             {mode === "forgot" && (
               <div className="space-y-5">
                 <div className="text-center">
@@ -364,12 +358,13 @@ export default function NexoraLoginPage() {
                   </div>
                   <h2 className="font-black text-lg text-gray-900 dark:text-white">Mot de passe oublié ?</h2>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                    Contactez notre service client pour réinitialiser votre mot de passe.
+                    Contactez notre service client pour réinitialiser votre mot de passe. Nous vous aiderons rapidement !
                   </p>
                 </div>
 
-                
-                  href="https://wa.me/22951762341"
+                {/* WhatsApp */}
+                <a
+                  href="https://wa.me/22951762341?text=Bonjour, j'ai oublié mon mot de passe Nexora et j'ai besoin d'aide pour le réinitialiser."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold text-white transition-all hover:opacity-90 active:scale-95"
@@ -385,8 +380,9 @@ export default function NexoraLoginPage() {
                   <ChevronRight className="w-4 h-4 opacity-60" />
                 </a>
 
-                
-                  href="mailto:erickpakpo786@gmail.com"
+                {/* Email */}
+                <a
+                  href="mailto:erickpakpo786@gmail.com?subject=Réinitialisation mot de passe Nexora&body=Bonjour, j'ai oublié mon mot de passe. Mon username/email : "
                   className="flex items-center gap-3 w-full p-4 rounded-2xl font-bold bg-blue-600 text-white transition-all hover:bg-blue-700 active:scale-95"
                 >
                   <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -400,18 +396,15 @@ export default function NexoraLoginPage() {
                 </a>
 
                 <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                  Précisez votre <strong>username</strong> ou <strong>email</strong> ainsi que votre nom complet.
+                  Précisez votre <strong>username</strong> ou <strong>email</strong> ainsi que votre nom complet pour une réponse rapide.
                 </p>
 
-                <button
-                  onClick={() => setMode("login")}
-                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-                >
-                  Retour à la connexion
+                <button onClick={() => setMode("login")}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
+                  ← Retour à la connexion
                 </button>
               </div>
             )}
-
           </div>
         </div>
 
