@@ -10,6 +10,7 @@ import { Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import InstallPWA from "@/components/InstallPWA";
+import SwUpdateNotifier from "@/components/SwUpdateNotifier";
 
 
 // Auth
@@ -130,6 +131,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <InstallPWA />
+        <SwUpdateNotifier />
         <Routes>
           {/* Public / Auth */}
           <Route path="/login" element={
