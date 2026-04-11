@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatAmount, convertAmount, getWeekNumber, getMondayOfWeek } from "@/lib/app-utils";
+import { getWeekNumber, getMondayOfWeek } from "@/lib/app-utils";
+import { useDevise } from "@/lib/devise-context";
 import AppLayout from "@/components/AppLayout";
 import { TrendingDown, TrendingUp, Calendar, Clock, Filter, ChevronDown } from "lucide-react";
 import { getNexoraUser } from "@/lib/nexora-auth";
 
-type Devise = "XOF" | "USD";
 type TabType = "tout" | "depenses" | "entrees";
 type PeriodType = "tout" | "semaine" | "mois" | "annee";
 
@@ -57,9 +57,9 @@ function getWeekFromDate(dateStr: string): number | null {
 
 export default function HistoriquePage() {
   const [depenses, setDepenses] = useState<DepenseRow[]>([]);
+  const { fmtXOF, usdToXof } = useDevise();
   const [entrees, setEntrees]   = useState<EntreeRow[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [devise, setDevise]     = useState<Devise>("XOF");
   const [tab, setTab]           = useState<TabType>("tout");
   const [period, setPeriod]     = useState<PeriodType>("tout");
   const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
@@ -83,8 +83,11 @@ export default function HistoriquePage() {
     setLoading(false);
   };
 
-  const fmt   = (v: number) => formatAmount(devise === "XOF" ? v : convertAmount(v, "XOF", "USD"), devise);
-  const toXOF = (m: number, dev: string) => dev === "USD" ? convertAmount(m, "USD", "XOF") : m;
+  const fmt   = (v: number) => fmtXOF(v);
+  const toXOF = (m: number, dev: string) => {
+    if (dev === "USD") return usdToXof(m); // USD stocké → XOF (taux fixe fallback)
+    return m;
+  };
 
   // Années disponibles depuis les dates réelles
   const allYears = [...new Set([
@@ -156,11 +159,7 @@ export default function HistoriquePage() {
             </h1>
             <p className="text-sm text-muted-foreground">Toutes vos transactions passées</p>
           </div>
-          <select value={devise} onChange={e => setDevise(e.target.value as Devise)}
-            className="border border-border rounded-lg px-3 py-2 text-sm bg-card font-semibold">
-            <option value="XOF">XOF - FCFA</option>
-            <option value="USD">USD - $</option>
-          </select>
+          <span className="text-xs text-muted-foreground hidden">devise globale</span>
         </div>
 
         {/* ── Filtres de période ── */}
