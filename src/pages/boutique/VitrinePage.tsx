@@ -51,10 +51,7 @@ interface Produit {
 }
 
 // ─── Helpers ──────────────────────────────────────────────
-function formatPrix(prix: number, devise: string = "XOF"): string {
-  if (devise === "USD") return `$${prix.toFixed(2)}`;
-  return Math.round(prix).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " " + devise;
-}
+import { formatPrix } from "@/lib/devise-utils";
 
 function calcPct(prix: number, promo: number): number {
   return Math.round(((prix - promo) / prix) * 100);
