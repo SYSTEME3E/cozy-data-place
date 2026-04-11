@@ -36,10 +36,7 @@ interface CommandeCreee {
   trackingUrl: string;
 }
 
-function formatPrix(prix: number, devise = "XOF") {
-  if (devise === "USD") return `$${prix.toFixed(2)}`;
-  return `${Math.round(prix).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${devise}`;
-}
+import { formatPrix } from "@/lib/devise-utils";
 
 type Etape = "recap" | "paiement" | "confirmation";
 
