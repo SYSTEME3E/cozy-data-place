@@ -43,10 +43,7 @@ const SECTIONS_PHYSIQUE = [
   { id: "politiques", label: "Politiques" }, { id: "seo", label: "SEO" },
 ];
 
-function formatPrix(prix: number, devise: string = "XOF"): string {
-  if (devise === "USD") return `$${prix.toFixed(2)}`;
-  return Math.round(prix).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " " + devise;
-}
+import { formatPrix } from "@/lib/devise-utils";
 
 function calcPct(prix: number, promo: number): number {
   return Math.round(((prix - promo) / prix) * 100);
@@ -529,7 +526,7 @@ export default function ProduitsPage() {
                     <div>
                       <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Prix réel *</label>
                       <Input type="number" min="0" value={formP.prix} onChange={e => setFormP({ ...formP, prix: e.target.value })} placeholder="0"  className="mt-1" />
-                      {formP.prix && <p className="text-xs text-red-500 font-bold line-through mt-1">{Math.round(parseFloat(formP.prix)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} {boutique?.devise || "FCFA"}</p>}
+                      {formP.prix && <p className="text-xs text-red-500 font-bold line-through mt-1">{formatPrix(parseFloat(formP.prix), boutique?.devise || "XOF")}</p>}
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Prix promo</label>
