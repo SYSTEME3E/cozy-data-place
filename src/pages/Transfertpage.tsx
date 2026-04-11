@@ -11,6 +11,7 @@ import { initPayment, initPayout } from "@/lib/Moneroo";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { supabase } from "@/integrations/supabase/client";
 import PinTransferModal from "@/components/PinTransferModal";
+import { useDevise } from "@/lib/devise-context";
 
 const LOGO_URL = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
 
@@ -62,28 +63,18 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const calcFrais = (montant: number) => Math.round(montant * 0.03);
 const generateRef = (type: "DEP" | "TRF") => `${type}-${Date.now().toString().slice(-8)}`;
 
-// ─── Taux de change vs XOF (approximatifs marché / agrégateur) ────────────────
-const TAUX_VS_XOF: Record<string, { taux: number; symbole: string; nom: string }> = {
-  XOF: { taux: 1,        symbole: "XOF",  nom: "Franc CFA (UEMOA)" },
-  XAF: { taux: 1,        symbole: "XAF",  nom: "Franc CFA (CEMAC)" },
-  GNF: { taux: 5.75,     symbole: "GNF",  nom: "Franc guinéen" },
-  GHS: { taux: 0.049,    symbole: "GHS",  nom: "Cédi ghanéen" },
-  NGN: { taux: 2.10,     symbole: "NGN",  nom: "Naira nigérian" },
-  KES: { taux: 0.435,    symbole: "KES",  nom: "Shilling kényan" },
-  TZS: { taux: 8.65,     symbole: "TZS",  nom: "Shilling tanzanien" },
-  UGX: { taux: 12.30,    symbole: "UGX",  nom: "Shilling ougandais" },
-  RWF: { taux: 3.85,     symbole: "RWF",  nom: "Franc rwandais" },
-  MAD: { taux: 0.033,    symbole: "MAD",  nom: "Dirham marocain" },
-  GMD: { taux: 2.15,     symbole: "GMD",  nom: "Dalasi gambien" },
-  SLL: { taux: 7.20,     symbole: "SLL",  nom: "Leone sierra-léonais" },
-  LRD: { taux: 5.50,     symbole: "LRD",  nom: "Dollar libérien" },
-  MZN: { taux: 0.215,    symbole: "MZN",  nom: "Metical mozambicain" },
-  ZMW: { taux: 0.085,    symbole: "ZMW",  nom: "Kwacha zambien" },
-  CDF: { taux: 9.20,     symbole: "CDF",  nom: "Franc congolais" },
+// ─── Taux de change fallback (remplacés par taux live du contexte DeviseProvider) ──
+const TAUX_VS_XOF_FALLBACK: Record<string, number> = {
+  XOF: 1, XAF: 1,
+  GNF: 5.75, GHS: 0.049, NGN: 2.10, KES: 0.435,
+  TZS: 8.65, UGX: 12.30, RWF: 3.85, MAD: 0.033,
+  GMD: 2.15, SLL: 7.20, LRD: 5.50, MZN: 0.215,
+  ZMW: 0.085, CDF: 9.20,
 };
 
-function convertXofTo(montantXof: number, currency: string): number {
-  const rate = TAUX_VS_XOF[currency]?.taux ?? 1;
+// convertXofTo utilisé dans ModalTransfert — reçoit les rates live en paramètre
+function convertXofTo(montantXof: number, currency: string, liveRates: Record<string, number>): number {
+  const rate = liveRates[currency] ?? TAUX_VS_XOF_FALLBACK[currency] ?? 1;
   return Math.round(montantXof * rate);
 }
 
@@ -466,6 +457,9 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   onConfirm: (montant: number, frais: number, reseau: string, tel: string, pays: ActiveCountry, nomComplet: string) => void;
   balance: number;
 }) {
+  const { fmtXOF, taux: _taux, devise: deviseActive, ...deviseCtx } = useDevise();
+  // Accès aux rates live pour la conversion vers devise du pays destinataire
+  const liveRates: Record<string, number> = (deviseCtx as any)._rates ?? TAUX_VS_XOF_FALLBACK;
   const [nomComplet, setNomComplet] = useState("");
   const [montant, setMontant] = useState("");
   const [pays, setPays] = useState<ActiveCountry | null>(null);
@@ -515,7 +509,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
         <div className="p-5 space-y-4">
           <div className="flex items-center justify-between p-3 bg-muted/60 rounded-xl">
             <span className="text-sm text-muted-foreground font-semibold">Solde disponible</span>
-            <span className="font-black text-foreground">{fmt(balance)} FCFA</span>
+            <span className="font-black text-foreground">{fmtXOF(balance)}</span>
           </div>
 
           <div className="space-y-2">
@@ -766,7 +760,7 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
         <div className="p-5 space-y-4">
           <div className="flex items-center justify-between p-3 bg-muted/60 rounded-xl">
             <span className="text-sm text-muted-foreground font-semibold">Solde disponible</span>
-            <span className="font-black text-foreground">{fmt(balance)} FCFA</span>
+            <span className="font-black text-foreground">{fmtXOF(balance)}</span>
           </div>
 
           <div className="space-y-2">
@@ -859,6 +853,7 @@ function ModalTransfertInterne({ onClose, onSuccess, balance }: {
 
 // ─── PAGE PRINCIPALE ───
 export default function TransfertPage() {
+  const { fmtXOF, symbole } = useDevise();
   const [balance, setBalance] = useState<number>(0);
   const [nexoraId, setNexoraId] = useState<string>("");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1116,7 +1111,7 @@ export default function TransfertPage() {
         nom_beneficiaire: nomComplet,
       };
       setTransactions(prev => [tx, ...prev]);
-      showSuccessMsg(`${fmt(montant)} FCFA envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
+      showSuccessMsg(`${fmtXOF(montant)} envoyés vers ${pays.flag} ${pays.name} — Traitement en cours`);
 
       // Refresh from server to get real status & updated balance
       setTimeout(() => fetchFromSupabase(), 3000);
@@ -1183,8 +1178,7 @@ export default function TransfertPage() {
                 </div>
               ) : (
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-white tracking-tight">{fmt(balance)}</span>
-                  <span className="text-sm font-bold text-slate-500">FCFA</span>
+                  <span className="text-3xl font-black text-white tracking-tight">{fmtXOF(balance)}</span>
                 </div>
               )}
             </div>
@@ -1222,14 +1216,14 @@ export default function TransfertPage() {
               <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center"><ArrowDownLeft className="w-3.5 h-3.5 text-yellow-500" /></div>
               <span className="text-xs font-semibold">Total rechargé</span>
             </div>
-            <p className="text-lg font-black text-foreground">{fmt(totalDepots)}</p>
+            <p className="text-lg font-black text-foreground">{fmtXOF(totalDepots)}</p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
               <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center"><ArrowUpRight className="w-3.5 h-3.5 text-red-500" /></div>
               <span className="text-xs font-semibold">Total envoyé</span>
             </div>
-            <p className="text-lg font-black text-foreground">{fmt(totalTransferts)}</p>
+            <p className="text-lg font-black text-foreground">{fmtXOF(totalTransferts)}</p>
           </div>
         </div>
 
@@ -1307,7 +1301,7 @@ export default function TransfertPage() {
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
                         <p className={`font-black text-base ${amountColor}`}>
-                          {isReceived ? "+" : "−"}{fmt(tx.montant)}
+                          {isReceived ? "+" : "−"}{fmtXOF(tx.montant)}
                         </p>
                         <p className="text-[10px] text-muted-foreground">FCFA</p>
                       </div>
