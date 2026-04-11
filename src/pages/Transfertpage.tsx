@@ -62,6 +62,70 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const calcFrais = (montant: number) => Math.round(montant * 0.03);
 const generateRef = (type: "DEP" | "TRF") => `${type}-${Date.now().toString().slice(-8)}`;
 
+// ─── Taux de change vs XOF (approximatifs marché / agrégateur) ────────────────
+const TAUX_VS_XOF: Record<string, { taux: number; symbole: string; nom: string }> = {
+  XOF: { taux: 1,        symbole: "XOF",  nom: "Franc CFA (UEMOA)" },
+  XAF: { taux: 1,        symbole: "XAF",  nom: "Franc CFA (CEMAC)" },
+  GNF: { taux: 5.75,     symbole: "GNF",  nom: "Franc guinéen" },
+  GHS: { taux: 0.049,    symbole: "GHS",  nom: "Cédi ghanéen" },
+  NGN: { taux: 2.10,     symbole: "NGN",  nom: "Naira nigérian" },
+  KES: { taux: 0.435,    symbole: "KES",  nom: "Shilling kényan" },
+  TZS: { taux: 8.65,     symbole: "TZS",  nom: "Shilling tanzanien" },
+  UGX: { taux: 12.30,    symbole: "UGX",  nom: "Shilling ougandais" },
+  RWF: { taux: 3.85,     symbole: "RWF",  nom: "Franc rwandais" },
+  MAD: { taux: 0.033,    symbole: "MAD",  nom: "Dirham marocain" },
+  GMD: { taux: 2.15,     symbole: "GMD",  nom: "Dalasi gambien" },
+  SLL: { taux: 7.20,     symbole: "SLL",  nom: "Leone sierra-léonais" },
+  LRD: { taux: 5.50,     symbole: "LRD",  nom: "Dollar libérien" },
+  MZN: { taux: 0.215,    symbole: "MZN",  nom: "Metical mozambicain" },
+  ZMW: { taux: 0.085,    symbole: "ZMW",  nom: "Kwacha zambien" },
+  CDF: { taux: 9.20,     symbole: "CDF",  nom: "Franc congolais" },
+};
+
+function convertXofTo(montantXof: number, currency: string): number {
+  const rate = TAUX_VS_XOF[currency]?.taux ?? 1;
+  return Math.round(montantXof * rate);
+}
+
+// ─── Compte à rebours 5 min pour transactions pending ─────────────────────────
+function useCountdown(rawDate: string, isPending: boolean): string | null {
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isPending) { setRemaining(null); return; }
+    const expiry = new Date(rawDate).getTime() + 5 * 60 * 1000;
+    const tick = () => {
+      const diff = expiry - Date.now();
+      setRemaining(diff > 0 ? diff : 0);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [rawDate, isPending]);
+
+  if (remaining === null) return null;
+  if (remaining === 0) return "Expiré";
+  const m = Math.floor(remaining / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  return `Expire dans ${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Composant wrapper pour afficher le countdown par transaction
+function CountdownBadge({ rawDate }: { rawDate: string }) {
+  const label = useCountdown(rawDate, true);
+  if (!label) return null;
+  const isExpired = label === "Expiré";
+  return (
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+      isExpired
+        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+    }`}>
+      ⏱ {label}
+    </span>
+  );
+}
+
 function mapSupabaseRow(row: any): Transaction {
   const meta = typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata ?? {});
   const isRecharge = row.type === "recharge_transfert";
@@ -414,7 +478,12 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
   const frais = calcFrais(montantNum);
   const netRecu = montantNum - frais;
   const soldeInsuffisant = montantNum > balance;
-  const valid = montantNum >= 100 && !soldeInsuffisant && pays !== null && reseau !== "" && telephone.length >= 8 && nomComplet.trim().length >= 3;
+  const valid = montantNum >= 200 && !soldeInsuffisant && pays !== null && reseau !== "" && telephone.length >= 8 && nomComplet.trim().length >= 3;
+
+  // Devise du pays destinataire
+  const deviseDestinataire = pays ? (TAUX_VS_XOF[pays.currency] ? pays.currency : "XOF") : "XOF";
+  const memeDevise = deviseDestinataire === "XOF" || deviseDestinataire === "XAF";
+  const montantConverti = netRecu > 0 ? convertXofTo(netRecu, deviseDestinataire) : 0;
 
   const handlePaysSelect = (p: ActiveCountry) => {
     setPays(p);
@@ -497,7 +566,7 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-muted-foreground">Montant à envoyer</label>
+            <label className="text-sm font-semibold text-muted-foreground">Montant à envoyer (min. 200 FCFA)</label>
             <div className="relative">
               <input
                 type="number"
@@ -509,15 +578,32 @@ function ModalTransfert({ onClose, onConfirm, balance }: {
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">FCFA</span>
             </div>
             {montantNum > 0 && (
-              <div className="space-y-1 text-xs">
+              <div className="space-y-1 text-xs bg-muted/40 rounded-xl p-3">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Frais (3%)</span>
                   <span>− {fmt(frais)} FCFA</span>
                 </div>
-                <div className="flex justify-between font-bold text-foreground">
+                <div className="flex justify-between font-bold text-foreground border-t border-border/50 pt-1 mt-1">
                   <span>Le destinataire reçoit</span>
-                  <span>{fmt(netRecu > 0 ? netRecu : 0)} FCFA</span>
+                  <span className="text-green-500">
+                    {memeDevise
+                      ? `${fmt(netRecu > 0 ? netRecu : 0)} ${deviseDestinataire}`
+                      : `≈ ${new Intl.NumberFormat("fr-FR").format(montantConverti)} ${deviseDestinataire}`
+                    }
+                  </span>
                 </div>
+                {!memeDevise && netRecu > 0 && (
+                  <div className="flex justify-between text-muted-foreground text-[10px] pt-0.5">
+                    <span>Équivalent XOF</span>
+                    <span>{fmt(netRecu)} XOF</span>
+                  </div>
+                )}
+                {!memeDevise && (
+                  <div className="text-[10px] text-yellow-500/80 flex items-center gap-1 pt-1">
+                    <span>⚡</span>
+                    <span>Taux indicatif marché — le taux final est appliqué par l'agrégateur au moment du transfert.</span>
+                  </div>
+                )}
               </div>
             )}
             {soldeInsuffisant && (
@@ -1210,6 +1296,7 @@ export default function TransfertPage() {
                           : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
                           {tx.status === "success" ? "Réussi" : tx.status === "pending" ? "En cours" : "Échoué"}
                         </span>
+                        {tx.status === "pending" && <CountdownBadge rawDate={tx.rawDate} />}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {tx.reseau && <span>{tx.reseau}</span>}
