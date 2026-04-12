@@ -1096,7 +1096,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                 {/* CORRECTION : icône SVG Android corrigée avec le vrai logo Android */}
                 <a
-                  href="https://drive.google.com/file/d/13ApNm9f1lnPG9eMea-OqESyMFs-fSWnd/view?usp=drive_link"
+                  href="https://drive.google.com/file/d/1EVwXs1_W6rG3AZpuJ6fbU3v0Y4OPCkBX/view?usp=sharing"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group inline-flex items-center gap-3 bg-green-500 hover:bg-green-400 text-white font-black px-8 py-4 rounded-2xl text-base transition-all shadow-lg shadow-green-500/25 hover:scale-105 active:scale-95"
