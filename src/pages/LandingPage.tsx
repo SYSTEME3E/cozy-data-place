@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+﻿import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
 import {
@@ -10,7 +10,7 @@ import {
   Download
 } from "lucide-react";
 
-// ─── CONSTANTES ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ CONSTANTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LOGO = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
 
 const OPERATORS = [
@@ -22,90 +22,90 @@ const OPERATORS = [
 const FEATURES = [
   {
     icon: BarChart3, color: "#6366f1", bg: "#eef2ff",
-    title: "Gestion Financière", tag: "Disponible",
-    desc: "Pilotez vos finances avec précision. Enregistrez vos entrées d'argent, suivez vos dépenses par catégorie, consultez votre historique complet et visualisez votre évolution financière grâce à des graphiques clairs et interactifs.",
-    points: ["Tableau de bord en temps réel", "Catégorisation automatique", "Export PDF & Excel", "Rapports mensuels"],
+    title: "Gestion FinanciÃ¨re", tag: "Disponible",
+    desc: "Pilotez vos finances avec prÃ©cision. Enregistrez vos entrÃ©es d'argent, suivez vos dÃ©penses par catÃ©gorie, consultez votre historique complet et visualisez votre Ã©volution financiÃ¨re grÃ¢ce Ã  des graphiques clairs et interactifs.",
+    points: ["Tableau de bord en temps rÃ©el", "CatÃ©gorisation automatique", "Export PDF & Excel", "Rapports mensuels"],
   },
   {
     icon: Receipt, color: "#10b981", bg: "#ecfdf5",
     title: "Facturation Professionnelle", tag: "Disponible",
-    desc: "Créez des factures PDF magnifiques et professionnelles en moins d'une minute. Ajoutez vos informations fiscales, et téléchargez ou partagez instantanément.",
-    points: ["PDF haute qualité", "Branding personnalisé", "Numérotation automatique", "Archivage illimité"],
+    desc: "CrÃ©ez des factures PDF magnifiques et professionnelles en moins d'une minute. Ajoutez vos informations fiscales, et tÃ©lÃ©chargez ou partagez instantanÃ©ment.",
+    points: ["PDF haute qualitÃ©", "Branding personnalisÃ©", "NumÃ©rotation automatique", "Archivage illimitÃ©"],
   },
   {
     icon: Store, color: "#f43f5e", bg: "#fff1f2",
     title: "Boutique E-commerce", tag: "Disponible",
-    desc: "Lancez votre boutique en ligne en quelques clics. Publiez vos produits physiques ou digitaux, gérez votre catalogue, suivez vos commandes et encaissez vos paiements.",
-    points: ["Vitrine publique personnalisée", "Gestion des stocks", "Suivi des commandes", "Produits digitaux & physiques"],
+    desc: "Lancez votre boutique en ligne en quelques clics. Publiez vos produits physiques ou digitaux, gÃ©rez votre catalogue, suivez vos commandes et encaissez vos paiements.",
+    points: ["Vitrine publique personnalisÃ©e", "Gestion des stocks", "Suivi des commandes", "Produits digitaux & physiques"],
   },
   {
     icon: Send, color: "#0ea5e9", bg: "#f0f9ff",
     title: "Transfert d'Argent Africa", tag: "Disponible",
-    desc: "Envoyez de l'argent partout en Afrique via Mobile Money en quelques secondes. Rechargez votre compte gratuitement, transférez vers 24 pays actifs avec seulement 3% de frais.",
+    desc: "Envoyez de l'argent partout en Afrique via Mobile Money en quelques secondes. Rechargez votre compte gratuitement, transfÃ©rez vers 24 pays actifs avec seulement 3% de frais.",
     points: ["Payez 100 FCFA comme frais du rechargement", "24 pays actifs", "3% de frais seulement", "Facture PDF automatique"],
   },
   {
     icon: Home, color: "#8b5cf6", bg: "#f5f3ff",
-    title: "Marché Immobilier", tag: "Disponible",
-    desc: "Publiez et découvrez des biens immobiliers dans toute l'Afrique. Maisons, appartements, terrains, bureaux – achat ou location.",
-    points: ["Annonces illimitées", "Profil vendeur vérifié", "Photos HD", "Contact direct sécurisé"],
+    title: "MarchÃ© Immobilier", tag: "Disponible",
+    desc: "Publiez et dÃ©couvrez des biens immobiliers dans toute l'Afrique. Maisons, appartements, terrains, bureaux â€“ achat ou location.",
+    points: ["Annonces illimitÃ©es", "Profil vendeur vÃ©rifiÃ©", "Photos HD", "Contact direct sÃ©curisÃ©"],
   },
   {
     icon: Users, color: "#25d366", bg: "#f0fdf4",
     title: "Contacts WhatsApp", tag: "Disponible",
-    desc: "Accédez aux contacts WhatsApp des membres NEXORA. Téléchargez-les en format .vcf pour les importer directement dans votre téléphone. Réseau de confiance, membres vérifiés.",
-    points: ["Contacts membres vérifiés", "Export .vcf (vCard)", "Import direct sur mobile", "Réseau de confiance"],
+    desc: "AccÃ©dez aux contacts WhatsApp des membres NEXORA. TÃ©lÃ©chargez-les en format .vcf pour les importer directement dans votre tÃ©lÃ©phone. RÃ©seau de confiance, membres vÃ©rifiÃ©s.",
+    points: ["Contacts membres vÃ©rifiÃ©s", "Export .vcf (vCard)", "Import direct sur mobile", "RÃ©seau de confiance"],
   },
   {
     icon: Wallet, color: "#14b8a6", bg: "#f0fdfa",
     title: "Abonnements & Liens", tag: "Disponible",
-    desc: "Gérez tous vos abonnements en un seul endroit. Créez des liens courts personnalisés pour partager vos réseaux et contacts.",
-    points: ["Suivi de tous vos abonnements", "Alertes renouvellement", "Liens courts personnalisés", "Partage facile"],
+    desc: "GÃ©rez tous vos abonnements en un seul endroit. CrÃ©ez des liens courts personnalisÃ©s pour partager vos rÃ©seaux et contacts.",
+    points: ["Suivi de tous vos abonnements", "Alertes renouvellement", "Liens courts personnalisÃ©s", "Partage facile"],
   },
 ];
 
 const ROADMAP = [
   { title: "Carte NEXORA Virtuelle", desc: "Payez partout dans le monde avec votre carte virtuelle NEXORA. Compatible avec les paiements en ligne internationaux.", status: "soon", pct: 65 },
-  { title: "Wallet Multi-devises", desc: "Gérez XOF, GHS, NGN, KES et d'autres devises africaines depuis un seul portefeuille unifié.", status: "soon", pct: 40 },
-  { title: "NEXORA Business", desc: "Tableau de bord entreprise avec multi-utilisateurs, rôles, permissions et reporting avancé.", status: "soon", pct: 20 },
-  { title: "24 pays couverts", desc: "Mali, Burkina, Cameroun, Ghana, Nigéria, Kenya, Tanzanie, Ouganda, Rwanda, Guinée, RD Congo, Gabon, Congo, Maroc, Gambie, Sierra Leone, Liberia, Mozambique, Zambie et plus.", status: "soon", pct: 30 },
+  { title: "Wallet Multi-devises", desc: "GÃ©rez XOF, GHS, NGN, KES et d'autres devises africaines depuis un seul portefeuille unifiÃ©.", status: "soon", pct: 40 },
+  { title: "NEXORA Business", desc: "Tableau de bord entreprise avec multi-utilisateurs, rÃ´les, permissions et reporting avancÃ©.", status: "soon", pct: 20 },
+  { title: "24 pays couverts", desc: "Mali, Burkina, Cameroun, Ghana, NigÃ©ria, Kenya, Tanzanie, Ouganda, Rwanda, GuinÃ©e, RD Congo, Gabon, Congo, Maroc, Gambie, Sierra Leone, Liberia, Mozambique, Zambie et plus.", status: "soon", pct: 30 },
 ];
 
 const STATS = [
-  { value: "24", label: "Pays éligibles pour le service du Transfert", suffix: "" },
-  { value: "99.9", label: "Disponibilité", suffix: "%" },
-  { value: "8", label: "Modules intégrés", suffix: "" },
+  { value: "24", label: "Pays Ã©ligibles pour le service du Transfert", suffix: "" },
+  { value: "99.9", label: "DisponibilitÃ©", suffix: "%" },
+  { value: "8", label: "Modules intÃ©grÃ©s", suffix: "" },
   { value: "0", label: "Frais d'inscription", suffix: " FCFA" },
 ];
 
 const COUNTRIES_ACTIVE = [
-  { flag: "🇧🇯", name: "Bénin", networks: "MTN · Moov" },
-  { flag: "🇨🇮", name: "Côte d'Ivoire", networks: "Orange · MTN · Wave" },
-  { flag: "🇹🇬", name: "Togo", networks: "Flooz · T-Money" },
-  { flag: "🇸🇳", name: "Sénégal", networks: "Orange · Wave · Free" },
-  { flag: "🇳🇪", name: "Niger", networks: "Airtel · Moov" },
-  { flag: "🇲🇱", name: "Mali", networks: "Orange · Moov · Wave" },
-  { flag: "🇧🇫", name: "Burkina Faso", networks: "Orange · Moov" },
-  { flag: "🇨🇲", name: "Cameroun", networks: "MTN · Orange" },
-  { flag: "🇬🇭", name: "Ghana", networks: "MTN · Vodafone · AirtelTigo" },
-  { flag: "🇳🇬", name: "Nigéria", networks: "MTN · Airtel · Glo" },
-  { flag: "🇰🇪", name: "Kenya", networks: "M-Pesa · Airtel" },
-  { flag: "🇹🇿", name: "Tanzanie", networks: "M-Pesa · Tigo" },
-  { flag: "🇺🇬", name: "Ouganda", networks: "MTN · Airtel" },
-  { flag: "🇷🇼", name: "Rwanda", networks: "MTN · Airtel" },
-  { flag: "🇬🇳", name: "Guinée", networks: "Orange · MTN" },
-  { flag: "🇨🇩", name: "RD Congo", networks: "Vodacom · Airtel" },
-  { flag: "🇬🇦", name: "Gabon", networks: "Airtel · MTN" },
-  { flag: "🇨🇬", name: "Congo", networks: "MTN · Airtel" },
-  { flag: "🇲🇦", name: "Maroc", networks: "Orange · Maroc Telecom" },
-  { flag: "🇸🇳", name: "Gambie", networks: "Africell · QCell" },
-  { flag: "🇸🇱", name: "Sierra Leone", networks: "Orange · Africell" },
-  { flag: "🇱🇷", name: "Liberia", networks: "MTN · Lonestar" },
-  { flag: "🇲🇿", name: "Mozambique", networks: "M-Pesa · Airtel" },
-  { flag: "🇿🇲", name: "Zambie", networks: "MTN · Airtel" },
+  { flag: "ðŸ‡§ðŸ‡¯", name: "BÃ©nin", networks: "MTN Â· Moov" },
+  { flag: "ðŸ‡¨ðŸ‡®", name: "CÃ´te d'Ivoire", networks: "Orange Â· MTN Â· Wave" },
+  { flag: "ðŸ‡¹ðŸ‡¬", name: "Togo", networks: "Flooz Â· T-Money" },
+  { flag: "ðŸ‡¸ðŸ‡³", name: "SÃ©nÃ©gal", networks: "Orange Â· Wave Â· Free" },
+  { flag: "ðŸ‡³ðŸ‡ª", name: "Niger", networks: "Airtel Â· Moov" },
+  { flag: "ðŸ‡²ðŸ‡±", name: "Mali", networks: "Orange Â· Moov Â· Wave" },
+  { flag: "ðŸ‡§ðŸ‡«", name: "Burkina Faso", networks: "Orange Â· Moov" },
+  { flag: "ðŸ‡¨ðŸ‡²", name: "Cameroun", networks: "MTN Â· Orange" },
+  { flag: "ðŸ‡¬ðŸ‡­", name: "Ghana", networks: "MTN Â· Vodafone Â· AirtelTigo" },
+  { flag: "ðŸ‡³ðŸ‡¬", name: "NigÃ©ria", networks: "MTN Â· Airtel Â· Glo" },
+  { flag: "ðŸ‡°ðŸ‡ª", name: "Kenya", networks: "M-Pesa Â· Airtel" },
+  { flag: "ðŸ‡¹ðŸ‡¿", name: "Tanzanie", networks: "M-Pesa Â· Tigo" },
+  { flag: "ðŸ‡ºðŸ‡¬", name: "Ouganda", networks: "MTN Â· Airtel" },
+  { flag: "ðŸ‡·ðŸ‡¼", name: "Rwanda", networks: "MTN Â· Airtel" },
+  { flag: "ðŸ‡¬ðŸ‡³", name: "GuinÃ©e", networks: "Orange Â· MTN" },
+  { flag: "ðŸ‡¨ðŸ‡©", name: "RD Congo", networks: "Vodacom Â· Airtel" },
+  { flag: "ðŸ‡¬ðŸ‡¦", name: "Gabon", networks: "Airtel Â· MTN" },
+  { flag: "ðŸ‡¨ðŸ‡¬", name: "Congo", networks: "MTN Â· Airtel" },
+  { flag: "ðŸ‡²ðŸ‡¦", name: "Maroc", networks: "Orange Â· Maroc Telecom" },
+  { flag: "ðŸ‡¸ðŸ‡³", name: "Gambie", networks: "Africell Â· QCell" },
+  { flag: "ðŸ‡¸ðŸ‡±", name: "Sierra Leone", networks: "Orange Â· Africell" },
+  { flag: "ðŸ‡±ðŸ‡·", name: "Liberia", networks: "MTN Â· Lonestar" },
+  { flag: "ðŸ‡²ðŸ‡¿", name: "Mozambique", networks: "M-Pesa Â· Airtel" },
+  { flag: "ðŸ‡¿ðŸ‡²", name: "Zambie", networks: "MTN Â· Airtel" },
 ];
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SectionBadge({ text, color = "#6366f1" }: { text: string; color?: string }) {
   return (
     <span
@@ -175,7 +175,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   );
 }
 
-// ─── PAGE ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function LandingPage() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -190,9 +190,9 @@ export default function LandingPage() {
 
   const [reviewForm, setReviewForm] = useState({ name: "", country: "", text: "", stars: 5 });
   const [reviews, setReviews] = useState<{ name: string; country: string; text: string; stars: number }[]>([
-    { name: "Aïcha Koné", country: "🇧🇯 Bénin", text: "NEXORA m'a permis de gérer ma boutique et mes factures depuis mon téléphone. Un vrai gain de temps au quotidien !", stars: 5 },
-    { name: "Eric Mensah", country: "🇨🇮 Côte d'Ivoire", text: "L'interface est intuitive, le module immobilier est génial. Je gère tout mon patrimoine depuis une seule appli.", stars: 5 },
-    { name: "Fatou Diallo", country: "🇸🇳 Sénégal", text: "Les factures PDF sont magnifiques, mes clients sont impressionnés. Le transfert d'argent fonctionne parfaitement.", stars: 5 },
+    { name: "AÃ¯cha KonÃ©", country: "ðŸ‡§ðŸ‡¯ BÃ©nin", text: "NEXORA m'a permis de gÃ©rer ma boutique et mes factures depuis mon tÃ©lÃ©phone. Un vrai gain de temps au quotidien !", stars: 5 },
+    { name: "Eric Mensah", country: "ðŸ‡¨ðŸ‡® CÃ´te d'Ivoire", text: "L'interface est intuitive, le module immobilier est gÃ©nial. Je gÃ¨re tout mon patrimoine depuis une seule appli.", stars: 5 },
+    { name: "Fatou Diallo", country: "ðŸ‡¸ðŸ‡³ SÃ©nÃ©gal", text: "Les factures PDF sont magnifiques, mes clients sont impressionnÃ©s. Le transfert d'argent fonctionne parfaitement.", stars: 5 },
   ]);
 
   useEffect(() => {
@@ -236,7 +236,7 @@ export default function LandingPage() {
   const submitReview = async () => {
     const nameParts = reviewForm.name.trim().split(/\s+/);
     if (nameParts.length < 2 || !nameParts[1] || nameParts[1].length < 2) {
-      alert("Veuillez entrer votre nom complet (prénom et nom de famille).");
+      alert("Veuillez entrer votre nom complet (prÃ©nom et nom de famille).");
       return;
     }
     if (!reviewForm.text.trim()) return;
@@ -292,18 +292,19 @@ export default function LandingPage() {
         .dark input, .dark textarea { background: #1e2433 !important; color: #f1f5f9 !important; border-color: #334155 !important; }
         .dark input::placeholder, .dark textarea::placeholder { color: #64748b !important; }
         .dark input:focus, .dark textarea:focus { border-color: #6366f1 !important; }
+        @keyframes pulse-violet { 0%,100%{box-shadow:0 0 20px rgba(139,92,246,0.5);transform:translateY(0px)} 50%{box-shadow:0 0 40px rgba(139,92,246,0.8);transform:translateY(-3px)} }
         @media(max-width:768px){ h1{font-size:2.5rem !important; line-height:1.1 !important;} h2{font-size:2rem !important;} }
       `}</style>
 
-      {/* ── TOP BANNER ── */}
+      {/* â”€â”€ TOP BANNER â”€â”€ */}
       <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 py-2.5 text-center text-white text-xs font-bold tracking-wide">
-        🌍 NEXORA disponible dans plusieurs pays africains – Transferts, Boutique, Immobilier etc...&nbsp;·&nbsp;
+        ðŸŒ NEXORA disponible dans plusieurs pays africains â€“ Transferts, Boutique, Immobilier etc...&nbsp;Â·&nbsp;
         <button onClick={() => navigate("/login")} className="underline underline-offset-2 hover:no-underline">
-          Commencer gratuitement →
+          Commencer gratuitement â†’
         </button>
       </div>
 
-      {/* ── NAVBAR ── */}
+      {/* â”€â”€ NAVBAR â”€â”€ */}
       <nav
         className={`sticky top-0 z-50 transition-all duration-300 ${
           scrolled ? "glass border-b border-gray-100 dark:border-white/10 shadow-sm" : "bg-white/0 dark:bg-transparent"
@@ -317,12 +318,12 @@ export default function LandingPage() {
 
           <div className="hidden md:flex items-center gap-7 text-[13.5px] font-semibold text-gray-500 dark:text-gray-400">
             {[
-              ["features", "Fonctionnalités"],
+              ["features", "FonctionnalitÃ©s"],
               ["transfert", "Transfert"],
               ["roadmap", "Roadmap"],
               ["faq", "FAQ"],
               ["avis", "Avis"],
-              ["download", "📱 App"],
+              ["download", "ðŸ“± App"],
             ].map(([id, label]) => (
               <button key={id} onClick={() => scrollTo(id)} className="hover:text-gray-900 dark:hover:text-white transition-colors">
                 {label}
@@ -351,7 +352,7 @@ export default function LandingPage() {
               onClick={() => navigate("/login")}
               className="flex items-center gap-1.5 text-[13.5px] font-bold bg-gray-950 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 transition-all duration-300 shadow-sm"
             >
-              Créer un compte <ArrowRight className="w-3.5 h-3.5" />
+              CrÃ©er un compte <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -366,12 +367,12 @@ export default function LandingPage() {
         {menuOpen && (
           <div className="md:hidden glass border-b border-gray-100 dark:border-white/10 px-6 pb-5 pt-2 flex flex-col gap-1">
             {[
-              ["features", "Fonctionnalités"],
+              ["features", "FonctionnalitÃ©s"],
               ["transfert", "Transfert Africa"],
               ["roadmap", "Roadmap"],
               ["faq", "FAQ"],
               ["avis", "Avis"],
-              ["download", "📱 App"],
+              ["download", "ðŸ“± App"],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -392,14 +393,14 @@ export default function LandingPage() {
                 onClick={() => navigate("/login")}
                 className="flex-1 py-2.5 text-sm font-bold bg-gray-950 dark:bg-indigo-600 text-white rounded-xl hover:bg-indigo-600 transition-colors"
               >
-                Créer un compte
+                CrÃ©er un compte
               </button>
             </div>
           </div>
         )}
       </nav>
 
-      {/* ── HERO ── */}
+      {/* â”€â”€ HERO â”€â”€ */}
       <section id="hero" className="mesh relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-20 -left-20 w-96 h-96 rounded-full bg-indigo-200/30 dark:bg-indigo-800/20 blur-3xl" />
@@ -411,7 +412,7 @@ export default function LandingPage() {
           <div className="flex justify-center mb-7">
             <div className="anim-fadeup inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-white/10 border border-indigo-100 dark:border-indigo-700 shadow-md text-xs font-black text-indigo-600 dark:text-indigo-300 uppercase tracking-wider">
               <Zap className="w-3.5 h-3.5" />
-              Plateforme financière tout-en-un · Afrique
+              Plateforme financiÃ¨re tout-en-un Â· Afrique
               <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[10px] font-black">NOUVEAU</span>
             </div>
           </div>
@@ -421,7 +422,7 @@ export default function LandingPage() {
               className="anim-fadeup text-[3.2rem] md:text-[5.5rem] font-black tracking-tight leading-[1.04] mb-7 text-gray-950 dark:text-white"
               style={{ animationDelay: ".08s" }}
             >
-              Gérez votre<br />
+              GÃ©rez votre<br />
               <span className="grad-text">argent, boutique</span><br />
               <span>et vos factures</span>
             </h1>
@@ -430,7 +431,7 @@ export default function LandingPage() {
               className="anim-fadeup text-gray-500 dark:text-gray-300 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-normal"
               style={{ animationDelay: ".18s" }}
             >
-              NEXORA réunit la gestion financière, la facturation, l'e-commerce, l'immobilier, les contacts WhatsApp et le transfert d'argent... dans une seule application moderne, sécurisée et conçue pour l'Afrique.
+              NEXORA rÃ©unit la gestion financiÃ¨re, la facturation, l'e-commerce, l'immobilier, les contacts WhatsApp et le transfert d'argent... dans une seule application moderne, sÃ©curisÃ©e et conÃ§ue pour l'Afrique.
             </p>
 
             <div
@@ -450,7 +451,7 @@ export default function LandingPage() {
                 <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
                   <Play className="w-3 h-3 text-white fill-white" />
                 </div>
-                Voir la démo
+                Voir la dÃ©mo
               </button>
             </div>
 
@@ -458,9 +459,9 @@ export default function LandingPage() {
               className="anim-fadeup flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-sm text-gray-400 dark:text-gray-400 font-medium"
               style={{ animationDelay: ".38s" }}
             >
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Données chiffrées</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-500" /> DonnÃ©es chiffrÃ©es</span>
               <span className="hidden sm:block w-1 h-1 rounded-full bg-gray-200 dark:bg-gray-600" />
-              <span className="flex items-center gap-1.5"><Zap className="w-4 h-4 text-amber-400" /> 99.9% disponibilité</span>
+              <span className="flex items-center gap-1.5"><Zap className="w-4 h-4 text-amber-400" /> 99.9% disponibilitÃ©</span>
               <span className="hidden sm:block w-1 h-1 rounded-full bg-gray-200 dark:bg-gray-600" />
               <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-indigo-500" /> 24 pays actifs pour le service du Transfert</span>
               <span className="hidden sm:block w-1 h-1 rounded-full bg-gray-200 dark:bg-gray-600" />
@@ -473,7 +474,7 @@ export default function LandingPage() {
             {[
               { icon: Wallet, label: "Solde total", value: "842 500 FCFA", color: "#6366f1" },
               { icon: TrendingUp, label: "Ce mois", value: "+127 400 FCFA", color: "#10b981" },
-              { icon: FileText, label: "Factures", value: "29 créées", color: "#f59e0b" },
+              { icon: FileText, label: "Factures", value: "29 crÃ©Ã©es", color: "#f59e0b" },
               { icon: Send, label: "Transferts", value: "24 pays actifs", color: "#0ea5e9" },
             ].map((c, i) => {
               const Icon = c.icon;
@@ -512,7 +513,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── VIDEO MODAL ── */}
+      {/* â”€â”€ VIDEO MODAL â”€â”€ */}
       {videoOpen && (
         <div
           className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 anim-scalein"
@@ -523,7 +524,7 @@ export default function LandingPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <p className="text-white font-bold">Présentation NEXORA</p>
+              <p className="text-white font-bold">PrÃ©sentation NEXORA</p>
               <button
                 onClick={() => setVideoOpen(false)}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
@@ -536,7 +537,7 @@ export default function LandingPage() {
                 width="100%"
                 height="100%"
                 src="https://www.youtube.com/embed/2whA5HSFhio?si=0IhWYz1oPrLYgTcI"
-                title="Présentation NEXORA"
+                title="PrÃ©sentation NEXORA"
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -547,10 +548,10 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* ── OPÉRATEURS MARQUEE ── */}
+      {/* â”€â”€ OPÃ‰RATEURS MARQUEE â”€â”€ */}
       <section className="bg-gray-50 dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800 py-4 overflow-hidden">
         <p className="text-center text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-3">
-          Opérateurs Mobile Money supportés
+          OpÃ©rateurs Mobile Money supportÃ©s
         </p>
         <div className="relative overflow-hidden">
           <div className="anim-marquee flex gap-10 whitespace-nowrap">
@@ -566,7 +567,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── STATS ── */}
+      {/* â”€â”€ STATS â”€â”€ */}
       <section className="bg-gray-950 py-14 md:py-20">
         <div className="max-w-6xl mx-auto px-5 md:px-8 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {STATS.map((s, i) => (
@@ -580,7 +581,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
+      {/* â”€â”€ FEATURES â”€â”€ */}
       <section id="features" className="max-w-7xl mx-auto px-5 md:px-8 py-20 md:py-28">
         <div className="text-center mb-16">
           <SectionBadge text="8 Modules complets" />
@@ -588,7 +589,7 @@ export default function LandingPage() {
             Tout ce dont vous avez besoin,<br />dans une seule app
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">
-            Chaque module est conçu pour vous faire gagner du temps et de l'argent. Aucun abonnement requis pour commencer.
+            Chaque module est conÃ§u pour vous faire gagner du temps et de l'argent. Aucun abonnement requis pour commencer.
           </p>
         </div>
 
@@ -617,7 +618,7 @@ export default function LandingPage() {
                         className="text-xs font-black px-3 py-1 rounded-full"
                         style={{ background: "#dcfce7", color: "#15803d" }}
                       >
-                        ✓ {f.tag}
+                        âœ“ {f.tag}
                       </span>
                     </div>
                     <h3 className="text-2xl font-black mb-3 text-gray-950 dark:text-white">{f.title}</h3>
@@ -644,14 +645,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PHOTOS SECTION ── */}
+      {/* â”€â”€ PHOTOS SECTION â”€â”€ */}
       <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20">
         <div className="text-center mb-12">
           <SectionBadge text="Interface" color="#10b981" />
           <h2 className="text-3xl md:text-4xl font-black mt-5 mb-3 text-gray-950 dark:text-white">
-            Une expérience pensée pour l'Afrique
+            Une expÃ©rience pensÃ©e pour l'Afrique
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto">Design moderne, rapide et optimisé pour mobile.</p>
+          <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto">Design moderne, rapide et optimisÃ© pour mobile.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 rounded-3xl overflow-hidden relative card-lift img-violet-border">
@@ -668,7 +669,7 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950/70 to-transparent flex items-end p-6">
               <div className="text-white">
                 <p className="font-black text-lg">Finances Mobile</p>
-                <p className="text-sm text-white/70">Gérez tout depuis votre téléphone</p>
+                <p className="text-sm text-white/70">GÃ©rez tout depuis votre tÃ©lÃ©phone</p>
               </div>
             </div>
           </div>
@@ -685,7 +686,7 @@ export default function LandingPage() {
             <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&q=80" alt="Immobilier" className="w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950/70 to-transparent flex items-end p-6">
               <div className="text-white">
-                <p className="font-black">Marché Immobilier</p>
+                <p className="font-black">MarchÃ© Immobilier</p>
                 <p className="text-sm text-white/70">Achat, location, investissement</p>
               </div>
             </div>
@@ -702,7 +703,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TRANSFERT ── */}
+      {/* â”€â”€ TRANSFERT â”€â”€ */}
       <section id="transfert" className="bg-gray-950 py-20 md:py-28 overflow-hidden">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
@@ -714,7 +715,7 @@ export default function LandingPage() {
               <p className="text-gray-400 text-lg mb-8 leading-relaxed">
                 Rechargez votre compte gratuitement via Mobile Money et envoyez de l'argent vers 24 pays africains avec seulement 3% de frais.
               </p>
-              <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-3">✓ 24 pays éligibles</p>
+              <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-3">âœ“ 24 pays Ã©ligibles</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6 max-h-64 overflow-y-auto pr-1">
                 {COUNTRIES_ACTIVE.map((c) => (
                   <div key={c.name} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
@@ -730,7 +731,7 @@ export default function LandingPage() {
                 onClick={() => navigate("/login")}
                 className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white font-bold px-7 py-3.5 rounded-2xl shadow-lg shadow-sky-500/30 hover:scale-105 transition-all"
               >
-                Accéder au Transfert <ArrowRight className="w-4 h-4" />
+                AccÃ©der au Transfert <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
@@ -755,12 +756,12 @@ export default function LandingPage() {
                     <Send className="w-4 h-4" /> Envoyer
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-3">Dernières transactions</p>
+                <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-3">DerniÃ¨res transactions</p>
                 <div className="space-y-2">
                   {[
-                    { flag: "🇸🇳", pays: "Sénégal", reseau: "Wave", montant: "20 000", t: "out" },
-                    { flag: "🇧🇯", pays: "Recharge", reseau: "MTN MoMo", montant: "50 000", t: "in" },
-                    { flag: "🇨🇮", pays: "Côte d'Ivoire", reseau: "Orange Money", montant: "15 000", t: "out" },
+                    { flag: "ðŸ‡¸ðŸ‡³", pays: "SÃ©nÃ©gal", reseau: "Wave", montant: "20 000", t: "out" },
+                    { flag: "ðŸ‡§ðŸ‡¯", pays: "Recharge", reseau: "MTN MoMo", montant: "50 000", t: "in" },
+                    { flag: "ðŸ‡¨ðŸ‡®", pays: "CÃ´te d'Ivoire", reseau: "Orange Money", montant: "15 000", t: "out" },
                   ].map((tx, i) => (
                     <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5">
                       <span className="text-lg">{tx.flag}</span>
@@ -769,25 +770,25 @@ export default function LandingPage() {
                         <p className="text-gray-500 text-[11px]">{tx.reseau}</p>
                       </div>
                       <span className={`font-black text-xs ${tx.t === "in" ? "text-emerald-400" : "text-sky-300"}`}>
-                        {tx.t === "in" ? "+" : "−"}{tx.montant} FCFA
+                        {tx.t === "in" ? "+" : "âˆ’"}{tx.montant} FCFA
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="absolute -top-3 -right-3 bg-emerald-500 text-white px-4 py-2 rounded-2xl shadow-xl text-xs font-black">
-                ✓ Paiement sécurisé
+                âœ“ Paiement sÃ©curisÃ©
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── ROADMAP ── */}
+      {/* â”€â”€ ROADMAP â”€â”€ */}
       <section id="roadmap" className="max-w-7xl mx-auto px-5 md:px-8 py-20 md:py-28">
         <div className="text-center mb-14">
           <SectionBadge text="Roadmap publique" color="#8b5cf6" />
-          <h2 className="text-4xl md:text-5xl font-black mt-5 mb-4 text-gray-950 dark:text-white">Ce qui arrive bientôt</h2>
+          <h2 className="text-4xl md:text-5xl font-black mt-5 mb-4 text-gray-950 dark:text-white">Ce qui arrive bientÃ´t</h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">NEXORA grandit avec vous. Voici ce que nous construisons pour vous.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -795,7 +796,7 @@ export default function LandingPage() {
             <div key={i} className="card-lift bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-7">
               <div className="flex items-center gap-2 mb-4">
                 <span className="flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-700">
-                  <Clock className="w-3 h-3" /> Bientôt
+                  <Clock className="w-3 h-3" /> BientÃ´t
                 </span>
               </div>
               <h3 className="text-xl font-black mb-2 text-gray-950 dark:text-white">{item.title}</h3>
@@ -811,19 +812,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── SÉCURITÉ ── */}
+      {/* â”€â”€ SÃ‰CURITÃ‰ â”€â”€ */}
       <section className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-indigo-950/40 dark:via-gray-900 dark:to-purple-950/30 py-20">
         <div className="max-w-6xl mx-auto px-5 md:px-8">
           <div className="text-center mb-12">
-            <SectionBadge text="Sécurité & Confiance" color="#10b981" />
+            <SectionBadge text="SÃ©curitÃ© & Confiance" color="#10b981" />
             <h2 className="text-3xl md:text-4xl font-black mt-5 mb-4 text-gray-950 dark:text-white">Construit pour inspirer confiance</h2>
-            <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto">Vos données et votre argent sont notre priorité absolue.</p>
+            <p className="text-gray-500 dark:text-gray-400 max-w-lg mx-auto">Vos donnÃ©es et votre argent sont notre prioritÃ© absolue.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { icon: ShieldCheck, color: "#10b981", title: "Chiffrement bout-en-bout", desc: "Toutes vos données financières et personnelles sont chiffrées (AES-256 au repos, TLS 1.3 en transit). Votre coffre-fort digital est inaccessible même pour nos équipes." },
-              { icon: Zap, color: "#6366f1", title: "99.9% de disponibilité", desc: "Infrastructure robuste hébergée sur des serveurs certifiés avec redondance et sauvegardes automatiques. NEXORA est disponible quand vous en avez besoin." },
-              { icon: Users, color: "#f59e0b", title: "Données vous appartiennent", desc: "Nous ne vendons jamais vos données. Exportez tout à tout moment. Supprimez votre compte quand vous le souhaitez. Vous êtes toujours en contrôle." },
+              { icon: ShieldCheck, color: "#10b981", title: "Chiffrement bout-en-bout", desc: "Toutes vos donnÃ©es financiÃ¨res et personnelles sont chiffrÃ©es (AES-256 au repos, TLS 1.3 en transit). Votre coffre-fort digital est inaccessible mÃªme pour nos Ã©quipes." },
+              { icon: Zap, color: "#6366f1", title: "99.9% de disponibilitÃ©", desc: "Infrastructure robuste hÃ©bergÃ©e sur des serveurs certifiÃ©s avec redondance et sauvegardes automatiques. NEXORA est disponible quand vous en avez besoin." },
+              { icon: Users, color: "#f59e0b", title: "DonnÃ©es vous appartiennent", desc: "Nous ne vendons jamais vos donnÃ©es. Exportez tout Ã  tout moment. Supprimez votre compte quand vous le souhaitez. Vous Ãªtes toujours en contrÃ´le." },
             ].map((item, i) => {
               const Icon = item.icon;
               return (
@@ -840,12 +841,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── AVIS ── */}
+      {/* â”€â”€ AVIS â”€â”€ */}
       <section id="avis" className="max-w-7xl mx-auto px-5 md:px-8 py-20 md:py-28">
         <div className="text-center mb-14">
           <SectionBadge text="Avis utilisateurs" color="#f43f5e" />
           <h2 className="text-4xl md:text-5xl font-black mt-5 mb-4 text-gray-950 dark:text-white">Ce que disent<br />nos utilisateurs</h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">Des retours réels d'entrepreneurs africains.</p>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">Des retours rÃ©els d'entrepreneurs africains.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-14">
@@ -894,18 +895,18 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">
-                  Nom complet * <span className="normal-case font-normal text-gray-400">(prénom + nom requis)</span>
+                  Nom complet * <span className="normal-case font-normal text-gray-400">(prÃ©nom + nom requis)</span>
                 </label>
                 <input type="text" value={reviewForm.name} onChange={(e) => setReviewForm((p) => ({ ...p, name: e.target.value }))} placeholder="Ex : Kouassi Jean" className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Pays</label>
-                <input type="text" value={reviewForm.country} onChange={(e) => setReviewForm((p) => ({ ...p, country: e.target.value }))} placeholder="Ex : 🇧🇯 Bénin" className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all" />
+                <input type="text" value={reviewForm.country} onChange={(e) => setReviewForm((p) => ({ ...p, country: e.target.value }))} placeholder="Ex : ðŸ‡§ðŸ‡¯ BÃ©nin" className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all" />
               </div>
             </div>
             <div>
               <label className="block text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Votre avis *</label>
-              <textarea rows={4} value={reviewForm.text} onChange={(e) => setReviewForm((p) => ({ ...p, text: e.target.value }))} placeholder="Partagez votre expérience avec NEXORA..." className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all resize-none" />
+              <textarea rows={4} value={reviewForm.text} onChange={(e) => setReviewForm((p) => ({ ...p, text: e.target.value }))} placeholder="Partagez votre expÃ©rience avec NEXORA..." className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all resize-none" />
             </div>
             <button
               onClick={submitReview}
@@ -918,33 +919,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FAQ ── */}
+      {/* â”€â”€ FAQ â”€â”€ */}
       <section id="faq" className="max-w-4xl mx-auto px-5 md:px-8 py-20 md:py-28">
         <div className="text-center mb-14">
-          <SectionBadge text="Questions fréquentes" color="#6366f1" />
+          <SectionBadge text="Questions frÃ©quentes" color="#6366f1" />
           <h2 className="text-4xl md:text-5xl font-black mt-5 mb-4 text-gray-950 dark:text-white">Tout ce que vous<br />devez savoir</h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">Retrouvez les réponses aux questions les plus posées sur NEXORA.</p>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto text-lg">Retrouvez les rÃ©ponses aux questions les plus posÃ©es sur NEXORA.</p>
         </div>
         <div className="space-y-3">
           {[
-            { q: "NEXORA est-il gratuit ?", a: "Oui, l'inscription est 100% gratuite et sans carte bancaire. Vous pouvez accéder à la plupart des modules gratuitement. Certaines fonctionnalités avancées nécessitent un abonnement Premium." },
-            { q: "Comment fonctionne le Transfert d'Argent Africa ?", a: "Rechargez votre compte NEXORA via Mobile Money (MTN, Orange, Moov…) pour seulement 100 FCFA de frais. Ensuite, transférez vers n'importe lequel des 24 pays actifs avec 3% de frais seulement. Une facture PDF est générée automatiquement." },
-            { q: "Qu'est-ce que la fonctionnalité Contacts WhatsApp ?", a: "Cette fonctionnalité vous permet d'accéder aux contacts WhatsApp des membres NEXORA. Vous pouvez les télécharger au format .vcf (vCard) et les importer directement dans votre téléphone. Idéal pour agrandir votre réseau professionnel en Afrique." },
-            { q: "Mes données sont-elles sécurisées ?", a: "Absolument. NEXORA utilise un chiffrement AES-256 pour les données au repos et TLS 1.3 pour les données en transit. Votre coffre-fort digital est inaccessible même pour nos équipes. Vos données vous appartiennent." },
-            { q: "Dans quels pays NEXORA est-il disponible ?", a: "NEXORA est disponible partout, mais le service Transfert couvre 24 pays africains : Bénin, Côte d'Ivoire, Togo, Sénégal, Mali, Burkina Faso, Cameroun, Ghana, Nigéria, Kenya, Tanzanie, Ouganda, Rwanda, Guinée, RD Congo, Gabon, Congo, Maroc, Gambie, Sierra Leone, Liberia, Mozambique, Zambie et Niger..." },
-            { q: "Comment créer des factures PDF professionnelles ?", a: "Depuis le module Facturation, remplissez les informations de votre client et vos services, puis générez votre facture PDF en un clic. Le document est personnalisé avec votre branding et numéroté automatiquement." },
-            { q: "Comment fonctionne la boutique e-commerce ?", a: "La boutique NEXORA vous permet de vendre vos produits physiques en ligne. Créez votre vitrine publique, ajoutez vos produits avec photos et descriptions, définissez vos prix et modes de paiement, et gérez vos commandes facilement." },
-            { q: "Comment contacter le support ?", a: "Vous pouvez nous joindre par email à support@nexora.africa. Notre équipe répond dans les meilleurs délais. Vous pouvez aussi utiliser le chat intégré à la plateforme une fois connecté." },
-            { q: "Comment fonctionne le marché immobilier ?", a: "Publiez et découvrez des biens immobiliers dans toute l'Afrique : maisons, appartements, terrains, bureaux. Ajoutez des photos HD, définissez votre prix et recevez des contacts directs d'acheteurs ou locataires intéressés." },
-            { q: "Y a-t-il une application mobile ?", a: "NEXORA est une application web progressive (PWA) optimisée pour mobile. Vous pouvez l'ajouter à votre écran d'accueil comme une application native et l'utiliser hors ligne pour certaines fonctionnalités." },
-            { q: "Comment passer au plan Premium ?", a: "Rendez-vous dans la section Abonnement depuis votre tableau de bord. Choisissez le plan qui vous convient (Boss ou Roi) et payez via Mobile Money. Votre compte est activé instantanément avec un badge bleu vérifié." },
+            { q: "NEXORA est-il gratuit ?", a: "Oui, l'inscription est 100% gratuite et sans carte bancaire. Vous pouvez accÃ©der Ã  la plupart des modules gratuitement. Certaines fonctionnalitÃ©s avancÃ©es nÃ©cessitent un abonnement Premium." },
+            { q: "Comment fonctionne le Transfert d'Argent Africa ?", a: "Rechargez votre compte NEXORA via Mobile Money (MTN, Orange, Moovâ€¦) pour seulement 100 FCFA de frais. Ensuite, transfÃ©rez vers n'importe lequel des 24 pays actifs avec 3% de frais seulement. Une facture PDF est gÃ©nÃ©rÃ©e automatiquement." },
+            { q: "Qu'est-ce que la fonctionnalitÃ© Contacts WhatsApp ?", a: "Cette fonctionnalitÃ© vous permet d'accÃ©der aux contacts WhatsApp des membres NEXORA. Vous pouvez les tÃ©lÃ©charger au format .vcf (vCard) et les importer directement dans votre tÃ©lÃ©phone. IdÃ©al pour agrandir votre rÃ©seau professionnel en Afrique." },
+            { q: "Mes donnÃ©es sont-elles sÃ©curisÃ©es ?", a: "Absolument. NEXORA utilise un chiffrement AES-256 pour les donnÃ©es au repos et TLS 1.3 pour les donnÃ©es en transit. Votre coffre-fort digital est inaccessible mÃªme pour nos Ã©quipes. Vos donnÃ©es vous appartiennent." },
+            { q: "Dans quels pays NEXORA est-il disponible ?", a: "NEXORA est disponible partout, mais le service Transfert couvre 24 pays africains : BÃ©nin, CÃ´te d'Ivoire, Togo, SÃ©nÃ©gal, Mali, Burkina Faso, Cameroun, Ghana, NigÃ©ria, Kenya, Tanzanie, Ouganda, Rwanda, GuinÃ©e, RD Congo, Gabon, Congo, Maroc, Gambie, Sierra Leone, Liberia, Mozambique, Zambie et Niger..." },
+            { q: "Comment crÃ©er des factures PDF professionnelles ?", a: "Depuis le module Facturation, remplissez les informations de votre client et vos services, puis gÃ©nÃ©rez votre facture PDF en un clic. Le document est personnalisÃ© avec votre branding et numÃ©rotÃ© automatiquement." },
+            { q: "Comment fonctionne la boutique e-commerce ?", a: "La boutique NEXORA vous permet de vendre vos produits physiques en ligne. CrÃ©ez votre vitrine publique, ajoutez vos produits avec photos et descriptions, dÃ©finissez vos prix et modes de paiement, et gÃ©rez vos commandes facilement." },
+            { q: "Comment contacter le support ?", a: "Vous pouvez nous joindre par email Ã  support@nexora.africa. Notre Ã©quipe rÃ©pond dans les meilleurs dÃ©lais. Vous pouvez aussi utiliser le chat intÃ©grÃ© Ã  la plateforme une fois connectÃ©." },
+            { q: "Comment fonctionne le marchÃ© immobilier ?", a: "Publiez et dÃ©couvrez des biens immobiliers dans toute l'Afrique : maisons, appartements, terrains, bureaux. Ajoutez des photos HD, dÃ©finissez votre prix et recevez des contacts directs d'acheteurs ou locataires intÃ©ressÃ©s." },
+            { q: "Y a-t-il une application mobile ?", a: "NEXORA est une application web progressive (PWA) optimisÃ©e pour mobile. Vous pouvez l'ajouter Ã  votre Ã©cran d'accueil comme une application native et l'utiliser hors ligne pour certaines fonctionnalitÃ©s." },
+            { q: "Comment passer au plan Premium ?", a: "Rendez-vous dans la section Abonnement depuis votre tableau de bord. Choisissez le plan qui vous convient (Boss ou Roi) et payez via Mobile Money. Votre compte est activÃ© instantanÃ©ment avec un badge bleu vÃ©rifiÃ©." },
           ].map((item, i) => (
             <FAQItem key={i} question={item.q} answer={item.a} />
           ))}
         </div>
       </section>
 
-      {/* ── TÉLÉCHARGER L'APP ── */}
+      {/* â”€â”€ TÃ‰LÃ‰CHARGER L'APP â”€â”€ */}
       <section id="download" className="max-w-7xl mx-auto px-5 md:px-8 py-20 md:py-28">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
@@ -955,26 +956,26 @@ export default function LandingPage() {
           <div className="relative flex flex-col md:flex-row items-center gap-12 px-8 md:px-16 py-16 md:py-20">
             <div className="flex-1 text-center md:text-left">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/30 text-xs font-black text-green-400 mb-6 uppercase tracking-widest">
-                <span>📱</span> Application Mobile
+                <span>ðŸ“±</span> Application Mobile
               </div>
               <h2 className="text-3xl md:text-5xl font-black text-white mb-5 leading-tight">
                 Nexora dans<br />votre poche
               </h2>
               <p className="text-gray-400 text-lg mb-8 max-w-md">
-                Téléchargez l'application Android directement – sans passer par le Play Store. Installez-la en quelques secondes sur votre téléphone.
+                TÃ©lÃ©chargez l'application Android directement â€“ sans passer par le Play Store. Installez-la en quelques secondes sur votre tÃ©lÃ©phone.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                 <a
                   href="/nexora.apk"
                   download="nexora.apk"
-                  className="group inline-flex items-center gap-3 bg-green-500 hover:bg-green-400 text-white font-black px-8 py-4 rounded-2xl text-base transition-all shadow-lg shadow-green-500/25 hover:scale-105 active:scale-95"
+                  className="group inline-flex items-center gap-3 text-white font-black px-8 py-4 rounded-2xl text-base transition-all hover:scale-105 active:scale-95"
+                  style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9, #8b5cf6)", boxShadow: "0 0 20px rgba(139,92,246,0.5), 0 0 40px rgba(139,92,246,0.2)", animation: "pulse-violet 2.5s ease-in-out infinite" }}
                 >
                   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.523 2.764a.5.5 0 0 0-.694-.13L13.5 4.764a8.51 8.51 0 0 0-3 0L7.171 2.634a.5.5 0 0 0-.694.13C5.24 4.08 4.5 5.96 4.5 8c0 .276.224.5.5.5h14c.276 0 .5-.224.5-.5 0-2.04-.74-3.92-1.977-5.236zM9.5 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm5 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM4.5 9.5A.5.5 0 0 0 4 10v7a2.5 2.5 0 0 0 5 0v-1h2v1a2.5 2.5 0 0 0 5 0v-7a.5.5 0 0 0-.5-.5h-11zm1 1h1v3.5a1 1 0 0 1-2 0V11a.5.5 0 0 1 .5-.5h.5zm11 0h.5a.5.5 0 0 1 .5.5v3.5a1 1 0 0 1-2 0V10.5h1z"/>
                   </svg>
-                  Télécharger pour Android
-                  <span className="text-xs font-medium opacity-75">(.apk)</span>
+                  TÃ©lÃ©charger pour Android
                 </a>
 
                 <button
@@ -992,20 +993,20 @@ export default function LandingPage() {
               </div>
 
               <div id="ios-instructions" className="hidden mt-6 p-5 bg-white/5 border border-white/10 rounded-2xl text-left max-w-md">
-                <p className="text-white font-bold mb-3 text-sm">📲 Comment installer sur iPhone :</p>
+                <p className="text-white font-bold mb-3 text-sm">ðŸ“² Comment installer sur iPhone :</p>
                 <ol className="text-gray-400 text-sm space-y-2 list-decimal list-inside">
                   <li>Ouvrez ce site dans <strong className="text-white">Safari</strong></li>
-                  <li>Appuyez sur le bouton <strong className="text-white">Partager</strong> → en bas</li>
-                  <li>Choisissez <strong className="text-green-400">« Sur l'écran d'accueil »</strong></li>
+                  <li>Appuyez sur le bouton <strong className="text-white">Partager</strong> â†’ en bas</li>
+                  <li>Choisissez <strong className="text-green-400">Â« Sur l'Ã©cran d'accueil Â»</strong></li>
                   <li>Appuyez sur <strong className="text-white">Ajouter</strong></li>
                 </ol>
               </div>
 
               <div className="mt-8 flex flex-wrap gap-4 justify-center md:justify-start">
                 {[
-                  { emoji: "🔒", label: "100% sécurisé" },
-                  { emoji: "⚡", label: "Installation rapide" },
-                  { emoji: "🆓", label: "Gratuit" },
+                  { emoji: "ðŸ”’", label: "100% sÃ©curisÃ©" },
+                  { emoji: "âš¡", label: "Installation rapide" },
+                  { emoji: "ðŸ†“", label: "Gratuit" },
                 ].map((b, i) => (
                   <div key={i} className="flex items-center gap-2 text-gray-500 text-sm">
                     <span>{b.emoji}</span> {b.label}
@@ -1024,9 +1025,9 @@ export default function LandingPage() {
                   <div className="flex-1 bg-[#0a0e27] flex flex-col items-center justify-center gap-3 p-4">
                     <img src={LOGO} alt="Nexora" className="w-16 h-16 object-contain drop-shadow-lg" />
                     <p className="text-white font-black text-lg tracking-widest">NEXORA</p>
-                    <p className="text-green-400 text-xs font-medium">Gestion financière</p>
+                    <p className="text-green-400 text-xs font-medium">Gestion financiÃ¨re</p>
                     <div className="w-full bg-green-500/20 border border-green-500/30 rounded-xl p-2 mt-2">
-                      <p className="text-green-400 text-[10px] font-bold text-center">✓ Application installée</p>
+                      <p className="text-green-400 text-[10px] font-bold text-center">âœ“ Application installÃ©e</p>
                     </div>
                   </div>
                   <div className="bg-gray-900 h-6 flex items-center justify-center">
@@ -1039,7 +1040,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA FINAL ── */}
+      {/* â”€â”€ CTA FINAL â”€â”€ */}
       <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden py-16 md:py-24 px-8 md:px-16 text-center">
           <div className="absolute inset-0 pointer-events-none">
@@ -1048,13 +1049,13 @@ export default function LandingPage() {
           </div>
           <div className="relative">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-xs font-black text-white mb-8 uppercase tracking-widest">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Inscription gratuite · Sans carte bancaire
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Inscription gratuite Â· Sans carte bancaire
             </div>
             <h2 className="text-4xl md:text-6xl font-black text-white mb-5 leading-tight">
-              Prêt à transformer<br />votre gestion financière ?
+              PrÃªt Ã  transformer<br />votre gestion financiÃ¨re ?
             </h2>
             <p className="text-gray-400 text-lg max-w-lg mx-auto mb-10">
-              Rejoignez des milliers d'entrepreneurs africains qui font confiance à NEXORA chaque jour.
+              Rejoignez des milliers d'entrepreneurs africains qui font confiance Ã  NEXORA chaque jour.
             </p>
             <button
               onClick={() => navigate("/login")}
@@ -1064,8 +1065,8 @@ export default function LandingPage() {
             </button>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-8">
               {[
-                { icon: ShieldCheck, label: "100% sécurisé" },
-                { icon: Globe, label: "Plusieurs pays éligibles" },
+                { icon: ShieldCheck, label: "100% sÃ©curisÃ©" },
+                { icon: Globe, label: "Plusieurs pays Ã©ligibles" },
                 { icon: Users, label: "Inscription gratuite" },
               ].map((item, i) => {
                 const Icon = item.icon;
@@ -1080,7 +1081,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
+      {/* â”€â”€ FOOTER â”€â”€ */}
       <footer className="bg-gray-950 text-gray-400">
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-14 pb-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
@@ -1089,7 +1090,7 @@ export default function LandingPage() {
                 <img src={LOGO} alt="NEXORA" className="w-10 h-10 object-contain" />
                 <span className="font-display text-xl font-black text-white tracking-tight">NEXORA</span>
               </div>
-              <p className="text-sm leading-relaxed mb-4 text-gray-500">Plateforme financière tout-en-un pour l'Afrique.</p>
+              <p className="text-sm leading-relaxed mb-4 text-gray-500">Plateforme financiÃ¨re tout-en-un pour l'Afrique.</p>
               <div className="flex items-center gap-3">
                 <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-white/10 hover:bg-[#1877F2] flex items-center justify-center transition-all hover:scale-110">
                   <Facebook className="w-4 h-4 text-white" />
@@ -1113,22 +1114,22 @@ export default function LandingPage() {
               <p className="text-white font-black text-sm mb-4 uppercase tracking-wider">Ressources</p>
               <div className="flex flex-col gap-2">
                 <button onClick={() => navigate("/login")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">Connexion</button>
-                <button onClick={() => navigate("/login")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">Créer un compte</button>
-                <button onClick={() => scrollTo("avis")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">Témoignages</button>
+                <button onClick={() => navigate("/login")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">CrÃ©er un compte</button>
+                <button onClick={() => scrollTo("avis")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">TÃ©moignages</button>
                 <a href="mailto:support@nexora.africa" className="text-sm text-gray-500 hover:text-white text-left transition-colors">Support</a>
               </div>
             </div>
 
             <div>
-              <p className="text-white font-black text-sm mb-4 uppercase tracking-wider">Légal</p>
+              <p className="text-white font-black text-sm mb-4 uppercase tracking-wider">LÃ©gal</p>
               <div className="flex flex-col gap-2">
                 <button onClick={() => navigate("/cgu")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">CGU</button>
-                <button onClick={() => navigate("/confidentialite")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">Confidentialité</button>
+                <button onClick={() => navigate("/confidentialite")} className="text-sm text-gray-500 hover:text-white text-left transition-colors">ConfidentialitÃ©</button>
               </div>
               <div className="mt-4">
                 <p className="text-white font-black text-xs mb-2 uppercase tracking-wider">Pays actifs</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {["🇧🇯", "🇨🇮", "🇹🇬", "🇸🇳", "🇳🇪", "🇧🇫", "🇨🇲", "🇨🇩..."].map((f, i) => (
+                  {["ðŸ‡§ðŸ‡¯", "ðŸ‡¨ðŸ‡®", "ðŸ‡¹ðŸ‡¬", "ðŸ‡¸ðŸ‡³", "ðŸ‡³ðŸ‡ª", "ðŸ‡§ðŸ‡«", "ðŸ‡¨ðŸ‡²", "ðŸ‡¨ðŸ‡©..."].map((f, i) => (
                     <span key={i} className="text-lg">{f}</span>
                   ))}
                 </div>
@@ -1137,11 +1138,11 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-gray-600">© {new Date().getFullYear()} NEXORA. Tous droits réservés.</p>
+            <p className="text-sm text-gray-600">Â© {new Date().getFullYear()} NEXORA. Tous droits rÃ©servÃ©s.</p>
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <button onClick={() => navigate("/cgu")} className="hover:text-white transition-colors">CGU</button>
-              <button onClick={() => navigate("/confidentialite")} className="hover:text-white transition-colors">Confidentialité</button>
-              <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Sécurisé</span>
+              <button onClick={() => navigate("/confidentialite")} className="hover:text-white transition-colors">ConfidentialitÃ©</button>
+              <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> SÃ©curisÃ©</span>
             </div>
           </div>
         </div>
@@ -1149,3 +1150,6 @@ export default function LandingPage() {
     </div>
   );
 }
+
+
+
