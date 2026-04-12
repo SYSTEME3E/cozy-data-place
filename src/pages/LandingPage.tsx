@@ -1096,10 +1096,9 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                 {/* CORRECTION : icÃ´ne SVG Android corrigÃ©e avec le vrai logo Android */}
                 <a
-<<<<<<< HEAD
                   href="https://github.com/SYSTEME3E/cozy-data-place/releases/download/v1.0/Nexora.apk"
 =======
-                  href="href="https://github.com/SYSTEME3E/cozy-data-place/releases/download/v1.0/Nexora.apk"
+                  href="https://github.com/SYSTEME3E/cozy-data-place/releases/download/v1.0/Nexora.apk"
 >>>>>>> 3897118f00d22cd2729d93a3daeb55d4c4d9207d
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1297,5 +1296,6 @@ export default function LandingPage() {
     </div>
   );
 }
+
 
 
