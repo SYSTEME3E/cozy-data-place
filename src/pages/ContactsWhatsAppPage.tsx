@@ -30,14 +30,9 @@ interface DownloadRecord {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatWhatsApp(num: string): string {
-  // Normalise : retire espaces, tirets, parenthèses
   return num.replace(/[\s\-().]/g, "");
 }
 
-/**
- * Génère un fichier .vcf (vCard) pour import dans les contacts téléphoniques
- * Chaque contact aura le nom "Prénom Nexora"
- */
 function generateVCF(contacts: ContactEntry[]): string {
   return contacts
     .map((c) => {
@@ -57,9 +52,6 @@ function generateVCF(contacts: ContactEntry[]): string {
     .join("\r\n");
 }
 
-/**
- * Déclenche le téléchargement d'un fichier dans le navigateur
- */
 function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -86,10 +78,8 @@ export default function ContactsWhatsAppPage() {
   const [downloading,    setDownloading]    = useState(false);
   const [error,          setError]          = useState<string | null>(null);
 
-  // ── Vérification premium ──────────────────────────────────────────────────
   const isPremium = hasNexoraPremium();
 
-  // ── Chargement des données ────────────────────────────────────────────────
   useEffect(() => {
     if (!currentUserId || !isPremium) {
       setLoading(false);
@@ -137,12 +127,10 @@ export default function ContactsWhatsAppPage() {
     return () => { cancelled = true; };
   }, [currentUserId, isPremium]);
 
-  // ── Calcul des contacts nouveaux vs déjà téléchargés ─────────────────────
   const totalContacts = contacts.length;
   const alreadyDownloaded = downloadRecord?.last_download_count ?? 0;
   const isFirstDownload = !downloadRecord;
 
-  // Les "nouveaux" contacts sont ceux créés après le dernier téléchargement
   const newContacts = downloadRecord
     ? contacts.filter(
         (c) => new Date(c.created_at) > new Date(downloadRecord.last_download_at)
@@ -151,7 +139,6 @@ export default function ContactsWhatsAppPage() {
 
   const newCount = newContacts.length;
 
-  // ── Téléchargement ────────────────────────────────────────────────────────
   const handleDownload = async (type: "all" | "new") => {
     if (!currentUser) return;
 
@@ -169,7 +156,6 @@ export default function ContactsWhatsAppPage() {
 
     setDownloading(true);
     try {
-      // Générer le fichier VCF
       const vcfContent = generateVCF(targetContacts);
       const date = new Date().toISOString().slice(0, 10);
       const filename =
@@ -179,11 +165,9 @@ export default function ContactsWhatsAppPage() {
 
       downloadFile(vcfContent, filename, "text/vcard");
 
-      // Mettre à jour ou créer l'enregistrement de téléchargement
       const upsertPayload = {
         user_id: currentUser.id,
         last_download_at: new Date().toISOString(),
-        // On enregistre TOUJOURS le total actuel, pas seulement les nouveaux
         last_download_count: totalContacts,
       };
 
@@ -193,7 +177,6 @@ export default function ContactsWhatsAppPage() {
 
       if (upsertError) throw upsertError;
 
-      // Rafraîchir l'état local
       setDownloadRecord({
         last_download_at: upsertPayload.last_download_at,
         last_download_count: totalContacts,
@@ -263,7 +246,7 @@ export default function ContactsWhatsAppPage() {
           </p>
         </div>
 
-        {/* ── NB / Note importante ── */}
+        {/* ── Note importante ── */}
         <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center gap-2 font-bold text-sm text-foreground">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-black flex-shrink-0">NB</span>
@@ -304,7 +287,6 @@ export default function ContactsWhatsAppPage() {
         {/* ── Statistiques ── */}
         {!loading && !error && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {/* Total membres */}
             <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                 <Users className="w-5 h-5 text-blue-500" />
@@ -315,7 +297,6 @@ export default function ContactsWhatsAppPage() {
               </div>
             </div>
 
-            {/* Nouveaux depuis dernier DL */}
             <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
                 <UserPlus className="w-5 h-5 text-green-500" />
@@ -328,7 +309,6 @@ export default function ContactsWhatsAppPage() {
               </div>
             </div>
 
-            {/* Déjà téléchargés */}
             <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl p-4 flex items-center gap-3 col-span-2 sm:col-span-1">
               <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
                 <CheckCircle2 className="w-5 h-5 text-purple-500" />
@@ -341,7 +321,7 @@ export default function ContactsWhatsAppPage() {
           </div>
         )}
 
-        {/* ── Infos sur le dernier téléchargement ── */}
+        {/* ── Infos dernier téléchargement ── */}
         {downloadRecord && !loading && (
           <div className="flex items-start gap-3 bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 text-sm">
             <Wifi className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
@@ -362,7 +342,6 @@ export default function ContactsWhatsAppPage() {
         {!loading && !error && (
           <div className="grid sm:grid-cols-2 gap-4">
 
-            {/* Télécharger les nouveaux */}
             <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
@@ -403,7 +382,6 @@ export default function ContactsWhatsAppPage() {
               </Button>
             </div>
 
-            {/* Télécharger tous les contacts */}
             {!isFirstDownload && (
               <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
@@ -439,7 +417,7 @@ export default function ContactsWhatsAppPage() {
           </div>
         )}
 
-        {/* ── Skeleton de chargement ── */}
+        {/* ── Skeleton chargement ── */}
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -468,60 +446,6 @@ export default function ContactsWhatsAppPage() {
               </li>
               <li>Les contacts apparaîtront avec le format <em>«&nbsp;Prénom Nexora&nbsp;»</em></li>
             </ol>
-          </div>
-        )}
-
-        {/* ── Liste des contacts ── */}
-        {!loading && !error && contacts.length > 0 && (
-          <div className="bg-card dark:bg-gray-900 border border-border dark:border-gray-800 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border dark:border-gray-800">
-              <h3 className="font-bold text-sm text-foreground">
-                Aperçu des contacts ({totalContacts})
-              </h3>
-            </div>
-            <div className="divide-y divide-border dark:divide-gray-800 max-h-80 overflow-y-auto">
-              {contacts.map((contact) => {
-                const firstName = contact.nom_prenom.split(" ")[0];
-                const isNew =
-                  downloadRecord &&
-                  new Date(contact.created_at) > new Date(downloadRecord.last_download_at);
-
-                return (
-                  <div
-                    key={contact.id}
-                    className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 dark:hover:bg-gray-800/50 transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-4 h-4 text-green-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-foreground truncate">
-                        {firstName} Nexora
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono">
-                        {formatWhatsApp(contact.whatsapp)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {isNew && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 px-1.5 py-0"
-                        >
-                          Nouveau
-                        </Badge>
-                      )}
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] capitalize px-1.5 py-0"
-                      >
-                        {contact.plan}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         )}
 
