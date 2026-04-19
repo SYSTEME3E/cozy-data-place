@@ -185,13 +185,6 @@ export default function NexoraAcademy() {
         <button className="na-sticky-btn" onClick={goFormation}>J'EN PROFITE →</button>
       </div>
 
-      {/* ── BOUTON FLOTTANT MOBILE ── */}
-      <div className="na-float-cta">
-        <button className="na-btn na-btn-red na-pulse" style={{width:"100%",padding:"16px 20px",fontSize:".9rem",borderRadius:14}} onClick={goFormation}>
-          🚀 REJOINDRE NEXORA ACADEMY
-        </button>
-      </div>
-
       {/* ── BARRE DE PROGRESSION ── */}
       <div className="na-progress-bar" ref={progressRef} />
 
@@ -1122,6 +1115,8 @@ const CSS = `
     .na-step { border-right:none; border-bottom:1px solid #eee; }
     .na-module-img-wrap { margin-top:-30px; }
     .na-cta-box { padding:32px 16px; }
+    .na-hero { padding-top: 60px; }
+    .na-sticky-bar { font-size: .75rem; gap: 6px; padding: 8px 10px; }
   }
 
   /* ── FAQ ── */
@@ -1193,9 +1188,6 @@ const CSS = `
   .na-ta-list { list-style: none; padding: 0; margin: 0; }
   .na-ta-list li { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 22px; }
   .na-ta-list p { font-size: 1rem; line-height: 1.6; margin: 0; color: #333; }
-  /* old grid classes - kept for compatibility */
-  .na-ta-grid { display: block; }
-  .na-ta-powers-grid { display: block; }
 
   /* ── ET TOUT ÇA ── */
   .na-etc-grid { display:flex; flex-direction:column; gap:20px; margin-bottom:8px; }
@@ -1234,19 +1226,6 @@ const CSS = `
     background: linear-gradient(90deg, #e60000, #ff6b6b);
     z-index: 998; transition: width .1s linear;
     border-radius: 0 2px 2px 0;
-  }
-
-  /* ── Float CTA (mobile only) ── */
-  .na-float-cta {
-    display: none;
-    position: fixed; bottom: 16px; left: 16px; right: 16px;
-    z-index: 997;
-    filter: drop-shadow(0 4px 16px rgba(230,0,0,.4));
-  }
-  @media (max-width: 768px) {
-    .na-float-cta { display: block; }
-    .na-hero { padding-top: 100px; }
-    .na-sticky-bar { font-size: .75rem; gap: 6px; padding: 8px 10px; }
   }
 
   /* ── Avant / Après ── */
@@ -1302,12 +1281,6 @@ const CSS = `
   }
   @media (max-width: 768px) {
     .na-guarantee-box { flex-direction: column; padding: 28px 20px; gap: 20px; text-align: center; }
-    .na-modules-grid-2 { grid-template-columns:1fr; }
-    .na-offer-grid { grid-template-columns:1fr; }
-    .na-steps-row { grid-template-columns:1fr; }
-    .na-step { border-right:none; border-bottom:1px solid #eee; }
-    .na-module-img-wrap { margin-top:-30px; }
-    .na-cta-box { padding:32px 16px; }
   }
   .na-guarantee-badge {
     display: flex; flex-direction: column; align-items: center;
