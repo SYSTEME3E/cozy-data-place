@@ -1,6 +1,6 @@
 /**
  * NEXORA — Mes Commissions + Bonus MLM
- * Filtres type/niveau • Bouton retrait pour utilisateurs gagnants
+ * FIX: details_paiement → note_admin string | bouton X toujours visible
  */
 
 import { useEffect, useState } from "react";
@@ -13,7 +13,7 @@ import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { formatMontant, getLevelLabel, getCommissionTypeLabel } from "@/lib/mlm-utils";
-import { useDevise, DEVISES_LISTE } from "@/lib/devise-context";
+import { useDevise } from "@/lib/devise-context";
 
 // ─── Pays + réseaux Mobile Money ──────────────────────────────────────────────
 const PAYOUT_COUNTRIES = [
@@ -64,35 +64,40 @@ const MONTANT_MIN_RETRAIT = 2000; // XOF
 
 export default function CommissionsPage() {
   const user = getNexoraUser();
-  const { fmtXOF, fromXOF, devise, symbole } = useDevise();
+  const { fmtXOF } = useDevise();
 
-  const [mainTab, setMainTab] = useState<MainTab>("commissions");
-  const [commissions,  setCommissions]  = useState<Commission[]>([]);
-  const [bonus,        setBonus]        = useState<Bonus[]>([]);
-  const [withdrawals,  setWithdrawals]  = useState<Withdrawal[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [solde,        setSolde]        = useState(0);
+  const [mainTab, setMainTab]           = useState<MainTab>("commissions");
+  const [commissions, setCommissions]   = useState<Commission[]>([]);
+  const [bonus, setBonus]               = useState<Bonus[]>([]);
+  const [withdrawals, setWithdrawals]   = useState<Withdrawal[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [solde, setSolde]               = useState(0);
 
   // Filtres commissions
-  const [filterType,  setFilterType]  = useState("all");
+  const [filterType, setFilterType]   = useState("all");
   const [filterLevel, setFilterLevel] = useState("all");
 
   // Modal retrait
-  const [showRetrait,     setShowRetrait]     = useState(false);
-  const [retraitStep,     setRetraitStep]     = useState<"form" | "confirming" | "pending" | "done" | "error">("form");
-  const [retraitAmount,   setRetraitAmount]   = useState("");
-  const [retraitNom,      setRetraitNom]      = useState("");
-  const [retraitPays,     setRetraitPays]     = useState(PAYOUT_COUNTRIES[0].code);
-  const [retraitReseau,   setRetraitReseau]   = useState(PAYOUT_COUNTRIES[0].networks[0]);
-  const [retraitNumero,   setRetraitNumero]   = useState("");
-  const [retraitError,    setRetraitError]    = useState("");
-  const [payoutCountdown, setPayoutCountdown] = useState(600); // 10 min en secondes
+  const [showRetrait, setShowRetrait]         = useState(false);
+  const [retraitStep, setRetraitStep]         = useState<"form"|"confirming"|"pending"|"done"|"error">("form");
+  const [retraitAmount, setRetraitAmount]     = useState("");
+  const [retraitNom, setRetraitNom]           = useState("");
+  const [retraitPays, setRetraitPays]         = useState(PAYOUT_COUNTRIES[0].code);
+  const [retraitReseau, setRetraitReseau]     = useState(PAYOUT_COUNTRIES[0].networks[0]);
+  const [retraitNumero, setRetraitNumero]     = useState("");
+  const [retraitError, setRetraitError]       = useState("");
+  const [payoutCountdown, setPayoutCountdown] = useState(600);
 
   useEffect(() => { if (user) loadData(); }, []);
 
   const loadData = async () => {
     setLoading(true);
-    const [{ data: commData }, { data: userData }, { data: bonusData }, { data: wdData }] = await Promise.all([
+    const [
+      { data: commData },
+      { data: userData },
+      { data: bonusData },
+      { data: wdData },
+    ] = await Promise.all([
       (supabase as any).from("mlm_commissions")
         .select("*, from_user:from_user_id(nom_prenom, username)")
         .eq("to_user_id", user!.id)
@@ -116,7 +121,7 @@ export default function CommissionsPage() {
 
   // Commissions filtrées
   const filtered = commissions.filter(c => {
-    if (filterType !== "all" && c.type !== filterType) return false;
+    if (filterType  !== "all" && c.type         !== filterType)         return false;
     if (filterLevel !== "all" && String(c.level) !== filterLevel) return false;
     return true;
   });
@@ -148,7 +153,6 @@ export default function CommissionsPage() {
     return "En attente";
   };
 
-  // Mise à jour des réseaux disponibles quand le pays change
   const selectedCountry = PAYOUT_COUNTRIES.find(p => p.code === retraitPays) ?? PAYOUT_COUNTRIES[0];
 
   const handlePaysChange = (code: string) => {
@@ -157,7 +161,7 @@ export default function CommissionsPage() {
     setRetraitReseau(country.networks[0]);
   };
 
-  // ── Retrait ──────────────────────────────────────────────────────────────────
+  // ── Retrait ─────────────────────────────────────────────────────────────────
   const handleRetrait = async () => {
     const amount = Number(retraitAmount);
     setRetraitError("");
@@ -177,39 +181,35 @@ export default function CommissionsPage() {
 
     setRetraitStep("confirming");
     try {
+      // ✅ FIX : on stocke les infos de paiement dans note_admin (string)
+      // au lieu de details_paiement (colonne inexistante)
+      const noteText = `Nom: ${retraitNom} | Pays: ${retraitPays} | Réseau: ${retraitReseau} | Numéro: ${retraitNumero}`;
+
       const { error } = await (supabase as any).from("mlm_withdrawals").insert({
-        user_id: user!.id,
+        user_id:    user!.id,
         amount,
-        currency: "XOF",
-        methode: "mobile_money",
-        details_paiement: {
-          nom: retraitNom,
-          pays: retraitPays,
-          reseau: retraitReseau,
-          numero: retraitNumero,
-        },
-        status: "pending",
+        currency:   "XOF",
+        methode:    "mobile_money",
+        note_admin: noteText,   // ← stocké ici, lisible par l'admin
+        status:     "pending",
       });
 
       if (error) throw error;
 
-      // Déduire du solde localement
-      await (supabase as any).from("nexora_users")
+      // Déduire du solde
+      await (supabase as any)
+        .from("nexora_users")
         .update({ solde_commissions: Math.max(0, solde - amount) })
         .eq("id", user!.id);
 
       setSolde(prev => Math.max(0, prev - amount));
 
-      // Étape "en attente" avec compte à rebours 10min
+      // Compte à rebours 10 min
       setRetraitStep("pending");
       setPayoutCountdown(600);
       const interval = setInterval(() => {
         setPayoutCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            setRetraitStep("done");
-            return 0;
-          }
+          if (prev <= 1) { clearInterval(interval); setRetraitStep("done"); return 0; }
           return prev - 1;
         });
       }, 1000);
@@ -258,13 +258,17 @@ export default function CommissionsPage() {
             <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
               <DollarSign className="w-6 h-6 text-primary" /> Mes Gains MLM
             </h1>
-            <p className="text-sm text-muted-foreground">{commissions.length} commission{commissions.length > 1 ? "s" : ""} • {bonus.length} bonus</p>
+            <p className="text-sm text-muted-foreground">
+              {commissions.length} commission{commissions.length > 1 ? "s" : ""} • {bonus.length} bonus
+            </p>
           </div>
         </div>
 
         {/* Solde + bouton retrait */}
-        <div className="relative overflow-hidden rounded-3xl p-5 text-white"
-          style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%)" }}>
+        <div
+          className="relative overflow-hidden rounded-3xl p-5 text-white"
+          style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%)" }}
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -276,11 +280,9 @@ export default function CommissionsPage() {
                 <p className="text-xs opacity-60 mt-1">Min. retrait : {fmtXOF(MONTANT_MIN_RETRAIT)}</p>
               )}
             </div>
-
-            {/* Bouton retrait — visible si solde suffisant */}
             {solde >= MONTANT_MIN_RETRAIT && (
               <button
-                onClick={() => setShowRetrait(true)}
+                onClick={() => { setShowRetrait(true); setRetraitStep("form"); }}
                 className="flex-shrink-0 flex items-center gap-2 bg-white text-primary font-black rounded-2xl px-4 py-2.5 hover:bg-white/90 transition-all shadow-lg text-sm"
               >
                 <ArrowDownToLine className="w-4 h-4" />
@@ -317,7 +319,7 @@ export default function CommissionsPage() {
         </div>
 
         {/* Onglets */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {([
             { key: "commissions" as MainTab, label: "Commissions", icon: <DollarSign className="w-3.5 h-3.5" /> },
             { key: "bonus"       as MainTab, label: "Bonus",       icon: <Gift className="w-3.5 h-3.5" /> },
@@ -333,7 +335,6 @@ export default function CommissionsPage() {
         {/* ── Commissions ── */}
         {mainTab === "commissions" && (
           <>
-            {/* Filtres */}
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-1 bg-card border border-border rounded-xl px-3 h-9">
                 <Filter className="w-3.5 h-3.5 text-muted-foreground" />
@@ -444,8 +445,10 @@ export default function CommissionsPage() {
         {mainTab === "retraits" && (
           <div className="space-y-3">
             {solde >= MONTANT_MIN_RETRAIT && (
-              <button onClick={() => setShowRetrait(true)}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold rounded-2xl p-3.5 hover:bg-primary/90 transition-colors shadow-md">
+              <button
+                onClick={() => { setShowRetrait(true); setRetraitStep("form"); }}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold rounded-2xl p-3.5 hover:bg-primary/90 transition-colors shadow-md"
+              >
                 <ArrowDownToLine className="w-5 h-5" />
                 Nouvelle demande de retrait — {fmtXOF(solde)} disponible
               </button>
@@ -467,9 +470,9 @@ export default function CommissionsPage() {
                   <p className="text-xs text-muted-foreground">
                     {new Date(w.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
                   </p>
-                  {w.note_admin && <p className="text-xs text-muted-foreground italic">{w.note_admin}</p>}
+                  {w.note_admin && <p className="text-xs text-muted-foreground italic truncate">{w.note_admin}</p>}
                 </div>
-                <div className="text-right">
+                <div className="text-right flex-shrink-0">
                   <p className="font-black text-foreground text-sm">{fmtXOF(w.amount)}</p>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getWdStatusColor(w.status)}`}>
                     {getWdStatusLabel(w.status)}
@@ -481,25 +484,31 @@ export default function CommissionsPage() {
         )}
       </div>
 
-      {/* ── Modal Retrait ── */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          Modal Retrait
+      ══════════════════════════════════════════════════════════════════════ */}
       {showRetrait && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl overflow-hidden">
-            
-            {/* Header modal */}
-            <div className="flex items-center justify-between p-5 border-b border-border">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+
+            {/* ── Header modal — TOUJOURS VISIBLE ── */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-2">
-                <ArrowDownToLine className="w-5 h-5 text-primary" />
-                <h2 className="font-black text-lg">Demande de retrait</h2>
+                <ArrowDownToLine className="w-5 h-5 text-primary flex-shrink-0" />
+                <h2 className="font-black text-base leading-tight">Demande de retrait</h2>
               </div>
-              {retraitStep !== "confirming" && (
-                <button onClick={resetRetrait} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+              {/* ✅ FIX : bouton X toujours visible (retiré la condition retraitStep !== "confirming") */}
+              <button
+                onClick={resetRetrait}
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 flex-shrink-0 ml-2"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="p-5">
+            {/* ── Body scrollable ── */}
+            <div className="overflow-y-auto flex-1 p-5">
+
               {/* ── Formulaire ── */}
               {retraitStep === "form" && (
                 <div className="space-y-4">
@@ -532,7 +541,7 @@ export default function CommissionsPage() {
 
                   {/* Nom bénéficiaire */}
                   <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block">
                       Nom du destinataire
                     </label>
                     <input type="text" value={retraitNom}
@@ -544,7 +553,7 @@ export default function CommissionsPage() {
 
                   {/* Pays */}
                   <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5" /> Pays
                     </label>
                     <select value={retraitPays} onChange={e => handlePaysChange(e.target.value)}
@@ -557,7 +566,7 @@ export default function CommissionsPage() {
 
                   {/* Réseau Mobile Money */}
                   <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5" /> Réseau Mobile Money
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -609,7 +618,7 @@ export default function CommissionsPage() {
                 </div>
               )}
 
-              {/* ── En attente — Compte à rebours payout 10min ── */}
+              {/* ── En attente ── */}
               {retraitStep === "pending" && (
                 <div className="text-center py-6 space-y-4">
                   <div className="w-16 h-16 rounded-full bg-amber-400/10 flex items-center justify-center mx-auto">
@@ -617,12 +626,12 @@ export default function CommissionsPage() {
                   </div>
                   <h3 className="text-lg font-black">Demande soumise !</h3>
                   <p className="text-sm text-muted-foreground">
-                    Votre retrait de <strong>{fmtXOF(Number(retraitAmount))}</strong> via <strong>{retraitReseau}</strong> est en cours de validation par le système.
+                    Votre retrait de <strong>{fmtXOF(Number(retraitAmount))}</strong> via <strong>{retraitReseau}</strong> est en cours de validation.
                   </p>
                   <div className="bg-amber-400/10 border border-amber-400/30 rounded-2xl p-4">
                     <p className="text-xs text-muted-foreground mb-1">Validation du payout dans</p>
                     <p className="text-4xl font-black text-amber-400 font-mono">{fmtCountdown(payoutCountdown)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Le système de payout confirme automatiquement après 10 min</p>
+                    <p className="text-xs text-muted-foreground mt-1">Le système confirme automatiquement après 10 min</p>
                   </div>
                   <div className="bg-muted/50 rounded-xl p-3 text-left space-y-1 text-xs text-muted-foreground">
                     <p>📱 Réseau : <strong className="text-foreground">{retraitReseau}</strong></p>
