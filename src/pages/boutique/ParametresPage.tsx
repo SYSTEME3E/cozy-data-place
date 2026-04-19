@@ -40,7 +40,6 @@ const DEVISES = [
 const TABS = [
   { id: "general",       label: "Général",         icon: Store    },
   { id: "pixel",         label: "Facebook Pixel",  icon: Facebook },
-  { id: "domaine",       label: "Domaine",         icon: Globe    },
   { id: "notifications", label: "Notifications",   icon: Bell     },
 ];
 
@@ -169,12 +168,6 @@ export default function BoutiqueParametresPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Configurez votre boutique</p>
           </div>
           <div className="flex gap-2">
-            {boutique.slug && (
-              <a href={`/shop/${boutique.slug}`} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <Eye className="w-4 h-4" /> Voir
-              </a>
-            )}
             <Button onClick={handleSave} disabled={saving}
               className="bg-pink-500 hover:bg-pink-600 text-white gap-1">
               <Save className="w-4 h-4" />

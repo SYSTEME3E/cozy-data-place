@@ -2,16 +2,19 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Package, ShoppingBag, Settings,
-  Eye, ChevronRight, Menu, X, ArrowLeft, Store, Sun, Moon
+  Eye, ChevronRight, Menu, X, ArrowLeft, Store, Sun, Moon, BarChart3, Zap, Users
 } from "lucide-react";
 import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
 
 // ⚠️ "Finances & Retraits" retiré du menu utilisateur (désactivé côté vendeur)
 const boutiqueNav = [
-  { path: "/boutique",           icon: LayoutDashboard, label: "Dashboard",   color: "text-blue-400",   bg: "bg-blue-400/10"   },
-  { path: "/boutique/produits",  icon: Package,         label: "Produits",    color: "text-purple-400", bg: "bg-purple-400/10" },
-  { path: "/boutique/commandes", icon: ShoppingBag,     label: "Commandes",   color: "text-orange-400", bg: "bg-orange-400/10" },
-  { path: "/boutique/parametres",icon: Settings,        label: "Paramètres",  color: "text-gray-400",   bg: "bg-gray-400/10"   },
+  { path: "/boutique",             icon: LayoutDashboard, label: "Dashboard",    color: "text-blue-400",   bg: "bg-blue-400/10"   },
+  { path: "/boutique/performance", icon: BarChart3,       label: "Performance",  color: "text-indigo-400", bg: "bg-indigo-400/10" },
+  { path: "/boutique/produits",    icon: Package,         label: "Produits",     color: "text-purple-400", bg: "bg-purple-400/10" },
+  { path: "/boutique/digitaux",    icon: Zap,             label: "Digitaux",     color: "text-indigo-400", bg: "bg-indigo-400/10" },
+  { path: "/boutique/commandes",   icon: ShoppingBag,     label: "Commandes",    color: "text-orange-400", bg: "bg-orange-400/10" },
+  { path: "/boutique/clients",     icon: Users,           label: "Mes Clients",  color: "text-pink-400",   bg: "bg-pink-400/10"   },
+  { path: "/boutique/parametres",  icon: Settings,        label: "Paramètres",   color: "text-gray-400",   bg: "bg-gray-400/10"   },
 ];
 
 
@@ -173,10 +176,19 @@ export default function BoutiqueLayout({ children, boutiqueName = "Ma Boutique",
             </div>
             <p className="font-black text-sm text-gray-800 dark:text-gray-100 truncate">{boutiqueName}</p>
           </div>
-          <button onClick={handleToggleTheme}
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            {darkMode ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
-          </button>
+          <div className="flex items-center gap-1">
+            {boutiqueSlug && (
+              <a href={`/shop/${boutiqueSlug}`} target="_blank" rel="noopener noreferrer"
+                title="Voir la vitrine"
+                className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <Eye className="w-4 h-4 text-pink-400" />
+              </a>
+            )}
+            <button onClick={handleToggleTheme}
+              className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              {darkMode ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-6 overflow-x-hidden">

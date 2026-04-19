@@ -4,6 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DeviseProvider } from "@/lib/devise-context";
+import { CartProvider } from "@/lib/cart-context";
+import SmartCartDrawer from "@/components/SmartCartDrawer";
+import CheckoutPage from "@/pages/boutique/CheckoutPage";
 import NexoraAuthGuard from "@/components/NexoraAuthGuard";
 import PageLoader from "@/components/PageLoader";
 import NexoraSplash from "@/components/NexoraSplash";
@@ -32,17 +35,31 @@ import LiensPage from "@/pages/LiensPage";
 import ProfilPage from "@/pages/ProfilPage";
 import PretsPage from "@/pages/PretsPage";
 import FacturesPage from "@/pages/FacturesPage";
-import EntreesDepensesPage from "@/pages/EntreesDepensesPage";
+import FormationsPage from "@/pages/FormationsPage";
+import FormationDetailPage from "@/pages/FormationDetailPage";
+import MesFormationsPage from "@/pages/MesFormationsPage";
+import AdminFormationsPage from "@/pages/AdminFormationsPage";
+import ReseauPage from "@/pages/ReseauPage";
+import CommissionsPage from "@/pages/CommissionsPage";
+import AffiliateStatsPage from "@/pages/AffiliateStatsPage";
 import TransfertPage from "@/pages/Transfertpage";
+import CoursPage from "@/pages/CoursPage";
+import VideoPlayerPage from "@/pages/VideoPlayerPage";
+import NexoraAcademy from "@/pages/NexoraAcademy";
 
 // Boutique
 import BoutiqueAccueilPage from "@/pages/boutique/AccueilPage";
 import BoutiqueProduitsPage from "@/pages/boutique/ProduitsPage";
+import NouveauProduitPage from "@/pages/boutique/NouveauProduitPage";
+import ProduitsDigitauxPage from "@/pages/boutique/ProduitsDigitauxPage";
 import CommandesPage from "@/pages/boutique/CommandesPage";
+import PerformancePage from "@/pages/boutique/PerformancePage";
 import BoutiqueParametresPage from "@/pages/boutique/ParametresPage";
 import BoutiqueVitrinePage from "@/pages/boutique/VitrinePage";
 import ProduitDetailPage from "@/pages/boutique/ProduitDetailPage";
+import DigitalProductPublicPage from "@/pages/boutique/DigitalProductPublicPage";
 import AcheterPage from "@/pages/boutique/AcheterPage";
+import ClientsPage from "@/pages/boutique/ClientsPage";
 import CommandeTrackingPage from "@/pages/boutique/CommandeTrackingPage";
 
 // Immobilier
@@ -54,8 +71,26 @@ import ProfilVendeurPage from "@/pages/ProfilVendeurPage";
 import AbonnementPage from "@/pages/AbonnementPage";
 import PaymentCallbackPage from "@/pages/PaymentCallbackPage";
 
+// PayLink
+import PayLinkPage from "@/pages/PayLinkPage";
+import PayLinkCheckoutPage from "@/pages/PayLinkCheckoutPage";
+
 // Contacts WhatsApp
 import ContactsWhatsAppPage from "@/pages/ContactsWhatsAppPage";
+
+// ⚠️ Funnels — désactivés temporairement (imports commentés)
+// import FunnelDashboard  from "@/pages/pages/funnels/dashboard";
+// import FunnelCreate     from "@/pages/pages/funnels/create";
+// import FunnelEditor     from "@/pages/pages/funnels/editor";
+// import FunnelPreview    from "@/pages/pages/funnels/preview";
+// import FunnelSettings   from "@/pages/pages/funnels/settings";
+// import FunnelAnalytics  from "@/pages/pages/funnels/analytics";
+// import FunnelLanding    from "@/pages/pages/funnels/landing";
+// import FunnelCheckout   from "@/pages/pages/funnels/checkout";
+// import FunnelThankyou   from "@/pages/pages/funnels/thankyou";
+// import FunnelPopupEditor from "@/pages/pages/funnels/popup-editor";
+// import FunnelProductList   from "@/pages/pages/funnels/product-list";
+// import FunnelProductCreate from "@/pages/pages/funnels/product-create";
 
 // Admin
 import AdminPanelPage from "@/pages/AdminPanelPage";
@@ -65,13 +100,12 @@ import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
 // ─── Détection app mobile (Capacitor) ─────────────────────────────────────────
-// Sur Android/iOS via Capacitor, window.Capacitor existe
 const isNativeApp = (): boolean => {
   return typeof (window as any).Capacitor !== "undefined";
 };
 
 const LOADER_LOGIN = 800;
-const LOADER_PAGE = 800;
+const LOADER_PAGE  = 800;
 
 // ─── Guards ────────────────────────────────────────────────────────────────────
 
@@ -134,28 +168,23 @@ const PremiumPage = ({ children }: { children: React.ReactNode }) => {
 // ─── Application Principale ────────────────────────────────────────────────────
 
 const App = () => {
-  // Splash screen uniquement sur l'app native Android/iOS
   const [splashDone, setSplashDone] = useState(!isNativeApp());
 
   return (
     <QueryClientProvider client={queryClient}>
       <DeviseProvider>
-        {/* Splash Nexora affiché au démarrage de l'app mobile */}
         {!splashDone && (
           <NexoraSplash duration={2200} onDone={() => setSplashDone(true)} />
         )}
 
+        <CartProvider>
         <BrowserRouter>
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <SmartCartDrawer />
 
             <Routes>
-              {/* 
-                Route "/" :
-                - Sur le site web → LandingPage
-                - Sur l'app mobile → redirige vers /login
-              */}
               <Route
                 path="/"
                 element={
@@ -166,65 +195,92 @@ const App = () => {
               />
 
               {/* Public / Auth */}
-              <Route
-                path="/login"
-                element={
-                  <PageLoader duration={LOADER_LOGIN}>
-                    <NexoraLoginPage />
-                  </PageLoader>
-                }
-              />
-              <Route path="/cgu" element={<CGUPage />} />
+              <Route path="/login"    element={<PageLoader duration={LOADER_LOGIN}><NexoraLoginPage /></PageLoader>} />
+              <Route path="/register" element={<PageLoader duration={LOADER_LOGIN}><NexoraLoginPage defaultMode="register" /></PageLoader>} />
+              <Route path="/cgu"             element={<CGUPage />} />
               <Route path="/confidentialite" element={<PrivacyPage />} />
 
               {/* PIN Security */}
-              <Route path="/setup-pin" element={<SetupPinPage />} />
+              <Route path="/setup-pin"  element={<SetupPinPage />} />
               <Route path="/unlock-pin" element={<UnlockPinPage />} />
 
               {/* Dashboard / Finance */}
-              <Route path="/dashboard"        element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
-              <Route path="/historique"       element={<ProtectedPage><HistoriquePage /></ProtectedPage>} />
-              <Route path="/coffre-fort"      element={<AdminPage><CoffreFortPage /></AdminPage>} />
-              <Route path="/liens"            element={<AdminPage><LiensPage /></AdminPage>} />
-              <Route path="/profil"           element={<ProtectedPage><ProfilPage /></ProtectedPage>} />
-              <Route path="/abonnement"       element={<ProtectedPage><AbonnementPage /></ProtectedPage>} />
-              <Route path="/transfert"        element={<ProtectedPage><TransfertPage /></ProtectedPage>} />
-              <Route path="/factures"         element={<ProtectedPage><FacturesPage /></ProtectedPage>} />
-              <Route path="/prets"            element={<AdminPage><PretsPage /></AdminPage>} />
-              <Route path="/entrees-depenses" element={<ProtectedPage><EntreesDepensesPage /></ProtectedPage>} />
+              <Route path="/dashboard"   element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
+              <Route path="/historique"  element={<ProtectedPage><HistoriquePage /></ProtectedPage>} />
+              <Route path="/coffre-fort" element={<AdminPage><CoffreFortPage /></AdminPage>} />
+              <Route path="/liens"       element={<AdminPage><LiensPage /></AdminPage>} />
+              <Route path="/profil"      element={<ProtectedPage><ProfilPage /></ProtectedPage>} />
+              <Route path="/abonnement"  element={<ProtectedPage><AbonnementPage /></ProtectedPage>} />
+              <Route path="/transfert"   element={<ProtectedPage><TransfertPage /></ProtectedPage>} />
+              <Route path="/factures"    element={<ProtectedPage><FacturesPage /></ProtectedPage>} />
+              <Route path="/prets"       element={<AdminPage><PretsPage /></AdminPage>} />
+              <Route path="/formations"      element={<FormationsPage />} />
+              <Route path="/formations/:id"  element={<FormationDetailPage />} />
+              <Route path="/mes-formations"  element={<ProtectedPage><MesFormationsPage /></ProtectedPage>} />
+              <Route path="/mes-formations/:id/cours"                element={<ProtectedPage><CoursPage /></ProtectedPage>} />
+              <Route path="/mes-formations/:courseId/video/:videoId" element={<ProtectedPage><VideoPlayerPage /></ProtectedPage>} />
+              <Route path="/nexora-academy"  element={<NexoraAcademy />} />
+              <Route path="/reseau"          element={<ProtectedPage><ReseauPage /></ProtectedPage>} />
+              <Route path="/commissions"     element={<ProtectedPage><CommissionsPage /></ProtectedPage>} />
+              <Route path="/mes-commissions" element={<ProtectedPage><AffiliateStatsPage /></ProtectedPage>} />
 
               {/* Callback Paiement */}
               <Route path="/payment/callback" element={<ProtectedPage><PaymentCallbackPage /></ProtectedPage>} />
 
-              {/* Redirections */}
-              <Route path="/entrees"  element={<Navigate to="/entrees-depenses" replace />} />
-              <Route path="/depenses" element={<Navigate to="/entrees-depenses" replace />} />
+              {/* PayLink */}
+              <Route path="/pay/:paylinkSlug" element={<PayLinkCheckoutPage />} />
+              <Route path="/paylink"          element={<ProtectedPage><PayLinkPage /></ProtectedPage>} />
 
               {/* Premium */}
               <Route path="/contacts-whatsapp"      element={<PremiumPage><ContactsWhatsAppPage /></PremiumPage>} />
               <Route path="/immobilier"             element={<ImmobilierPage />} />
               <Route path="/immobilier/annonce/:id" element={<AnnonceDetailPage />} />
               <Route path="/boutique"               element={<PremiumPage><BoutiqueAccueilPage /></PremiumPage>} />
-              <Route path="/boutique/produits"      element={<PremiumPage><BoutiqueProduitsPage /></PremiumPage>} />
-              <Route path="/boutique/commandes"     element={<PremiumPage><CommandesPage /></PremiumPage>} />
-              <Route path="/boutique/parametres"    element={<PremiumPage><BoutiqueParametresPage /></PremiumPage>} />
+              <Route path="/boutique/produits"               element={<PremiumPage><BoutiqueProduitsPage /></PremiumPage>} />
+              <Route path="/boutique/produits/nouveau"       element={<PremiumPage><NouveauProduitPage /></PremiumPage>} />
+              <Route path="/boutique/produits/modifier/:id"  element={<PremiumPage><NouveauProduitPage /></PremiumPage>} />
+              <Route path="/boutique/digitaux"    element={<PremiumPage><ProduitsDigitauxPage /></PremiumPage>} />
+              <Route path="/boutique/commandes"   element={<PremiumPage><CommandesPage /></PremiumPage>} />
+              <Route path="/boutique/clients"     element={<PremiumPage><ClientsPage /></PremiumPage>} />
+              <Route path="/boutique/performance" element={<PremiumPage><PerformancePage /></PremiumPage>} />
+              <Route path="/boutique/parametres"  element={<PremiumPage><BoutiqueParametresPage /></PremiumPage>} />
 
               {/* Vitrines publiques */}
               <Route path="/shop/:slug"                    element={<BoutiqueVitrinePage />} />
               <Route path="/shop/:slug/produit/:produitId" element={<ProduitDetailPage />} />
+              <Route path="/shop/:slug/digital/:produitId" element={<DigitalProductPublicPage />} />
               <Route path="/shop/:slug/acheter/:produitId" element={<AcheterPage />} />
+              <Route path="/shop/:slug/checkout"           element={<CheckoutPage />} />
               <Route path="/immobilier/vendeur/:userId"    element={<ProfilVendeurPage />} />
               <Route path="/commande/:commandeId"          element={<CommandeTrackingPage />} />
 
               {/* Admin */}
-              <Route path="/admin"  element={<AdminPage><AdminPanelPage /></AdminPage>} />
-              <Route path="/medias" element={<AdminPage><MediasPage /></AdminPage>} />
+              <Route path="/admin"            element={<AdminPage><AdminPanelPage /></AdminPage>} />
+              <Route path="/medias"           element={<AdminPage><MediasPage /></AdminPage>} />
+              <Route path="/admin/formations" element={<AdminPage><AdminFormationsPage /></AdminPage>} />
+
+              {/* ⚠️ Funnels désactivés — toutes les routes redirigent vers /dashboard */}
+              <Route path="/funnels"                   element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/create"            element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/editor/:id"        element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/preview/:id"       element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/settings/:id"      element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/analytics/:id"     element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/steps/landing"     element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/steps/checkout"    element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/steps/thankyou"    element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/popups/editor"     element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/popups/editor/:id" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/products"          element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/products/create"   element={<Navigate to="/dashboard" replace />} />
+              <Route path="/funnels/products/edit/:id" element={<Navigate to="/dashboard" replace />} />
 
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </TooltipProvider>
         </BrowserRouter>
+        </CartProvider>
       </DeviseProvider>
     </QueryClientProvider>
   );

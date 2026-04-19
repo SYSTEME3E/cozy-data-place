@@ -14,6 +14,7 @@ import {
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { Link } from "react-router-dom";
 import { setPin, verifyPin, hasPinSet } from "@/services/pinService";
+import DomainManager from "@/components/domains/DomainManager";
 
 
 
@@ -225,13 +226,6 @@ export default function ProfilPage() {
                 }}
               />
 
-              {/* Badge bleu rond style Facebook */}
-              {hasBadge && (
-                <div className="absolute -bottom-1 -left-1 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center border-2 border-background shadow-md"
-                  title={isAdmin ? "Administrateur" : "Compte Premium"}>
-                  <BadgeCheck className="w-4 h-4 text-white fill-white" />
-                </div>
-              )}
             </div>
 
             {/* Infos utilisateur */}
@@ -539,6 +533,12 @@ export default function ProfilPage() {
         </div>
 
       </div>
+
+      {/* ── Section Domaines personnalisés ── */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4 mt-6 max-w-xl mx-auto px-4">
+        <DomainManager />
+      </div>
+
     </AppLayout>
   );
 }

@@ -7,12 +7,12 @@ import { getNexoraUser, hasNexoraPremium } from "@/lib/nexora-auth";
 import { useNavigate } from "react-router-dom";
 import {
   ShoppingBag, ChevronDown, ChevronUp, Phone,
-  MapPin, Clock, CheckCircle, Truck, Package,
-  XCircle, Search, MessageCircle, Crown
+  Clock, CheckCircle, Truck,
+  XCircle, Search, MessageCircle, Crown, Zap, Package, Lock
 } from "lucide-react";
 
-type StatutCommande = "en_attente" | "nouvelle" | "confirmee" | "en_preparation" | "expediee" | "livree" | "annulee";
-type StatutPaiement = "en_attente" | "paye" | "echoue" | "rembourse";
+// 4 statuts seulement
+type StatutCommande = "en_cours" | "payee" | "livree" | "annulee";
 
 interface ArticleCommande {
   produit_id?: string | null;
@@ -22,6 +22,7 @@ interface ArticleCommande {
   montant: number;
   photo_url: string | null;
   variations_choisies: Record<string, string>;
+  type?: string;
 }
 
 interface Commande {
@@ -33,33 +34,20 @@ interface Commande {
   client_adresse: string | null;
   total: number;
   devise: string;
-  statut_paiement: StatutPaiement;
   statut: StatutCommande;
   items: ArticleCommande[];
   created_at: string;
   articles?: ArticleCommande[];
 }
 
-const STATUTS: Record<StatutCommande, { label: string; color: string; bg: string; darkColor: string; darkBg: string; icon: any }> = {
-  en_attente:     { label: "En attente",      color: "text-slate-700",  bg: "bg-slate-100",  darkColor: "dark:text-slate-300",  darkBg: "dark:bg-slate-800",  icon: Clock },
-  nouvelle:       { label: "Nouvelle",        color: "text-blue-700",   bg: "bg-blue-100",   darkColor: "dark:text-blue-300",   darkBg: "dark:bg-blue-950/50",   icon: ShoppingBag },
-  confirmee:      { label: "Confirmée",       color: "text-purple-700", bg: "bg-purple-100", darkColor: "dark:text-purple-300", darkBg: "dark:bg-purple-950/50", icon: CheckCircle },
-  en_preparation: { label: "En préparation",  color: "text-yellow-700", bg: "bg-yellow-100", darkColor: "dark:text-yellow-300", darkBg: "dark:bg-yellow-950/50", icon: Package },
-  expediee:       { label: "Expédiée",        color: "text-orange-700", bg: "bg-orange-100", darkColor: "dark:text-orange-300", darkBg: "dark:bg-orange-950/50", icon: Truck },
-  livree:         { label: "Livrée",          color: "text-green-700",  bg: "bg-green-100",  darkColor: "dark:text-green-300",  darkBg: "dark:bg-green-950/50",  icon: CheckCircle },
-  annulee:        { label: "Annulée",         color: "text-red-700",    bg: "bg-red-100",    darkColor: "dark:text-red-300",    darkBg: "dark:bg-red-950/50",    icon: XCircle },
+const STATUTS: Record<StatutCommande, { label: string; color: string; bg: string; darkColor: string; darkBg: string; icon: any; terminal: boolean }> = {
+  en_cours: { label: "En cours",  color: "text-blue-700",  bg: "bg-blue-100",  darkColor: "dark:text-blue-300",  darkBg: "dark:bg-blue-950/50",  icon: Clock,        terminal: false },
+  payee:    { label: "Payé",      color: "text-green-700", bg: "bg-green-100", darkColor: "dark:text-green-300", darkBg: "dark:bg-green-950/50", icon: CheckCircle,  terminal: true  },
+  livree:   { label: "Livré",     color: "text-purple-700",bg: "bg-purple-100",darkColor: "dark:text-purple-300",darkBg: "dark:bg-purple-950/50",icon: Truck,        terminal: true  },
+  annulee:  { label: "Annulé",    color: "text-red-700",   bg: "bg-red-100",   darkColor: "dark:text-red-300",   darkBg: "dark:bg-red-950/50",   icon: XCircle,      terminal: true  },
 };
 
-const STATUTS_PAIEMENT: Record<StatutPaiement, { label: string; color: string; bg: string; darkColor: string; darkBg: string }> = {
-  en_attente: { label: "En attente", color: "text-yellow-700", bg: "bg-yellow-100", darkColor: "dark:text-yellow-300", darkBg: "dark:bg-yellow-950/50" },
-  paye:       { label: "Payé",       color: "text-green-700",  bg: "bg-green-100",  darkColor: "dark:text-green-300",  darkBg: "dark:bg-green-950/50"  },
-  echoue:     { label: "Échoué",     color: "text-red-700",    bg: "bg-red-100",    darkColor: "dark:text-red-300",    darkBg: "dark:bg-red-950/50"    },
-  rembourse:  { label: "Remboursé",  color: "text-gray-700",   bg: "bg-gray-100",   darkColor: "dark:text-gray-300",   darkBg: "dark:bg-gray-800"      },
-};
-
-const ORDRE_STATUTS: StatutCommande[] = [
-  "en_attente", "nouvelle", "confirmee", "en_preparation", "expediee", "livree", "annulee"
-];
+const ORDRE_STATUTS: StatutCommande[] = ["en_cours", "payee", "livree", "annulee"];
 
 import { formatPrix as formatMontant } from "@/lib/devise-utils";
 
@@ -81,7 +69,6 @@ export default function CommandesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState<StatutCommande | "">("");
-  const [filterPaiement, setFilterPaiement] = useState<StatutPaiement | "">("");
 
   const load = async () => {
     setLoading(true);
@@ -97,6 +84,8 @@ export default function CommandesPage() {
         .order("created_at", { ascending: false });
       setCommandes((data as any[] || []).map(c => ({
         ...c,
+        // Migration : si l'ancienne base a d'autres statuts, on les mappe vers en_cours
+        statut: (["en_cours", "payee", "livree", "annulee"].includes(c.statut) ? c.statut : "en_cours") as StatutCommande,
         articles: Array.isArray(c.items) ? c.items : [],
         items: Array.isArray(c.items) ? c.items : [],
       })));
@@ -143,50 +132,61 @@ export default function CommandesPage() {
     load();
   };
 
-  const changePaiement = async (id: string, statut_paiement: StatutPaiement) => {
-    await supabase.from("commandes" as any).update({ statut_paiement }).eq("id", id);
-    toast({ title: `Paiement mis à jour : ${STATUTS_PAIEMENT[statut_paiement].label}` });
-    load();
-  };
-
   const filtered = commandes.filter(c => {
     const matchSearch = c.client_nom.toLowerCase().includes(searchQ.toLowerCase()) ||
       c.numero.toLowerCase().includes(searchQ.toLowerCase());
     const matchStatut = filterStatut ? c.statut === filterStatut : true;
-    const matchPaiement = filterPaiement ? c.statut_paiement === filterPaiement : true;
-    return matchSearch && matchStatut && matchPaiement;
+    return matchSearch && matchStatut;
   });
 
+  const total = commandes.length;
+  const labelCommande = total <= 1 ? "commande" : "commandes";
+
   const stats = {
-    total: commandes.length,
-    nouvelles: commandes.filter(c => c.statut === "nouvelle").length,
-    chiffre: commandes.filter(c => c.statut !== "annulee").reduce((s, c) => s + c.total, 0),
+    enCours: commandes.filter(c => c.statut === "en_cours").length,
+    payees: commandes.filter(c => c.statut === "payee").length,
     livrees: commandes.filter(c => c.statut === "livree").length,
+    chiffre: commandes.filter(c => c.statut !== "annulee").reduce((s, c) => s + c.total, 0),
   };
 
   return (
     <BoutiqueLayout boutiqueName={boutique?.nom} boutiqueSlug={boutique?.slug}>
       <div className="space-y-5 pb-10">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">Commandes</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{commandes.length} commande{commandes.length > 1 ? "s" : ""} au total</p>
+        {/* Header avec badge nombre */}
+        <div className="flex items-center gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">
+                {total <= 1 ? "Commande" : "Commandes"}
+              </h1>
+              {total > 0 && (
+                <span className="bg-pink-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm shadow-pink-200 dark:shadow-pink-900">
+                  {total}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{total} {labelCommande} au total</p>
+          </div>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-2xl p-4">
-            <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Nouvelles</p>
-            <p className="text-3xl font-black text-blue-700 dark:text-blue-300">{stats.nouvelles}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">En cours</p>
+            <p className="text-3xl font-black text-blue-700 dark:text-blue-300">{stats.enCours}</p>
           </div>
           <div className="bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-900 rounded-2xl p-4">
-            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Livrées</p>
-            <p className="text-3xl font-black text-green-700 dark:text-green-300">{stats.livrees}</p>
+            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Payées</p>
+            <p className="text-3xl font-black text-green-700 dark:text-green-300">{stats.payees}</p>
           </div>
-          <div className="bg-pink-50 dark:bg-pink-950/40 border border-pink-100 dark:border-pink-900 rounded-2xl p-4 col-span-2">
+          <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900 rounded-2xl p-4">
+            <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Livrées</p>
+            <p className="text-3xl font-black text-purple-700 dark:text-purple-300">{stats.livrees}</p>
+          </div>
+          <div className="bg-pink-50 dark:bg-pink-950/40 border border-pink-100 dark:border-pink-900 rounded-2xl p-4">
             <p className="text-xs text-pink-600 dark:text-pink-400 font-medium">Chiffre d'affaires</p>
-            <p className="text-2xl font-black text-pink-700 dark:text-pink-300">
+            <p className="text-lg font-black text-pink-700 dark:text-pink-300">
               {formatMontant(stats.chiffre, boutique?.devise || "XOF")}
             </p>
           </div>
@@ -200,22 +200,13 @@ export default function CommandesPage() {
               placeholder="Rechercher client, numéro..."
               className="pl-9 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500" />
           </div>
-          <div className="flex gap-2">
-            <select value={filterStatut} onChange={e => setFilterStatut(e.target.value as any)}
-              className="flex-1 h-9 px-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm">
-              <option value="">Tous statuts</option>
-              {ORDRE_STATUTS.map(s => (
-                <option key={s} value={s}>{STATUTS[s].label}</option>
-              ))}
-            </select>
-            <select value={filterPaiement} onChange={e => setFilterPaiement(e.target.value as any)}
-              className="flex-1 h-9 px-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm">
-              <option value="">Tout paiement</option>
-              {Object.entries(STATUTS_PAIEMENT).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-          </div>
+          <select value={filterStatut} onChange={e => setFilterStatut(e.target.value as any)}
+            className="w-full h-9 px-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm">
+            <option value="">Tous les statuts</option>
+            {ORDRE_STATUTS.map(s => (
+              <option key={s} value={s}>{STATUTS[s].label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Liste */}
@@ -234,6 +225,7 @@ export default function CommandesPage() {
             {filtered.map(cmd => {
               const isExpanded = expandedId === cmd.id;
               const StatutIcon = STATUTS[cmd.statut].icon;
+              const estTerminal = STATUTS[cmd.statut].terminal;
 
               return (
                 <div key={cmd.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
@@ -248,11 +240,12 @@ export default function CommandesPage() {
                             <StatutIcon className="w-3 h-3" />
                             {STATUTS[cmd.statut].label}
                           </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold
-                            ${STATUTS_PAIEMENT[cmd.statut_paiement].bg} ${STATUTS_PAIEMENT[cmd.statut_paiement].color}
-                            ${STATUTS_PAIEMENT[cmd.statut_paiement].darkBg} ${STATUTS_PAIEMENT[cmd.statut_paiement].darkColor}`}>
-                            {STATUTS_PAIEMENT[cmd.statut_paiement].label}
-                          </span>
+                          {/* Badge verrouillé */}
+                          {estTerminal && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 flex items-center gap-1">
+                              <Lock className="w-3 h-3" /> Verrouillé
+                            </span>
+                          )}
                         </div>
 
                         <p className="font-semibold text-gray-800 dark:text-gray-100 mt-1">{cmd.client_nom}</p>
@@ -286,33 +279,47 @@ export default function CommandesPage() {
                         <div>
                           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Articles commandés</p>
                           <div className="space-y-2">
-                            {cmd.articles.map((art, i) => (
-                              <div key={i} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-3">
-                                {art.photo_url && (
-                                  <img src={art.photo_url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{art.nom_produit}</p>
-                                  {art.variations_choisies && Object.keys(art.variations_choisies).length > 0 && (
+                            {cmd.articles.map((art, i) => {
+                              const nomArt = (art as any).nom_produit || (art as any).nom || "Produit";
+                              const prixUnit = (art as any).prix_unitaire || (art as any).prix || 0;
+                              const montantArt = (art as any).montant || 0;
+                              const qteArt = (art as any).quantite || 1;
+                              const photoArt = (art as any).photo_url || null;
+                              const typeArt = (art as any).type;
+                              return (
+                                <div key={i} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-3">
+                                  <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                    {photoArt
+                                      ? <img src={photoArt} alt="" className="w-full h-full object-cover" />
+                                      : typeArt === "numerique"
+                                        ? <Zap className="w-5 h-5 text-purple-400" />
+                                        : <Package className="w-5 h-5 text-gray-400" />
+                                    }
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{nomArt}</p>
+                                    {typeArt === "numerique" && (
+                                      <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">Digital</span>
+                                    )}
+                                    {(art as any).variations_choisies && Object.keys((art as any).variations_choisies).length > 0 && (
+                                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                                        {Object.entries((art as any).variations_choisies).map(([k, v]) => `${k}: ${v}`).join(" • ")}
+                                      </p>
+                                    )}
                                     <p className="text-xs text-gray-400 dark:text-gray-500">
-                                      {Object.entries(art.variations_choisies).map(([k, v]) => `${k}: ${v}`).join(" • ")}
+                                      {qteArt} × {formatMontant(prixUnit, cmd.devise)}
                                     </p>
-                                  )}
-                                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                                    {art.quantite} × {formatMontant(art.prix_unitaire, cmd.devise)}
-                                  </p>
+                                  </div>
+                                  <span className="font-bold text-pink-600 dark:text-pink-400 text-sm flex-shrink-0">
+                                    {formatMontant(montantArt, cmd.devise)}
+                                  </span>
                                 </div>
-                                <span className="font-bold text-pink-600 dark:text-pink-400 text-sm flex-shrink-0">
-                                  {formatMontant(art.montant, cmd.devise)}
-                                </span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
-                          <div className="mt-3 space-y-1 text-sm">
-                            <div className="flex justify-between font-black text-pink-600 dark:text-pink-400 border-t border-gray-200 dark:border-gray-700 pt-1">
-                              <span>Total</span>
-                              <span>{formatMontant(cmd.total, cmd.devise)}</span>
-                            </div>
+                          <div className="mt-3 flex justify-between font-black text-pink-600 dark:text-pink-400 border-t border-gray-200 dark:border-gray-700 pt-2 text-sm">
+                            <span>Total</span>
+                            <span>{formatMontant(cmd.total, cmd.devise)}</span>
                           </div>
                         </div>
                       )}
@@ -326,39 +333,34 @@ export default function CommandesPage() {
                         </div>
                       )}
 
-                      {/* Changer statut */}
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Changer le statut</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {ORDRE_STATUTS.filter(s => s !== cmd.statut).map(s => (
-                            <button key={s} onClick={() => changeStatut(cmd.id, s)}
-                              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors
-                                ${STATUTS[s].bg} ${STATUTS[s].color}
-                                ${STATUTS[s].darkBg} ${STATUTS[s].darkColor}
-                                hover:opacity-80`}>
-                              → {STATUTS[s].label}
-                            </button>
-                          ))}
+                      {/* Changer statut — verrouillé si terminal */}
+                      {estTerminal ? (
+                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
+                          <Lock className="w-4 h-4 text-gray-400" />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                            Statut confirmé — aucune modification possible.
+                          </p>
                         </div>
-                      </div>
-
-                      {/* Statut paiement */}
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Statut paiement</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {(Object.keys(STATUTS_PAIEMENT) as StatutPaiement[])
-                            .filter(s => s !== cmd.statut_paiement)
-                            .map(s => (
-                              <button key={s} onClick={() => changePaiement(cmd.id, s)}
+                      ) : (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Changer le statut</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {ORDRE_STATUTS.filter(s => s !== cmd.statut).map(s => (
+                              <button key={s} onClick={() => changeStatut(cmd.id, s)}
                                 className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors
-                                  ${STATUTS_PAIEMENT[s].bg} ${STATUTS_PAIEMENT[s].color}
-                                  ${STATUTS_PAIEMENT[s].darkBg} ${STATUTS_PAIEMENT[s].darkColor}
+                                  ${STATUTS[s].bg} ${STATUTS[s].color}
+                                  ${STATUTS[s].darkBg} ${STATUTS[s].darkColor}
                                   hover:opacity-80`}>
-                                → {STATUTS_PAIEMENT[s].label}
+                                → {STATUTS[s].label}
                               </button>
                             ))}
+                          </div>
+                          {/* Avertissement avant statut terminal */}
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+                            ⚠️ Les statuts Payé, Livré et Annulé sont définitifs et ne peuvent plus être modifiés.
+                          </p>
                         </div>
-                      </div>
+                      )}
 
                       {/* Contact client */}
                       {cmd.client_tel && (

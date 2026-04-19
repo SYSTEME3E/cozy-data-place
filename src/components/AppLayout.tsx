@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Lock, Image, Link2, User, LogOut, Menu, X,
   Search, ChevronRight, TrendingUp, History,
   HandCoins, Receipt, Store, BadgeCheck, Map,
-  ShieldCheck, ArrowLeftRight, Sun, Moon, Phone
+  ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, CreditCard,
+  GraduationCap, Network, Coins, BookOpen, Filter, Sparkles
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
 import { logoutUser, getNexoraUser, isNexoraAdmin, refreshNexoraSession } from "@/lib/nexora-auth";
@@ -17,11 +18,18 @@ import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
 const getNavItems = (isAdmin: boolean) => {
   const items = [
     { path: "/dashboard",        icon: LayoutDashboard, label: "Tableau de bord",     color: "text-red-400",     bg: "bg-red-400/10"     },
-    { path: "/entrees-depenses", icon: TrendingUp,      label: "Entrées & Dépenses",  color: "text-green-400",   bg: "bg-green-400/10"   },
+    { path: "/formations",       icon: GraduationCap,   label: "Formations",          color: "text-emerald-400", bg: "bg-emerald-400/10" },
+    { path: "/mes-formations",   icon: BookOpen,        label: "Mes Formations",       color: "text-sky-400",     bg: "bg-sky-400/10"     },
+    { path: "/nexora-academy",   icon: Sparkles,        label: "Nexora Academy",       color: "text-fuchsia-400", bg: "bg-fuchsia-400/10" },
+    { path: "/reseau",           icon: Network,         label: "Mon Réseau MLM",       color: "text-violet-400",  bg: "bg-violet-400/10"  },
+    { path: "/commissions",      icon: Coins,           label: "Mes Commissions",      color: "text-yellow-400",  bg: "bg-yellow-400/10"  },
+    { path: "/mes-commissions",  icon: TrendingUp,      label: "Stats Affilié",        color: "text-orange-400",  bg: "bg-orange-400/10"  },
     { path: "/historique",       icon: History,         label: "Historique",           color: "text-accent",      bg: "bg-accent/10"      },
     { path: "/transfert",        icon: ArrowLeftRight,  label: "Nexora Transfert",    color: "text-violet-400",  bg: "bg-violet-400/10"  },
+    { path: "/paylink",          icon: CreditCard,      label: "Nexora PayLink",      color: "text-cyan-400",    bg: "bg-cyan-400/10"    },
     { path: "/factures",         icon: Receipt,         label: "Factures",             color: "text-purple-300",  bg: "bg-purple-300/10"  },
     { path: "/boutique",         icon: Store,           label: "Nexora Shop",          color: "text-pink-300",    bg: "bg-pink-300/10"    },
+    // { path: "/funnels",          icon: Filter,          label: "Funnels",              color: "text-indigo-400",  bg: "bg-indigo-400/10"  },
     { path: "/contacts-whatsapp", icon: Phone,           label: "Contacts WhatsApp",    color: "text-green-400",   bg: "bg-green-400/10"   },
     { path: "/immobilier",        icon: Map,             label: "Marché Immobilier",    color: "text-blue-300",    bg: "bg-blue-300/10"    },
   ];
@@ -29,8 +37,9 @@ const getNavItems = (isAdmin: boolean) => {
     items.push({ path: "/coffre-fort", icon: Lock,       label: "Coffre-fort",   color: "text-yellow-300", bg: "bg-yellow-300/10" });
     items.push({ path: "/liens",       icon: Link2,      label: "Liens & Contacts", color: "text-green-300", bg: "bg-green-300/10" });
     items.push({ path: "/prets",       icon: HandCoins,  label: "Contrats Prêt", color: "text-orange-300", bg: "bg-orange-300/10" });
-    items.push({ path: "/admin",       icon: ShieldCheck, label: "Panel Admin", color: "text-amber-400", bg: "bg-amber-400/10" });
-    items.push({ path: "/medias",      icon: Image,       label: "Médias",      color: "text-sky-300",   bg: "bg-sky-300/10"  });
+    items.push({ path: "/admin",             icon: ShieldCheck,   label: "Panel Admin",         color: "text-amber-400",   bg: "bg-amber-400/10"   });
+    items.push({ path: "/admin/formations", icon: GraduationCap, label: "Gestion Formations",  color: "text-emerald-300", bg: "bg-emerald-300/10" });
+    items.push({ path: "/medias",           icon: Image,         label: "Médias",               color: "text-sky-300",     bg: "bg-sky-300/10"     });
   }
   return items;
 };
@@ -98,8 +107,8 @@ export default function AppLayout({
     (i) =>
       i.path === location.pathname ||
       (i.path === "/boutique" && location.pathname.startsWith("/boutique")) ||
-      (i.path === "/entrees-depenses" &&
-        ["/entrees", "/depenses", "/entrees-depenses"].includes(location.pathname))
+      (i.path === "/formations" && location.pathname.startsWith("/formations") && !location.pathname.startsWith("/formations/")) ||
+      (i.path === "/mes-formations" && location.pathname === "/mes-formations")
   );
 
   const handleLogout = async () => {
@@ -178,8 +187,7 @@ export default function AppLayout({
             const active =
               location.pathname === path ||
               (path === "/boutique" && location.pathname.startsWith("/boutique")) ||
-              (path === "/entrees-depenses" &&
-                ["/entrees", "/depenses", "/entrees-depenses"].includes(location.pathname));
+              (path === "/formations" && location.pathname.startsWith("/formations"));
             const isAdminItem = path === "/admin";
             return (
               <div key={path}>

@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { isNexoraAuthenticated, getNexoraUser } from "@/lib/nexora-auth";
+import { hasPinSet } from "@/services/pinService";
 
 interface NexoraAuthGuardProps {
   children: ReactNode;
@@ -39,11 +40,19 @@ export default function NexoraAuthGuard({
       }
 
       // ── Vérification PIN obligatoire ──────────────────────────────────────
-      // Si le PIN n'est pas déverrouillé pour cette session, rediriger vers unlock-pin
+      // Si on n'est pas déjà dans un flux PIN, vérifier l'état du PIN
       if (!PIN_FLOW_PATHS.includes(location.pathname)) {
         const pinUnlocked = sessionStorage.getItem(PIN_UNLOCKED_KEY) === "true";
         if (!pinUnlocked) {
-          navigate("/unlock-pin", { replace: true });
+          // Vérifier si l'utilisateur a déjà configuré un PIN
+          const pinAlreadySet = await hasPinSet(user.id);
+          if (!pinAlreadySet) {
+            // Nouveau compte : rediriger vers la création du PIN
+            navigate("/setup-pin", { replace: true });
+          } else {
+            // PIN existant : demander le déverrouillage
+            navigate("/unlock-pin", { replace: true });
+          }
           return;
         }
       }

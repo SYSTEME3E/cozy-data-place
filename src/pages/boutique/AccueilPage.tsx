@@ -3,12 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
 import { getSymboleDevise } from "@/lib/devise-utils";
 import {
-  ShoppingBag, Package, TrendingUp, Clock,
-  CheckCircle, Truck, XCircle, BarChart2,
-  Zap, Crown, Lock, ShieldCheck
+  ShoppingBag, Package, TrendingUp, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getNexoraUser, PLAN_LIMITS } from "@/lib/nexora-auth";
+import { getNexoraUser } from "@/lib/nexora-auth";
 
 type Periode = "jour" | "semaine" | "mois";
 
@@ -58,31 +56,29 @@ export default function BoutiqueAccueilPage() {
   };
 
   const commandesFiltrees = filtrerParPeriode(commandes);
-  const totalMontant = commandesFiltrees.reduce((sum, c) => sum + (c.total || 0), 0);
 
-  const produitsPhysiques = produits.filter(p => p.type === 'physique' || !p.type).length;
-  const produitsDigitaux = produits.filter(p => p.type === 'numerique').length;
+  const produitsPhysiques = produits.filter(p => p.type === 'physique' || !p.type);
+  const produitsDigitaux = produits.filter(p => p.type === 'numerique');
 
-  const planActuel = user?.plan || 'gratuit';
-  const limiteProduits = PLAN_LIMITS[planActuel].produits;
-  const estBloque = produits.length >= limiteProduits;
+  // Revenus par type de produit : on joint les commandes aux items pour séparer physique/digital
+  const revenusPhysique = commandesFiltrees.reduce((sum, c) => {
+    const items: any[] = Array.isArray(c.items) ? c.items : [];
+    const montant = items
+      .filter((it: any) => it.type !== 'numerique')
+      .reduce((s: number, it: any) => s + (it.montant || 0), 0);
+    return sum + montant;
+  }, 0);
 
-  const graphData = () => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const cmdsJour = commandes.filter(c => new Date(c.created_at).toDateString() === date.toDateString());
-      days.push({
-        label: date.toLocaleDateString("fr-FR", { weekday: "short" }),
-        montant: cmdsJour.reduce((sum, c) => sum + (c.total || 0), 0),
-      });
-    }
-    return days;
-  };
+  const revenusDigital = commandesFiltrees.reduce((sum, c) => {
+    const items: any[] = Array.isArray(c.items) ? c.items : [];
+    const montant = items
+      .filter((it: any) => it.type === 'numerique')
+      .reduce((s: number, it: any) => s + (it.montant || 0), 0);
+    return sum + montant;
+  }, 0);
 
-  const graph = graphData();
-  const maxMontant = Math.max(...graph.map(d => d.montant), 1);
+  const totalMontant = revenusPhysique + revenusDigital;
+  const devise = getSymboleDevise(boutique?.devise) || "FCFA";
 
   if (loading) return (
     <BoutiqueLayout boutiqueName={boutique?.nom}>
@@ -129,55 +125,14 @@ export default function BoutiqueAccueilPage() {
           </div>
         </div>
 
-        {/* 2. BANNIÈRE ABONNEMENT */}
-        <div className={`p-5 rounded-[2rem] flex items-center justify-between relative overflow-hidden transition-all ${
-          planActuel === 'roi' ? 'bg-gradient-to-br from-amber-400 to-yellow-600 text-white border-none shadow-xl shadow-yellow-100' :
-          planActuel === 'boss' ? 'bg-gradient-to-br from-indigo-600 to-blue-700 text-white border-none shadow-xl shadow-blue-100' :
-          'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'
-        }`}>
-          <div className="flex items-center gap-4 relative z-10">
-            <div className={`p-3 rounded-2xl ${planActuel === 'gratuit' ? 'bg-gray-100 dark:bg-gray-700' : 'bg-white/20'}`}>
-              {planActuel === 'roi'
-                ? <Crown className="w-6 h-6" />
-                : <Zap className={`w-6 h-6 ${planActuel === 'gratuit' ? 'text-gray-400 dark:text-gray-300' : ''}`} />}
-            </div>
-            <div>
-              <p className={`text-[10px] opacity-70 font-black uppercase tracking-widest ${planActuel === 'gratuit' ? 'text-gray-500 dark:text-gray-400' : ''}`}>Plan Actuel</p>
-              <h2 className={`text-lg font-black capitalize tracking-tight ${planActuel === 'gratuit' ? 'text-gray-800 dark:text-gray-100' : ''}`}>{planActuel}</h2>
-            </div>
-          </div>
-          <div className="text-right relative z-10">
-            <p className={`text-[10px] font-bold ${planActuel === 'gratuit' ? 'text-gray-500 dark:text-gray-400' : ''}`}>
-              Produits : {produits.length} / {limiteProduits === Infinity ? '∞' : limiteProduits}
-            </p>
-            <Button size="sm" className="h-7 text-[9px] mt-2 bg-white text-black hover:bg-gray-100 font-bold rounded-full border-none shadow-sm">
-              AMÉLIORER
-            </Button>
-          </div>
-          <div className="absolute -right-4 -bottom-4 opacity-10">
-            {planActuel === 'roi' ? <Crown className="w-24 h-24" /> : <ShieldCheck className="w-24 h-24" />}
-          </div>
-        </div>
-
-        {/* 3. ALERTE DE LIMITE */}
-        {estBloque && (
-          <div className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
-            <Lock className="w-5 h-5 text-red-500" />
-            <div className="flex-1">
-              <p className="text-xs font-black text-red-700 dark:text-red-400 uppercase">Limite de produits atteinte !</p>
-              <p className="text-[10px] text-red-600 dark:text-red-400">Passez au plan **BOSS** pour débloquer plus d'espace.</p>
-            </div>
-          </div>
-        )}
-
-        {/* 4. PHYSIQUE VS DIGITAL */}
+        {/* 2. PHYSIQUE VS DIGITAL — compteurs */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
             <div className="absolute -right-2 -bottom-2 opacity-5">
               <Package className="w-16 h-16" />
             </div>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-tighter">Boutique Physique</p>
-            <p className="text-3xl font-black text-gray-800 dark:text-gray-100">{produitsPhysiques}</p>
+            <p className="text-3xl font-black text-gray-800 dark:text-gray-100">{produitsPhysiques.length}</p>
             <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mt-1">Articles réels</p>
           </div>
           <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
@@ -185,54 +140,73 @@ export default function BoutiqueAccueilPage() {
               <Zap className="w-16 h-16" />
             </div>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-tighter">Boutique Digitale</p>
-            <p className="text-3xl font-black text-pink-600 dark:text-pink-400">{produitsDigitaux}</p>
+            <p className="text-3xl font-black text-pink-600 dark:text-pink-400">{produitsDigitaux.length}</p>
             <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mt-1">Services & PDF</p>
           </div>
         </div>
 
-        {/* 5. STATS REVENUS & COMMANDES */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-xl bg-pink-100 dark:bg-pink-950/50 flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-pink-600 dark:text-pink-400" />
-              </div>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Ventes</p>
+        {/* 3. STATS VENTES */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-pink-100 dark:bg-pink-950/50 flex items-center justify-center">
+              <ShoppingBag className="w-4 h-4 text-pink-600 dark:text-pink-400" />
             </div>
-            <p className="text-3xl font-black text-gray-800 dark:text-gray-100">{commandesFiltrees.length}</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Ventes</p>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-xl bg-green-100 dark:bg-green-950/50 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
-              </div>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase">Revenus</p>
-            </div>
-            <p className="text-2xl font-black text-gray-800 dark:text-gray-100 leading-none">
-              {Math.round(totalMontant).toLocaleString()}
-            </p>
-            <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold mt-1 uppercase">{getSymboleDevise(boutique.devise) || "FCFA"}</p>
-          </div>
+          <p className="text-3xl font-black text-gray-800 dark:text-gray-100">{commandesFiltrees.length}</p>
         </div>
 
-        {/* 6. GRAPHIQUE */}
-        <div className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <BarChart2 className="w-5 h-5 text-pink-500" />
-            <p className="font-black text-gray-800 dark:text-gray-100 text-xs uppercase tracking-widest">Performance (7 jours)</p>
-          </div>
-          <div className="flex items-end gap-3 h-32">
-            {graph.map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full rounded-t-xl bg-pink-50 dark:bg-pink-950/30 relative group cursor-pointer"
-                  style={{ height: `${Math.max((d.montant / maxMontant) * 100, 8)}%` }}>
-                  <div className="absolute inset-0 bg-pink-500 opacity-70 group-hover:opacity-100 transition-all rounded-t-xl" />
-                </div>
-                <span className="text-[9px] text-gray-400 dark:text-gray-500 font-black uppercase">{d.label}</span>
+        {/* 4. REVENUS SÉPARÉS + TOTAL GLOBAL */}
+        <div className="space-y-3">
+
+          {/* Revenus physique */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                <Package className="w-4 h-4 text-gray-500 dark:text-gray-300" />
               </div>
-            ))}
+              <div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase">Revenus Physique</p>
+                <p className="text-xl font-black text-gray-800 dark:text-gray-100 leading-none mt-0.5">
+                  {Math.round(revenusPhysique).toLocaleString()}
+                  <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold ml-1">{devise}</span>
+                </p>
+              </div>
+            </div>
           </div>
+
+          {/* Revenus digital */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-pink-100 dark:bg-pink-950/50 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-pink-500 dark:text-pink-400" />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase">Revenus Digital</p>
+                <p className="text-xl font-black text-pink-600 dark:text-pink-400 leading-none mt-0.5">
+                  {Math.round(revenusDigital).toLocaleString()}
+                  <span className="text-[9px] text-pink-400 dark:text-pink-500 font-bold ml-1">{devise}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total global */}
+          <div className="bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950/30 dark:to-pink-900/20 rounded-3xl p-5 border border-pink-100 dark:border-pink-900 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-pink-500 flex items-center justify-center shadow-md shadow-pink-200 dark:shadow-pink-900">
+                <TrendingUp className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-[10px] text-pink-400 dark:text-pink-400 font-black uppercase">Total Global</p>
+                <p className="text-2xl font-black text-pink-700 dark:text-pink-300 leading-none mt-0.5">
+                  {Math.round(totalMontant).toLocaleString()}
+                  <span className="text-[9px] text-pink-400 font-bold ml-1">{devise}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>

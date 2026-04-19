@@ -54,16 +54,35 @@ Deno.serve(async (req: Request) => {
       user_name,
       user_phone,
       metadata = {},
+      // ── Champs PayLink ──
+      paylink_id,
+      reference,
+      customer,
+      pays,
     } = body;
 
     // ── 2. Validation des paramètres ──────────────────────────────
-    if (!user_id || !amount || !type) {
-      const missing = [!user_id && "user_id", !amount && "amount", !type && "type"].filter(Boolean);
-      console.error("❌ Paramètres manquants :", missing.join(", "));
-      return new Response(
-        JSON.stringify({ success: false, error: `Paramètres manquants : ${missing.join(", ")}` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const isPayLink = type === "paylink";
+
+    if (isPayLink) {
+      // Validation PayLink : besoin de paylink_id, amount, reference
+      if (!paylink_id || !amount || !reference) {
+        const missing = [!paylink_id && "paylink_id", !amount && "amount", !reference && "reference"].filter(Boolean);
+        return new Response(
+          JSON.stringify({ success: false, error: `Paramètres manquants : ${missing.join(", ")}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      // Validation normale : besoin de user_id, amount, type
+      if (!user_id || !amount || !type) {
+        const missing = [!user_id && "user_id", !amount && "amount", !type && "type"].filter(Boolean);
+        console.error("❌ Paramètres manquants :", missing.join(", "));
+        return new Response(
+          JSON.stringify({ success: false, error: `Paramètres manquants : ${missing.join(", ")}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // ── 3. Vérification des clés API ──────────────────────────────
@@ -82,37 +101,44 @@ Deno.serve(async (req: Request) => {
 
     // ── 4. Construction des URLs de callback ─────────────────────
     const isRecharge   = type === "recharge_transfert";
-    const callbackBase = isRecharge
-      ? `${APP_URL}/transfert`
-      : `${APP_URL}/payment/callback`;
 
-    const success_url = `${callbackBase}?status=success&type=${type}&user_id=${user_id}`;
-    const error_url   = `${callbackBase}?status=failed&type=${type}&user_id=${user_id}`;
+    let success_url: string;
+    let error_url: string;
+
+    if (isPayLink) {
+      // Pour PayLink : on lit le domaine depuis la requête (dynamique)
+      const origin = req.headers.get("origin") ?? req.headers.get("referer")?.replace(/\/[^/]*$/, "") ?? APP_URL;
+      const paylinkSlug = metadata.slug ?? paylink_id;
+      success_url = `${origin}/pay/${paylinkSlug}?status=success&ref=${reference}`;
+      error_url   = `${origin}/pay/${paylinkSlug}?status=failed&ref=${reference}`;
+    } else {
+      const callbackBase = isRecharge
+        ? `${APP_URL}/transfert`
+        : `${APP_URL}/payment/callback`;
+      success_url = `${callbackBase}?status=success&type=${type}&user_id=${user_id}`;
+      error_url   = `${callbackBase}?status=failed&type=${type}&user_id=${user_id}`;
+    }
 
     console.log("✅ success_url :", success_url);
     console.log("✅ error_url   :", error_url);
 
     // ── 5. Appel GeniusPay ────────────────────────────────────────
-    const geniusPayload = {
+    const geniusPayload: any = {
       amount,
       currency,
-      description:    getDescription(type),
-      customer: {
-        email: user_email || undefined,
-        name:  user_name  || undefined,
-        phone: user_phone || undefined,
-      },
+      description: isPayLink ? (metadata.description ?? "Paiement Nexora PayLink") : getDescription(type),
+      customer: isPayLink
+        ? { name: customer?.name, phone: customer?.phone }
+        : { email: user_email || undefined, name: user_name || undefined, phone: user_phone || undefined },
       payment_method: payment_method || undefined,
       success_url,
       error_url,
-      metadata: {
-        ...metadata,
-        user_id,
-        type,
-        amount_net: String(amount_net ?? amount),
-        source: "nexora",
-      },
+      metadata: isPayLink
+        ? { ...metadata, paylink_id, reference, source: "nexora_paylink" }
+        : { ...metadata, user_id, type, amount_net: String(amount_net ?? amount), source: "nexora" },
     };
+
+    if (isPayLink && pays) geniusPayload.country = pays;
 
     console.log("📤 Payload GeniusPay :", JSON.stringify(geniusPayload));
     console.log("🔐 X-API-Key (début) :", GENIUSPAY_PUBLIC.substring(0, 10) + "...");
@@ -168,31 +194,43 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const frais = isRecharge ? 100 : 0;
-
-    const { error: txError } = await supabase
-      .from("nexora_transactions")
-      .insert({
-        user_id,
-        type,
-        amount,
-        amount_net:   amount_net ?? (amount - frais),
-        frais,
-        currency,
-        status:       "pending",
-        moneroo_id:   String(paymentRef),
-        checkout_url: paymentUrl,
-        metadata: {
-          ...metadata,
+    if (isPayLink) {
+      // Pour PayLink : mettre à jour nexora_paylink_payments (non bloquant)
+      supabase
+        .from("nexora_paylink_payments")
+        .update({
+          geniuspay_payment_id: String(paymentRef),
+          checkout_url: paymentUrl,
+        })
+        .eq("reference", reference)
+        .then(({ error: upErr }) => {
+          if (upErr) console.error("⚠️ Mise à jour paylink_payments (non bloquant) :", upErr.message);
+        });
+    } else {
+      // Pour les autres types : insérer dans nexora_transactions
+      const frais = isRecharge ? 100 : 0;
+      const { error: txError } = await supabase
+        .from("nexora_transactions")
+        .insert({
           user_id,
           type,
-          amount_net: String(amount_net ?? (amount - frais)),
-        },
-      });
-
-    if (txError) {
-      // On logue l'erreur mais on ne bloque pas — le paiement peut quand même continuer
-      console.error("⚠️  Erreur création transaction (non bloquant) :", JSON.stringify(txError));
+          amount,
+          amount_net:   amount_net ?? (amount - frais),
+          frais,
+          currency,
+          status:       "pending",
+          moneroo_id:   String(paymentRef),
+          checkout_url: paymentUrl,
+          metadata: {
+            ...metadata,
+            user_id,
+            type,
+            amount_net: String(amount_net ?? (amount - frais)),
+          },
+        });
+      if (txError) {
+        console.error("⚠️  Erreur création transaction (non bloquant) :", JSON.stringify(txError));
+      }
     }
 
     return new Response(

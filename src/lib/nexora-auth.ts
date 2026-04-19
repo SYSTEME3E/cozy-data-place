@@ -102,6 +102,7 @@ export async function registerUser(data: {
   email: string;
   password: string;
   whatsapp?: string;
+  referrer_code?: string | null; // ✅ Code parrain passé depuis /register?ref=XXX
 }): Promise<{ success: boolean; error?: string }> {
   try {
     // Vérifier si le username existe déjà
@@ -136,9 +137,21 @@ export async function registerUser(data: {
       return { success: false, error: "Cet email est déjà utilisé." };
     }
 
+    // ✅ Résoudre le referrer_id depuis le ref_code (code parrain dans l'URL)
+    let referrer_id: string | null = null;
+    if (data.referrer_code?.trim()) {
+      const { data: parrain } = await supabase
+        .from("nexora_users" as any)
+        .select("id")
+        .eq("ref_code", data.referrer_code.trim())
+        .maybeSingle();
+      if (parrain) {
+        referrer_id = (parrain as any).id;
+      }
+    }
+
     const password_hash = await hashPassword(data.password);
 
-    // ✅ CORRECTION : is_active et status ajoutés
     const { error: insertError } = await supabase
       .from("nexora_users" as any)
       .insert({
@@ -150,8 +163,9 @@ export async function registerUser(data: {
         plan: "free",
         badge_premium: false,
         whatsapp: data.whatsapp || null,
-        is_active: true,   // ✅ Champ manquant — cause de l'erreur
-        status: "actif",   // ✅ Champ manquant — cause de l'erreur
+        is_active: true,
+        status: "actif",
+        referrer_id, // ✅ Parrain enregistré
       });
 
     if (insertError) {
@@ -162,6 +176,24 @@ export async function registerUser(data: {
         error: `Erreur lors de la création du compte : ${insertError.message}`,
       };
     }
+
+    // Notifier les admins du nouvel inscrit
+    try {
+      const { data: admins } = await supabase
+        .from("nexora_users" as any)
+        .select("id")
+        .eq("is_admin", true);
+      if (admins && admins.length > 0) {
+        const notifs = (admins as any[]).map((admin: any) => ({
+          user_id: admin.id,
+          titre: "👤 Nouvel inscrit",
+          message: `${data.nom_prenom} (@${data.username}) vient de rejoindre Nexora.${referrer_id ? " Parrainé." : ""}`,
+          type: "info",
+          lu: false,
+        }));
+        await supabase.from("nexora_notifications" as any).insert(notifs);
+      }
+    } catch (_) {}
 
     return { success: true };
   } catch (err: any) {
@@ -361,6 +393,25 @@ export function validatePassword(password: string): {
   if (!/[0-9]/.test(password))
     return { valid: false, error: "Au moins un chiffre" };
   return { valid: true };
+}
+
+// ─── Réinitialiser mot de passe via PIN ──────────────────────────────────────
+export async function updatePasswordById(userId: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const password_hash = await hashPassword(newPassword);
+    const { error } = await supabase
+      .from("nexora_users" as any)
+      .update({ password_hash, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (error) {
+      console.error("updatePasswordById error:", error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.error("updatePasswordById exception:", err);
+    return { success: false, error: err?.message ?? "Erreur inconnue" };
+  }
 }
 
 // ─── Initialiser l'admin ─────────────────────────────────────────────────────

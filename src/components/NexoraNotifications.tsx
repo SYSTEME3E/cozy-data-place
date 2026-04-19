@@ -106,9 +106,69 @@ export default function NexoraNotifications() {
       })
       .subscribe();
 
+    // ── Canal admin : achats formations ──────────────────────────────────────
+    const adminFormationChannel = supabase
+      .channel("admin_formation_purchases_" + user.id)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public",
+        table: "formation_purchases",
+      }, async (payload) => {
+        const purchase = payload.new as any;
+        if (purchase.status !== "completed") return;
+        // Vérifier si l'utilisateur est admin
+        const { data: me } = await supabase
+          .from("nexora_users" as any).select("is_admin").eq("id", user.id).maybeSingle();
+        if (!(me as any)?.is_admin) return;
+        // Récupérer infos formation
+        const { data: fm } = await supabase
+          .from("formations" as any).select("titre").eq("id", purchase.formation_id).maybeSingle();
+        const titre = (fm as any)?.titre ?? "une formation";
+        const notif: Notification = {
+          id: `fp_${purchase.id}`,
+          titre: "🎓 Achat de formation",
+          message: `Quelqu'un a acheté "${titre}" — ${purchase.amount} ${purchase.currency || "XOF"}`,
+          type: "success",
+          lu: false,
+          created_at: new Date().toISOString(),
+        };
+        setNotifications(prev => [notif, ...prev]);
+        showToast(notif);
+        playOrderSound();
+      })
+      .subscribe();
+
+    // ── Canal admin : nouvelles commissions ───────────────────────────────────
+    const adminCommissionChannel = supabase
+      .channel("admin_commissions_" + user.id)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public",
+        table: "mlm_commissions",
+      }, async (payload) => {
+        const commission = payload.new as any;
+        // Vérifier si l'utilisateur est admin
+        const { data: me } = await supabase
+          .from("nexora_users" as any).select("is_admin").eq("id", user.id).maybeSingle();
+        if (!(me as any)?.is_admin) return;
+        const typeLabel = commission.type === "formation" ? "Formation" : "Abonnement";
+        const notif: Notification = {
+          id: `cm_${commission.id}`,
+          titre: `💰 Commission ${typeLabel}`,
+          message: `Niveau ${commission.level === 0 ? "Vendeur" : commission.level} — +${commission.amount} ${commission.currency || "XOF"}`,
+          type: "success",
+          lu: false,
+          created_at: new Date().toISOString(),
+        };
+        setNotifications(prev => [notif, ...prev]);
+        showToast(notif);
+        playNotifSound();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(commandeChannel);
+      supabase.removeChannel(adminFormationChannel);
+      supabase.removeChannel(adminCommissionChannel);
     };
   }, [user?.id]);
 

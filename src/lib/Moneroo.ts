@@ -73,7 +73,7 @@ export const RESEAU_CODES: Record<string, string> = {
 // ─────────────────────────────────────────────
 
 export const FRAIS_PAIEMENT = 100;
-export const TAUX_RETRAIT   = 0.03;
+export const TAUX_RETRAIT   = 0.07; // 7% sur les retraits uniquement (transferts = 0%)
 
 export function calcFraisPaiement(_montant: number): number {
   return FRAIS_PAIEMENT;

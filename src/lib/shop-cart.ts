@@ -11,6 +11,9 @@ export interface ShopCartProduct {
   photos?: string[];
   paiement_reception?: boolean;
   paiement_lien?: string | null;
+  payment_mode?: string | null;
+  nexora_paylink_id?: string | null;
+  nexora_paylink_url?: string | null;
   moyens_paiement?: Array<{ reseau: string; numero: string; nom_titulaire: string }>;
 }
 
