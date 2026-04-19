@@ -36,3 +36,5 @@ public/*.apk
 assets/public/*.apk
 
 public/*.apk
+
+nexora-update.ps1
