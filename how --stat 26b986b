@@ -1,0 +1,20 @@
+[33m864d5ce[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix: exclude android build folders + nouvelles fonctionnalites
+[33m3497ee1[m Bouton violet anime + icone Android professionnelle
+[33m4a96a37[m Bouton telechargement violet anime
+[33m0270605[m APK mis a jour - redirect login + corrections
+[33mf1d020f[m Build final APK + LandingPage corrigée
+[33m8108556[m Nouvelle version APK avec splash + logo
+[33md11d8af[m APK sans LFS
+[33m26b986b[m Fix conflit merge definitif
+[33m8297ef0[m Fix conflit merge LandingPage
+[33m209cd69[m Ajout APK dans public
+[33md8a8aaa[m Fix lien APK majuscule Nexora.apk
+[33m8397f24[m Lien APK GitHub Releases
+[33m3897118[m Update LandingPage.tsx
+[33md8653e6[m Suppression splash natif Android + NexoraSplash uniquement
+[33m007d8be[m Splash Android transparent sans fond blanc
+[33m742f5ce[m Update LandingPage.tsx
+[33ma3ae2b7[m Merge resolved
+[33ma64108c[m Splash transparent + NexoraSplash
+[33mec53b01[m Update ContactsWhatsAppPage.tsx
+[33m4608aaf[m App mise a jour
