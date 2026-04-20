@@ -8,7 +8,7 @@ import {
   Tag, Star, Share2, CheckCircle, ExternalLink, Phone,
   ShoppingBag, ChevronDown, ChevronUp, Globe, Hash,
   Wallet, AlertTriangle, Package, Copy, Check,
-  Download, Shield, Clock, Infinity
+  Download, Shield, Clock, Infinity as InfinityIcon
 } from "lucide-react";
 
 
@@ -271,7 +271,7 @@ export default function DigitalProductPublicPage() {
                 ))}
                 <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-green-50">
                   <div className="w-7 h-7 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
-                    <Infinity className="w-4 h-4 text-white" />
+                    <InfinityIcon className="w-4 h-4 text-white" />
                   </div>
                   <p className="text-sm font-medium text-gray-700">Stock illimité</p>
                 </div>

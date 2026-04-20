@@ -105,6 +105,15 @@ export default function NouveauProduitPage() {
     ? calcPct(parseFloat(form.prix), parseFloat(form.prix_promo))
     : 0;
 
+  // ── État pour la modale de confirmation de redimensionnement ──
+  const [resizeModal, setResizeModal] = useState<{
+    file: File;
+    originalW: number;
+    originalH: number;
+    targetSize: AllowedSize;
+    inputRef: React.RefObject<HTMLInputElement>;
+  } | null>(null);
+
   // ── Chargement initial ──
   useEffect(() => {
     const init = async () => {
@@ -237,15 +246,6 @@ export default function NouveauProduitPage() {
     const sorted = [...ALLOWED_SIZES].sort((a, b) => b - a);
     return sorted.find((s) => s <= maxDim) ?? ALLOWED_SIZES[0];
   };
-
-  // ── État pour la modale de confirmation de redimensionnement ──
-  const [resizeModal, setResizeModal] = useState<{
-    file: File;
-    originalW: number;
-    originalH: number;
-    targetSize: AllowedSize;
-    inputRef: React.RefObject<HTMLInputElement>;
-  } | null>(null);
 
   // ── Upload photo — avec validation + redimensionnement intelligent ──
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

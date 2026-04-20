@@ -129,7 +129,7 @@ export default function CheckoutPage() {
         const local = saved.whatsappFull.replace(defaultCountry.dialCode, "").trim();
         setWhatsappDisplay(local);
       }
-    } catch {}
+    } catch (e) { console.warn("Erreur ignorée:", e); }
   }, []);
 
   // ── Sauvegarde auto ──
@@ -139,7 +139,7 @@ export default function CheckoutPage() {
         nom, email, ville, adresse, quartier, countryCode: waCountry.code,
         whatsappFull,
       }));
-    } catch {}
+    } catch (e) { console.warn("Erreur ignorée:", e); }
   }, [nom, email, ville, adresse, quartier, waCountry.code, whatsappFull]);
 
   // ── Détection du type de panier ──
@@ -233,7 +233,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    try { localStorage.removeItem(LS_KEY); } catch {}
+    try { localStorage.removeItem(LS_KEY); } catch (e) { console.warn("Erreur ignorée:", e); }
 
     // ── Sauvegarder toutes les données du panier avant vidage ──
     setSavedSubtotal(subtotal);

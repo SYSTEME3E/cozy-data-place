@@ -60,6 +60,8 @@ interface PurchasedFormation {
   amount: number;
   currency: string;
   status: string;
+  acces_revoque: boolean;
+  revoque_raison: string | null;
   created_at: string;
   formations: Formation | null;
 }
@@ -332,9 +334,10 @@ export default function MesFormationsPage() {
     );
   }
 
-  const purchasedIds = new Set(purchases.map(p => p.formation_id));
-  const totalAchats = purchases.length;
-  const nonPurchased = allFormations.filter(f => !purchasedIds.has(f.id));
+  const purchasedIds   = new Set(purchases.filter(p => !p.acces_revoque).map(p => p.formation_id));
+  const revokedPurchases = purchases.filter(p => p.acces_revoque);
+  const totalAchats    = purchases.filter(p => !p.acces_revoque).length;
+  const nonPurchased   = allFormations.filter(f => !purchasedIds.has(f.id));
 
   return (
     <AppLayout>
@@ -405,7 +408,7 @@ export default function MesFormationsPage() {
               <Check className="w-4 h-4" /> Formations achetées
             </h2>
 
-            {purchases.length === 0 ? (
+            {purchases.filter(p => !p.acces_revoque).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 bg-muted/20 rounded-3xl border border-border/50">
                 <div className="w-16 h-16 rounded-3xl bg-muted/40 flex items-center justify-center">
                   <BookOpen className="w-8 h-8 text-muted-foreground/40" />
@@ -421,7 +424,7 @@ export default function MesFormationsPage() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
-                {purchases.map(purchase => {
+                {purchases.filter(p => !p.acces_revoque).map(purchase => {
                   const f = purchase.formations;
                   if (!f) return null;
                   return (
@@ -467,6 +470,37 @@ export default function MesFormationsPage() {
                   expanded={expandedIds.has(formation.id)} onToggle={() => toggleModules(formation.id)}
                   onNavigate={() => navigate(purchasedIds.has(formation.id) || userIsAdmin ? `/mes-formations/${formation.id}/cours` : `/formations/${formation.id}`)} />
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Formations avec accès révoqué */}
+        {!userIsAdmin && revokedPurchases.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-base font-black text-red-600 dark:text-red-500 flex items-center gap-2">
+              <Lock className="w-4 h-4" /> Accès suspendu
+            </h2>
+            <div className="space-y-3">
+              {revokedPurchases.map(purchase => {
+                const f = purchase.formations;
+                if (!f) return null;
+                return (
+                  <div key={purchase.id} className="flex items-center gap-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 rounded-2xl opacity-75">
+                    <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                      <Lock className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-red-700 dark:text-red-400 truncate">{f.titre}</p>
+                      <p className="text-xs text-red-500 mt-0.5">Accès révoqué par l'administrateur</p>
+                      {purchase.revoque_raison && (
+                        <p className="text-xs text-muted-foreground mt-1 bg-red-100 dark:bg-red-900/30 rounded px-2 py-1">
+                          Motif : {purchase.revoque_raison}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}

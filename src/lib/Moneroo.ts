@@ -117,7 +117,7 @@ async function extractErrorMessage(error: any): Promise<string> {
         return raw || "Erreur inconnue";
       }
     }
-  } catch (_) {}
+  } catch (_) { console.warn("extractErrorMessage: impossible de lire le corps de l'erreur"); }
   return error?.message ?? "Erreur inconnue";
 }
 

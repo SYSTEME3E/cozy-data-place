@@ -652,7 +652,7 @@ export default function ProduitsDigitauxPage() {
   const emptyForm = {
     nom: "", description: "", prix: "", prix_promo: "", type_digital: "", categorie: "",
     tags: [] as string[], photos: [] as string[], actif: false, vedette: false,
-    payment_mode: "external" as "external",
+    payment_mode: "external" as const,
     paiement_lien: "",
     instructions_achat: "", seo_titre: "", seo_description: "",
   };

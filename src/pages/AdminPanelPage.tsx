@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,12 +11,12 @@ import {
   UserCheck, UserX, Clock, Calendar, DollarSign,
   Unlock, BadgeCheck, Bell,
   Package, ShoppingCart, AlertOctagon,
-  TrendingUp, Percent, Key, Lock,
+  TrendingDown, Key, Lock,
   MinusCircle, ArrowRightLeft, Link2,
   BookOpen, GitBranch, Download, Eye,
-  CreditCard, Wallet, BarChart2, Filter,
-  ChevronRight, Globe, Zap, AlertCircle,
-  Send, RefreshCcw, TrendingDown, Award
+  Wallet, Filter,
+  Globe, Zap, AlertCircle,
+  Award
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,111 +24,83 @@ import AdminPinManager from "@/components/AdminPinManager";
 
 // ── Types ──────────────────────────────────────────────────
 interface NexoraUser {
-  id: string;
-  nom_prenom: string;
-  username: string;
-  email: string;
-  avatar_url: string | null;
-  is_admin: boolean;
+  id: string; nom_prenom: string; username: string; email: string;
+  avatar_url: string | null; is_admin: boolean;
   plan: "gratuit" | "boss" | "roi" | "admin";
-  badge_premium: boolean;
-  is_active: boolean;
+  badge_premium: boolean; is_active: boolean;
   status: "actif" | "suspendu" | "bloque";
-  suspended_reason: string | null;
-  blocked_reason: string | null;
-  last_login: string | null;
-  premium_since: string | null;
-  premium_expires_at: string | null;
-  created_at: string;
-  dette_cachee?: number;
-  dette_active?: boolean;
-  admin_features?: string[];
-  admin_password?: string | null;
-  password_plain?: string | null;
-  balance?: number;
-  mlm_total_earned?: number;
-  total_filleuls?: number;
-  role?: string;
+  suspended_reason: string | null; blocked_reason: string | null;
+  last_login: string | null; premium_since: string | null;
+  premium_expires_at: string | null; created_at: string;
+  dette_cachee?: number; dette_active?: boolean;
+  admin_features?: string[]; admin_password?: string | null;
+  password_plain?: string | null; balance?: number;
+  mlm_total_earned?: number; total_filleuls?: number;
+  referrer_id?: string | null; has_set_pin?: boolean; role?: string;
 }
-
 interface Boutique {
-  id: string; nom: string; slug: string;
-  description: string | null; actif: boolean;
-  created_at: string; user_id: string;
-  total_revenue?: number; total_visits?: number;
+  id: string; nom: string; slug: string; description: string | null;
+  actif: boolean; created_at: string; user_id: string;
 }
-
 interface Produit {
-  id: string; boutique_id: string; nom: string;
-  description: string | null; prix: number;
-  prix_promo: number | null; categorie: string | null;
+  id: string; boutique_id: string; nom: string; description: string | null;
+  prix: number; prix_promo: number | null; categorie: string | null;
   stock: number; stock_illimite: boolean; photos: any;
   actif: boolean; created_at: string; type?: string;
 }
-
 interface Commande {
-  id: string; boutique_id: string; numero: string;
-  client_nom: string; total: number; devise: string;
-  statut: string; statut_paiement: string; created_at: string;
+  id: string; boutique_id: string; numero: string; client_nom: string;
+  total: number; devise: string; statut: string; statut_paiement: string;
+  created_at: string;
 }
-
 interface Abonnement {
-  id: string; user_id: string | null; plan: string;
-  montant: number; devise: string; statut: string;
-  created_at: string; date_debut: string; date_fin: string | null;
+  id: string; user_id: string | null; plan: string; montant: number;
+  devise: string; statut: string; created_at: string;
+  date_debut: string; date_fin: string | null;
 }
-
 interface PayLink {
-  id: string; user_id: string; title: string;
-  amount: number; devise: string; total_paid: number;
-  total_tx: number; success_url: string | null;
-  is_active: boolean; created_at: string;
+  id: string; user_id: string; title: string; amount: number;
+  devise: string; total_paid: number; total_tx: number;
+  success_url: string | null; is_active: boolean; created_at: string;
 }
-
 interface Transaction {
-  id: string; user_id: string; amount: number;
-  frais: number; devise: string; type: string;
-  status: string; created_at: string; reference?: string;
+  id: string; user_id: string; amount: number; frais: number;
+  devise: string; type: string; status: string;
+  created_at: string; reference?: string;
 }
-
 interface Withdrawal {
-  id: string; user_id: string; amount: number;
-  frais: number; devise: string; reseau?: string;
-  telephone?: string; nom_beneficiaire?: string;
-  status: string; admin_note?: string; created_at: string;
+  id: string; user_id: string; amount: number; frais: number;
+  devise: string; reseau?: string; telephone?: string;
+  nom_beneficiaire?: string; status: string;
+  admin_note?: string; created_at: string;
 }
-
-interface MlmRelation {
-  id: string; user_id: string; referrer_id: string;
-  level: number; created_at: string;
-}
-
-interface MlmEarning {
-  id: string; user_id: string; amount: number;
-  level: number; status: string; created_at: string;
-}
-
 interface Formation {
-  id: string; user_id?: string; title: string;
-  price: number; devise: string; is_active: boolean;
-  total_sales: number; total_revenue: number; created_at: string;
+  id: string; titre: string; description: string | null;
+  prix: number; prix_promo: number | null; image_url: string | null;
+  actif: boolean; niveau: string | null; categorie: string | null;
+  duree_totale: number | null; created_at: string;
+  nb_achats?: number; revenus_total?: number;
 }
-
-interface FormationSale {
+interface FormationPurchase {
   id: string; user_id: string; formation_id: string;
-  amount: number; devise: string; created_at: string;
+  amount: number; currency: string; status: string;
+  acces_revoque: boolean; revoque_raison: string | null;
+  revoque_at?: string | null; created_at: string;
 }
-
+interface MlmWithdrawal {
+  id: string; user_id: string; amount: number; currency: string;
+  reseau: string | null; telephone: string | null;
+  nom_beneficiaire: string | null; pays: string | null;
+  status: string; admin_note: string | null;
+  processed_at: string | null; created_at: string;
+}
 interface TrafficStat {
   id: string; user_id?: string; shop_id?: string;
-  visits: number; clicks: number;
-  conversions?: number; date: string;
+  visits: number; clicks: number; conversions?: number; date: string;
 }
-
 interface AdminNotif {
-  id: string; type: string; titre: string;
-  message?: string; user_id?: string;
-  severity: string; lu: boolean; created_at: string;
+  id: string; type: string; titre: string; message?: string;
+  user_id?: string; severity: string; lu: boolean; created_at: string;
 }
 
 type AdminTab = "stats" | "users" | "boutiques" | "paylinks" | "transactions" |
@@ -156,31 +128,32 @@ const PLAN_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   admin:   { label: "Admin",   color: "text-amber-700",  bg: "bg-amber-100"  },
 };
 const TX_STATUS = {
-  success: { label: "Succès",   color: "text-green-700",  bg: "bg-green-100"  },
-  pending: { label: "En cours", color: "text-yellow-700", bg: "bg-yellow-100" },
-  failed:  { label: "Échoué",   color: "text-red-700",    bg: "bg-red-100"    },
-  refunded:{ label: "Remboursé",color: "text-blue-700",   bg: "bg-blue-100"   },
+  success:  { label: "Succès",    color: "text-green-700",  bg: "bg-green-100"  },
+  pending:  { label: "En cours",  color: "text-yellow-700", bg: "bg-yellow-100" },
+  failed:   { label: "Échoué",    color: "text-red-700",    bg: "bg-red-100"    },
+  refunded: { label: "Remboursé", color: "text-blue-700",   bg: "bg-blue-100"   },
 };
 const WD_STATUS = {
-  pending:    { label: "En attente",  color: "text-yellow-700", bg: "bg-yellow-100" },
-  approved:   { label: "Approuvé",    color: "text-green-700",  bg: "bg-green-100"  },
-  rejected:   { label: "Refusé",      color: "text-red-700",    bg: "bg-red-100"    },
-  processing: { label: "Traitement",  color: "text-blue-700",   bg: "bg-blue-100"   },
+  pending:    { label: "En attente", color: "text-yellow-700", bg: "bg-yellow-100" },
+  approved:   { label: "Approuvé",   color: "text-green-700",  bg: "bg-green-100"  },
+  rejected:   { label: "Refusé",     color: "text-red-700",    bg: "bg-red-100"    },
+  processing: { label: "Traitement", color: "text-blue-700",   bg: "bg-blue-100"   },
 };
+
 const ALL_ADMIN_FEATURES = [
-  { key: "stats",          label: "Statistiques générales"     },
-  { key: "users_view",     label: "Voir les utilisateurs"      },
-  { key: "users_edit",     label: "Modifier les utilisateurs"  },
-  { key: "view_passwords", label: "Voir les mots de passe"     },
-  { key: "boutiques",      label: "Gérer les boutiques"        },
-  { key: "produits",       label: "Gérer les produits"         },
-  { key: "abonnements",    label: "Voir les abonnements"       },
-  { key: "logs",           label: "Voir les logs"              },
-  { key: "transferts",     label: "Gestion transferts / dettes"},
-  { key: "paylinks",       label: "Gérer PayLinks"             },
-  { key: "formations",     label: "Gérer les Formations"       },
-  { key: "mlm",            label: "Voir MLM"                   },
-  { key: "retraits",       label: "Gérer les retraits"         },
+  { key: "stats",          label: "Statistiques générales"      },
+  { key: "users_view",     label: "Voir les utilisateurs"       },
+  { key: "users_edit",     label: "Modifier les utilisateurs"   },
+  { key: "view_passwords", label: "Voir les mots de passe"      },
+  { key: "boutiques",      label: "Gérer les boutiques"         },
+  { key: "produits",       label: "Gérer les produits"          },
+  { key: "abonnements",    label: "Voir les abonnements"        },
+  { key: "logs",           label: "Voir les logs"               },
+  { key: "transferts",     label: "Gestion transferts / dettes" },
+  { key: "paylinks",       label: "Gérer PayLinks"              },
+  { key: "formations",     label: "Gérer les Formations"        },
+  { key: "mlm",            label: "Voir MLM"                    },
+  { key: "retraits",       label: "Gérer les retraits"          },
 ];
 const ADMIN_CODE = "ERIC";
 
@@ -192,30 +165,31 @@ export default function AdminPanelPage() {
   const [codeInput, setCodeInput]             = useState("");
   const [codeError, setCodeError]             = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [menuOpen, setMenuOpen]               = useState(false);
   const [tab, setTab] = useState<AdminTab>(() => {
-    try { return (localStorage.getItem("admin_tab") as AdminTab) || "stats"; }
-    catch { return "stats"; }
+    try { return (localStorage.getItem("admin_tab") as AdminTab) || "stats"; } catch { return "stats"; }
   });
   const [loading, setLoading] = useState(false);
 
-  // ─── Data ───────────────────────────────────────────────
-  const [users,          setUsers]          = useState<NexoraUser[]>([]);
-  const [boutiques,      setBoutiques]      = useState<Boutique[]>([]);
-  const [produits,       setProduits]       = useState<Produit[]>([]);
-  const [commandes,      setCommandes]      = useState<Commande[]>([]);
-  const [abonnements,    setAbonnements]    = useState<Abonnement[]>([]);
-  const [logs,           setLogs]           = useState<any[]>([]);
-  const [paylinks,       setPaylinks]       = useState<PayLink[]>([]);
-  const [transactions,   setTransactions]   = useState<Transaction[]>([]);
-  const [withdrawals,    setWithdrawals]    = useState<Withdrawal[]>([]);
-  const [mlmCommissions, setMlmCommissions] = useState<any[]>([]);
-  const [formations,     setFormations]     = useState<Formation[]>([]);
-  const [formationSales, setFormationSales] = useState<FormationSale[]>([]);
-  const [trafficStats,   setTrafficStats]   = useState<TrafficStat[]>([]);
-  const [adminNotifs,    setAdminNotifs]    = useState<AdminNotif[]>([]);
+  // ─── Data ─────────────────────────────────────────────
+  const [users,              setUsers]              = useState<NexoraUser[]>([]);
+  const [boutiques,          setBoutiques]          = useState<Boutique[]>([]);
+  const [produits,           setProduits]           = useState<Produit[]>([]);
+  const [commandes,          setCommandes]          = useState<Commande[]>([]);
+  const [abonnements,        setAbonnements]        = useState<Abonnement[]>([]);
+  const [logs,               setLogs]               = useState<any[]>([]);
+  const [paylinks,           setPaylinks]           = useState<PayLink[]>([]);
+  const [transactions,       setTransactions]       = useState<Transaction[]>([]);
+  const [withdrawals,        setWithdrawals]        = useState<Withdrawal[]>([]);
+  const [mlmCommissions,     setMlmCommissions]     = useState<any[]>([]);
+  const [formations,         setFormations]         = useState<Formation[]>([]);
+  const [formationPurchases, setFormationPurchases] = useState<FormationPurchase[]>([]);
+  const [mlmWithdrawals,     setMlmWithdrawals]     = useState<MlmWithdrawal[]>([]);
+  const [mlmWdNote,          setMlmWdNote]          = useState<Record<string, string>>({});
+  const [trafficStats,       setTrafficStats]       = useState<TrafficStat[]>([]);
+  const [adminNotifs,        setAdminNotifs]        = useState<AdminNotif[]>([]);
 
-  // ─── Stats aggregated ───────────────────────────────────
+  // ─── Stats ────────────────────────────────────────────
   const [stats, setStats] = useState({
     totalUsers: 0, premiumUsers: 0, gratuitUsers: 0, adminUsers: 0,
     activeUsers: 0, suspendedUsers: 0, blockedUsers: 0,
@@ -223,15 +197,15 @@ export default function AdminPanelPage() {
     totalProduits: 0, totalCommandes: 0, chiffreAffairesTotal: 0,
     newUsersToday: 0, newPremiumToday: 0,
     caAbonnements: 0, totalAbonnements: 0,
-    revenusTransferts: 0, totalTransferts: 0,
     totalPaylinks: 0, caPaylinks: 0,
     totalTransactions: 0, caTransactions: 0,
     pendingWithdrawals: 0, totalWithdrawals: 0, totalWithdrawalAmount: 0,
-    totalMlmEarnings: 0, totalFormationRevenue: 0, totalFormationSales: 0,
+    totalMlmEarnings: 0, pendingMlmWithdrawals: 0,
+    totalFormationRevenue: 0, totalFormationSales: 0, totalFormations: 0,
     totalVisits: 0, totalClicks: 0, unreadNotifs: 0,
   });
 
-  // ─── Filters & UI ───────────────────────────────────────
+  // ─── Filters & UI ─────────────────────────────────────
   const [searchUser,       setSearchUser]       = useState("");
   const [filterPlan,       setFilterPlan]       = useState("");
   const [filterStatus,     setFilterStatus]     = useState("");
@@ -240,15 +214,15 @@ export default function AdminPanelPage() {
   const [filterTxType,     setFilterTxType]     = useState("");
   const [filterTxStatus,   setFilterTxStatus]   = useState("");
   const [filterWdStatus,   setFilterWdStatus]   = useState("");
-  const [selectedMlmUser,  setSelectedMlmUser]  = useState<string | null>(null);
-  const [expandedUser,     setExpandedUser]      = useState<string | null>(null);
+  const [filterFormation,  setFilterFormation]  = useState<"all"|"active"|"inactive">("all");
+  const [filterPurchase,   setFilterPurchase]   = useState<"all"|"active"|"revoque">("all");
 
-  // ─── Action modal ───────────────────────────────────────
+  // ─── Action modal ─────────────────────────────────────
   const [actionModal,  setActionModal]  = useState<{ type: string; target: any; targetType: string } | null>(null);
   const [actionReason, setActionReason] = useState("");
   const [premiumDays,  setPremiumDays]  = useState("30");
 
-  // ─── Detail user ────────────────────────────────────────
+  // ─── Detail user ──────────────────────────────────────
   const [selectedUser,     setSelectedUser]     = useState<NexoraUser | null>(null);
   const [adminFeatures,    setAdminFeatures]    = useState<string[]>([]);
   const [adminPassword,    setAdminPassword]    = useState("");
@@ -259,13 +233,13 @@ export default function AdminPanelPage() {
   const [showUserPassword, setShowUserPassword] = useState(false);
   const [userTxHistory,    setUserTxHistory]    = useState<any[]>([]);
   const [userTxLoading,    setUserTxLoading]    = useState(false);
-  const [userTxTab,        setUserTxTab]        = useState<"all" | "recharges" | "transferts">("all");
+  const [userTxTab,        setUserTxTab]        = useState<"all"|"recharges"|"transferts">("all");
   const [detteModal,       setDetteModal]       = useState<NexoraUser | null>(null);
   const [detteMontant,     setDetteMontant]     = useState("");
 
-  // ─── Auth ────────────────────────────────────────────────
+  // ─── Auth ─────────────────────────────────────────────
   useEffect(() => {
-    try { const a = sessionStorage.getItem("nexora_admin_auth"); if (a === "true") setIsAuthenticated(true); } catch {}
+    try { if (sessionStorage.getItem("nexora_admin_auth") === "true") setIsAuthenticated(true); } catch {}
   }, []);
   useEffect(() => { try { localStorage.setItem("admin_tab", tab); } catch {} }, [tab]);
 
@@ -276,19 +250,20 @@ export default function AdminPanelPage() {
     } else { setCodeError(true); setCodeInput(""); }
   };
 
-  // ─── Load All ────────────────────────────────────────────
+  // ─── Load All ─────────────────────────────────────────
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const safe = async (fn: () => Promise<any>): Promise<any[]> => {
-        try { const { data, error } = await fn(); if (error) return []; return data || []; }
-        catch { return []; }
+        try { const { data, error } = await fn(); if (error) { console.warn("Supabase error:", error.message); return []; } return data || []; }
+        catch (e) { console.warn("Fetch error:", e); return []; }
       };
 
       const [
         usersD, boutiquesD, produitsD, commandesD, abonnementsD,
         logsD, paylinksD, transactionsD, withdrawalsD,
-        mlmCommD, _unused, formationsD, formSalesD, trafficD, adminNotifsD
+        mlmCommD, formationsD, formPurchasesD,
+        mlmWdD, trafficD, adminNotifsD,
       ] = await Promise.all([
         safe(() => (supabase.from("nexora_users") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("boutiques") as any).select("*").order("created_at", { ascending: false })),
@@ -300,42 +275,53 @@ export default function AdminPanelPage() {
         safe(() => (supabase.from("transactions") as any).select("*").order("created_at", { ascending: false }).limit(200)),
         safe(() => (supabase.from("withdrawals") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("mlm_commissions") as any).select("*").order("created_at", { ascending: false })),
-        safe(() => Promise.resolve({ data: [], error: null })), // mlm_earnings remplacé par mlm_commissions
+        // ✅ CORRECTION : récupération directe de formations
         safe(() => (supabase.from("formations") as any).select("*").order("created_at", { ascending: false })),
-        safe(() => (supabase.from("formation_sales") as any).select("*").order("created_at", { ascending: false })),
+        safe(() => (supabase.from("formation_purchases") as any).select("*").order("created_at", { ascending: false })),
+        // ✅ CORRECTION : retraits MLM
+        safe(() => (supabase.from("mlm_withdrawals") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("traffic_stats") as any).select("*").order("date", { ascending: false }).limit(100)),
         safe(() => (supabase.from("admin_notifications") as any).select("*").order("created_at", { ascending: false }).limit(50)),
       ]);
 
-      const u  = usersD        as NexoraUser[];
-      const b  = boutiquesD    as Boutique[];
-      const p  = produitsD     as Produit[];
-      const c  = commandesD    as Commande[];
-      const ab = abonnementsD  as Abonnement[];
-      const pl = paylinksD     as PayLink[];
-      const tx = transactionsD as Transaction[];
-      const wd = withdrawalsD  as Withdrawal[];
-      const mc = mlmCommD      as any[];
-      const fo = formationsD   as Formation[];
-      const fs = formSalesD    as FormationSale[];
-      const tr = trafficD      as TrafficStat[];
-      const an = adminNotifsD  as AdminNotif[];
+      const u   = usersD           as NexoraUser[];
+      const b   = boutiquesD       as Boutique[];
+      const p   = produitsD        as Produit[];
+      const c   = commandesD       as Commande[];
+      const ab  = abonnementsD     as Abonnement[];
+      const pl  = paylinksD        as PayLink[];
+      const tx  = transactionsD    as Transaction[];
+      const wd  = withdrawalsD     as Withdrawal[];
+      const mc  = mlmCommD         as any[];
+      const fp  = formPurchasesD   as FormationPurchase[];
+      const mw  = mlmWdD           as MlmWithdrawal[];
+      const tr  = trafficD         as TrafficStat[];
+      const an  = adminNotifsD     as AdminNotif[];
+
+      // ✅ Enrichir formations avec stats réelles
+      const fo: Formation[] = (formationsD as Formation[]).map(f => ({
+        ...f,
+        nb_achats: fp.filter(x => x.formation_id === f.id && x.status === "completed" && !x.acces_revoque).length,
+        revenus_total: fp
+          .filter(x => x.formation_id === f.id && x.status === "completed")
+          .reduce((s, x) => s + (Number(x.amount) || 0), 0),
+      }));
 
       setUsers(u); setBoutiques(b); setProduits(p); setCommandes(c);
       setAbonnements(ab); setLogs(logsD); setPaylinks(pl);
       setTransactions(tx); setWithdrawals(wd); setMlmCommissions(mc);
-      setFormations(fo); setFormationSales(fs);
-      setTrafficStats(tr); setAdminNotifs(an);
+      setFormations(fo); setFormationPurchases(fp);
+      setMlmWithdrawals(mw); setTrafficStats(tr); setAdminNotifs(an);
 
-      const today      = new Date().toDateString();
-      const caComm     = c.reduce((a, x) => a + (Number(x.total) || 0), 0);
-      const caAb       = ab.filter(a => a.statut === "actif" || a.statut === "paye").reduce((a, x) => a + (Number(x.montant) || 0), 0);
-      const caPaylinks = pl.reduce((a, x) => a + (Number(x.total_paid) || 0), 0);
-      const caTx       = tx.filter(x => x.status === "success").reduce((a, x) => a + (Number(x.amount) || 0), 0);
-      const caFormSales= fs.reduce((a, x) => a + (Number(x.amount) || 0), 0);
-      const totalMlm   = mc.filter(x => x.status === "credited").reduce((a, x) => a + (Number(x.amount) || 0), 0);
-      const totalVis   = tr.reduce((a, x) => a + (Number(x.visits) || 0), 0);
-      const totalCli   = tr.reduce((a, x) => a + (Number(x.clicks) || 0), 0);
+      const today       = new Date().toDateString();
+      const caComm      = c.reduce((a, x) => a + (Number(x.total) || 0), 0);
+      const caAb        = ab.filter(a => a.statut === "actif" || a.statut === "paye").reduce((a, x) => a + (Number(x.montant) || 0), 0);
+      const caPaylinks  = pl.reduce((a, x) => a + (Number(x.total_paid) || 0), 0);
+      const caTx        = tx.filter(x => x.status === "success").reduce((a, x) => a + (Number(x.amount) || 0), 0);
+      const caFormSales = fp.filter(x => x.status === "completed").reduce((a, x) => a + (Number(x.amount) || 0), 0);
+      const totalMlm    = mc.filter(x => x.status === "credited").reduce((a, x) => a + (Number(x.amount) || 0), 0);
+      const totalVis    = tr.reduce((a, x) => a + (Number(x.visits) || 0), 0);
+      const totalCli    = tr.reduce((a, x) => a + (Number(x.clicks) || 0), 0);
 
       setStats({
         totalUsers: u.length,
@@ -351,17 +337,21 @@ export default function AdminPanelPage() {
         totalCommandes: c.length,
         chiffreAffairesTotal: caComm,
         newUsersToday: u.filter(x => new Date(x.created_at).toDateString() === today).length,
-        newPremiumToday: u.filter(x => (x.plan === "boss" || x.plan === "roi") && x.premium_since && new Date(x.premium_since).toDateString() === today).length,
+        newPremiumToday: u.filter(x =>
+          (x.plan === "boss" || x.plan === "roi") &&
+          x.premium_since && new Date(x.premium_since).toDateString() === today
+        ).length,
         caAbonnements: caAb, totalAbonnements: ab.length,
-        revenusTransferts: 0, totalTransferts: 0,
         totalPaylinks: pl.length, caPaylinks,
         totalTransactions: tx.length, caTransactions: caTx,
         pendingWithdrawals: wd.filter(x => x.status === "pending").length,
         totalWithdrawals: wd.length,
         totalWithdrawalAmount: wd.filter(x => x.status === "approved").reduce((a, x) => a + (Number(x.amount) || 0), 0),
         totalMlmEarnings: totalMlm,
+        pendingMlmWithdrawals: mw.filter(x => x.status === "pending").length,
         totalFormationRevenue: caFormSales,
-        totalFormationSales: fs.length,
+        totalFormationSales: fp.filter(x => x.status === "completed").length,
+        totalFormations: fo.length,
         totalVisits: totalVis, totalClicks: totalCli,
         unreadNotifs: an.filter(x => !x.lu).length,
       });
@@ -371,15 +361,12 @@ export default function AdminPanelPage() {
 
   useEffect(() => { if (isAuthenticated) loadAll(); }, [isAuthenticated, loadAll]);
 
-  // ─── Helpers ─────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────
   const logAction = async (userId: string | null, action: string, details: string | null) => {
-    try { await supabase.from("nexora_logs" as any).insert({ user_id: userId, action, details }); } catch {}
+    try { await (supabase.from("nexora_logs") as any).insert({ user_id: userId, action, details }); } catch {}
   };
   const sendNotification = async (userId: string, titre: string, message: string, type = "warning") => {
-    try { await supabase.from("nexora_notifications" as any).insert({ user_id: userId, titre, message, type, lu: false }); } catch {}
-  };
-  const pushAdminNotif = async (titre: string, message: string, severity = "info", type = "system") => {
-    try { await supabase.from("admin_notifications" as any).insert({ titre, message, severity, type, lu: false }); } catch {}
+    try { await (supabase.from("nexora_notifications") as any).insert({ user_id: userId, titre, message, type, lu: false }); } catch {}
   };
 
   const getBoutiquesByUser     = (id: string) => boutiques.filter(b => b.user_id === id);
@@ -389,49 +376,71 @@ export default function AdminPanelPage() {
   const getCommandesByUser     = (id: string) => getBoutiquesByUser(id).flatMap(b => getCommandesByBoutique(b.id));
   const getCaByUser            = (id: string) => getBoutiquesByUser(id).reduce((a, b) => a + getCaByBoutique(b.id), 0);
   const getUserById            = (id: string) => users.find(u => u.id === id);
-  const getMlmFilleuls         = (id: string) => users.filter(u => (u as any).referrer_id === id);
+  const getMlmFilleuls         = (id: string) => users.filter(u => u.referrer_id === id);
   const getMlmEarningsByUser   = (id: string) => mlmCommissions.filter(c => c.to_user_id === id);
   const getPayLinksByUser      = (id: string) => paylinks.filter(p => p.user_id === id);
-  const getFormationSalesByUser= (id: string) => formationSales.filter(f => f.user_id === id);
   const getWithdrawalsByUser   = (id: string) => withdrawals.filter(w => w.user_id === id);
+  const getFormationBuyersByFormation = (formId: string) =>
+    formationPurchases.filter(fp => fp.formation_id === formId && fp.status === "completed");
 
-  // ─── CSV Export ──────────────────────────────────────────
   const exportCSV = (data: any[], filename: string) => {
     if (!data.length) return;
     const keys = Object.keys(data[0]);
-    const csv = [keys.join(","), ...data.map(row => keys.map(k => JSON.stringify(row[k] ?? "")).join(","))].join("\n");
+    const csv  = [keys.join(","), ...data.map(row => keys.map(k => JSON.stringify(row[k] ?? "")).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url  = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+    const a    = document.createElement("a"); a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
 
-  // ─── Actions ─────────────────────────────────────────────
+  // ─── Actions ──────────────────────────────────────────
   const openActionModal = (type: string, target: any, targetType: string) => {
     setActionReason(""); setPremiumDays("30");
     setActionModal({ type, target, targetType });
   };
 
-  const handleWithdrawalAction = async (wd: Withdrawal, newStatus: "approved" | "rejected") => {
+  const handleWithdrawalAction = async (w: Withdrawal, newStatus: "approved" | "rejected") => {
     try {
       await (supabase.from("withdrawals") as any).update({
-        status: newStatus,
-        processed_at: new Date().toISOString(),
+        status: newStatus, processed_at: new Date().toISOString(),
         admin_note: actionReason || null,
-      }).eq("id", wd.id);
-      const user = getUserById(wd.user_id);
-      if (user) {
-        await sendNotification(wd.user_id,
+      }).eq("id", w.id);
+      if (getUserById(w.user_id)) {
+        await sendNotification(w.user_id,
           newStatus === "approved" ? "Retrait approuvé ✅" : "Retrait refusé ❌",
           newStatus === "approved"
-            ? `Votre retrait de ${fmtMoney(wd.amount, wd.devise)} a été approuvé.`
-            : `Votre retrait de ${fmtMoney(wd.amount, wd.devise)} a été refusé.${actionReason ? " Motif : " + actionReason : ""}`,
+            ? `Votre retrait de ${fmtMoney(w.amount, w.devise)} a été approuvé.`
+            : `Votre retrait refusé.${actionReason ? " Motif : " + actionReason : ""}`,
           newStatus === "approved" ? "success" : "danger"
         );
       }
-      await logAction(wd.user_id, `retrait_${newStatus}`, `${fmtMoney(wd.amount, wd.devise)}`);
-      toast({ title: newStatus === "approved" ? "Retrait approuvé" : "Retrait refusé" });
-      setActionModal(null); setActionReason(""); loadAll();
+      await logAction(w.user_id, `retrait_${newStatus}`, fmtMoney(w.amount, w.devise));
+      toast({ title: newStatus === "approved" ? "Retrait approuvé ✅" : "Retrait refusé" });
+      setActionReason(""); loadAll();
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+  };
+
+  const handleMlmWithdrawalAction = async (mwd: MlmWithdrawal, newStatus: "approved" | "rejected", note: string) => {
+    if (newStatus === "rejected" && !note.trim()) {
+      toast({ title: "Motif obligatoire pour un refus", variant: "destructive" }); return;
+    }
+    try {
+      await (supabase.from("mlm_withdrawals") as any).update({
+        status: newStatus, processed_at: new Date().toISOString(),
+        admin_note: note || null,
+      }).eq("id", mwd.id);
+      await sendNotification(
+        mwd.user_id,
+        newStatus === "approved" ? "Retrait commission approuvé ✅" : "Retrait commission refusé ❌",
+        newStatus === "approved"
+          ? `Votre retrait de ${fmtMoney(mwd.amount, mwd.currency)} a été approuvé.`
+          : `Votre retrait refusé. Motif : ${note}`,
+        newStatus === "approved" ? "success" : "danger"
+      );
+      await logAction(mwd.user_id, `retrait_mlm_${newStatus}`, fmtMoney(mwd.amount, mwd.currency));
+      toast({ title: newStatus === "approved" ? "Retrait MLM approuvé ✅" : "Retrait MLM refusé" });
+      setMlmWdNote(prev => ({ ...prev, [mwd.id]: "" }));
+      loadAll();
     } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
   };
 
@@ -439,36 +448,34 @@ export default function AdminPanelPage() {
     if (!actionModal) return;
     const { type, target, targetType } = actionModal;
     try {
+      // ── Produit ──
       if (targetType === "produit") {
         const boutique = boutiques.find(b => b.id === target.boutique_id);
         const userId   = boutique?.user_id;
         if (type === "supprimer_produit") {
           if (!actionReason.trim()) { toast({ title: "Motif obligatoire", variant: "destructive" }); return; }
-          await supabase.from("variations_produit" as any).delete().eq("produit_id", target.id);
-          await supabase.from("commandes" as any).update({ produit_id: null }).eq("produit_id", target.id);
-          await supabase.from("avis_produits" as any).delete().eq("produit_id", target.id);
-          await supabase.from("produits" as any).delete().eq("id", target.id);
+          await (supabase.from("produits") as any).delete().eq("id", target.id);
           if (userId) await sendNotification(userId, "Produit supprimé", `"${target.nom}" supprimé. Motif : ${actionReason}`);
           await logAction(userId ?? null, "produit_supprimé", `${target.nom} | ${actionReason}`);
           toast({ title: "Produit supprimé" });
         }
         if (type === "restreindre_produit") {
           if (!actionReason.trim()) { toast({ title: "Motif obligatoire", variant: "destructive" }); return; }
-          await supabase.from("produits" as any).update({ actif: false }).eq("id", target.id);
+          await (supabase.from("produits") as any).update({ actif: false }).eq("id", target.id);
           if (userId) await sendNotification(userId, "Produit restreint", `"${target.nom}" restreint. Motif : ${actionReason}`, "danger");
           await logAction(userId ?? null, "produit_restreint", `${target.nom} | ${actionReason}`);
           toast({ title: "Produit restreint" });
         }
         if (type === "activer_produit") {
-          await supabase.from("produits" as any).update({ actif: true }).eq("id", target.id);
+          await (supabase.from("produits") as any).update({ actif: true }).eq("id", target.id);
           await logAction(null, "produit_activé", target.nom);
           toast({ title: "Produit réactivé" });
         }
       }
-
+      // ── Boutique ──
       if (targetType === "boutique" && type === "toggle_boutique") {
         const newActif = !target.actif;
-        await supabase.from("boutiques" as any).update({ actif: newActif }).eq("id", target.id);
+        await (supabase.from("boutiques") as any).update({ actif: newActif }).eq("id", target.id);
         if (target.user_id) await sendNotification(target.user_id,
           newActif ? "Boutique activée" : "Boutique désactivée",
           newActif ? `"${target.nom}" réactivée.` : `"${target.nom}" désactivée.${actionReason ? " Motif : " + actionReason : ""}`,
@@ -476,63 +483,92 @@ export default function AdminPanelPage() {
         await logAction(target.user_id ?? null, newActif ? "boutique_activée" : "boutique_désactivée", target.nom);
         toast({ title: `Boutique ${newActif ? "activée" : "désactivée"}` });
       }
-
+      // ── PayLink ──
       if (targetType === "paylink" && type === "toggle_paylink") {
         const newActive = !target.is_active;
         await (supabase.from("paylinks") as any).update({ is_active: newActive }).eq("id", target.id);
         await logAction(target.user_id, newActive ? "paylink_activé" : "paylink_désactivé", target.title);
         toast({ title: `PayLink ${newActive ? "activé" : "désactivé"}` });
       }
-
+      // ── Formation toggle ──
       if (targetType === "formation" && type === "toggle_formation") {
-        const newActive = !target.is_active;
-        await (supabase.from("formations") as any).update({ is_active: newActive }).eq("id", target.id);
-        await logAction(null, newActive ? "formation_activée" : "formation_désactivée", target.title);
+        const newActive = !target.actif;
+        await (supabase.from("formations") as any).update({ actif: newActive }).eq("id", target.id);
+        await logAction(null, newActive ? "formation_activée" : "formation_désactivée", target.titre);
         toast({ title: `Formation ${newActive ? "activée" : "désactivée"}` });
       }
-
+      // ── Formation : révoquer accès ──
+      if (targetType === "formation_purchase" && type === "revoquer_acces") {
+        if (!actionReason.trim()) { toast({ title: "Motif obligatoire", variant: "destructive" }); return; }
+        await (supabase.from("formation_purchases") as any).update({
+          acces_revoque: true, revoque_raison: actionReason, revoque_at: new Date().toISOString(),
+        }).eq("id", target.id);
+        await sendNotification(target.user_id, "Accès formation révoqué ❌",
+          `Votre accès à la formation a été révoqué. Motif : ${actionReason}`, "danger");
+        await logAction(target.user_id, "acces_formation_revoque", actionReason);
+        toast({ title: "Accès révoqué" });
+      }
+      // ── Formation : restaurer accès ──
+      if (targetType === "formation_purchase" && type === "restaurer_acces") {
+        await (supabase.from("formation_purchases") as any).update({
+          acces_revoque: false, revoque_raison: null, revoque_at: null,
+        }).eq("id", target.id);
+        await sendNotification(target.user_id, "Accès formation restauré ✅",
+          "Votre accès à la formation a été restauré.", "success");
+        await logAction(target.user_id, "acces_formation_restaure", null);
+        toast({ title: "Accès restauré ✅" });
+      }
+      // ── Utilisateur ──
       if (targetType === "user") {
         if (type === "activer_premium") {
-          const days = parseInt(premiumDays) || 30;
+          const days      = parseInt(premiumDays) || 30;
           const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
-          await supabase.from("nexora_users" as any).update({ plan: "roi", badge_premium: true, premium_since: new Date().toISOString(), premium_expires_at: expiresAt }).eq("id", target.id);
-          await sendNotification(target.id, "Premium activé !", `Votre compte est Premium pour ${days} jours.`, "success");
+          await (supabase.from("nexora_users") as any).update({
+            plan: "roi", badge_premium: true, premium_since: new Date().toISOString(), premium_expires_at: expiresAt,
+          }).eq("id", target.id);
+          await sendNotification(target.id, "Premium activé ! 🎉", `Votre compte est Premium pour ${days} jours.`, "success");
           await logAction(target.id, "premium_activé", `${days} jours`);
           toast({ title: "Premium activé" });
         }
         if (type === "retirer_premium") {
-          await supabase.from("nexora_users" as any).update({ plan: "gratuit", badge_premium: false, premium_since: null, premium_expires_at: null }).eq("id", target.id);
-          await sendNotification(target.id, "Premium retiré", `Votre abonnement Premium a été retiré.`, "warning");
+          await (supabase.from("nexora_users") as any).update({
+            plan: "gratuit", badge_premium: false, premium_since: null, premium_expires_at: null,
+          }).eq("id", target.id);
+          await sendNotification(target.id, "Premium retiré", "Votre abonnement Premium a été retiré.", "warning");
           await logAction(target.id, "premium_retiré", actionReason || null);
           toast({ title: "Premium retiré" });
         }
         if (type === "suspendre") {
           if (!actionReason.trim()) { toast({ title: "Motif obligatoire", variant: "destructive" }); return; }
-          await supabase.from("nexora_users" as any).update({ status: "suspendu", is_active: false, suspended_reason: actionReason }).eq("id", target.id);
+          await (supabase.from("nexora_users") as any).update({
+            status: "suspendu", is_active: false, suspended_reason: actionReason,
+          }).eq("id", target.id);
           await sendNotification(target.id, "Compte suspendu", `Motif : ${actionReason}`, "danger");
           await logAction(target.id, "compte_suspendu", actionReason);
           toast({ title: "Compte suspendu" });
         }
         if (type === "bloquer") {
           if (!actionReason.trim()) { toast({ title: "Motif obligatoire", variant: "destructive" }); return; }
-          await supabase.from("nexora_users" as any).update({ status: "bloque", is_active: false, blocked_reason: actionReason }).eq("id", target.id);
+          await (supabase.from("nexora_users") as any).update({
+            status: "bloque", is_active: false, blocked_reason: actionReason,
+          }).eq("id", target.id);
           await sendNotification(target.id, "Compte bloqué", `Motif : ${actionReason}`, "danger");
           await logAction(target.id, "compte_bloqué", actionReason);
           toast({ title: "Compte bloqué" });
         }
         if (type === "debloquer") {
-          await supabase.from("nexora_users" as any).update({ status: "actif", is_active: true, suspended_reason: null, blocked_reason: null }).eq("id", target.id);
-          await sendNotification(target.id, "Compte réactivé", "Votre compte a été réactivé.", "success");
+          await (supabase.from("nexora_users") as any).update({
+            status: "actif", is_active: true, suspended_reason: null, blocked_reason: null,
+          }).eq("id", target.id);
+          await sendNotification(target.id, "Compte réactivé ✅", "Votre compte a été réactivé.", "success");
           await logAction(target.id, "compte_débloqué", null);
           toast({ title: "Compte débloqué" });
         }
         if (type === "supprimer") {
-          await supabase.from("nexora_users" as any).delete().eq("id", target.id);
+          await (supabase.from("nexora_users") as any).delete().eq("id", target.id);
           await logAction(null, "compte_supprimé", `${target.nom_prenom} (${target.email})`);
-          toast({ title: "Compte supprimé" });
-          setSelectedUser(null);
+          toast({ title: "Compte supprimé" }); setSelectedUser(null);
         }
-        if (selectedUser?.id === target.id) { const nu = { ...selectedUser } as any; setSelectedUser(nu); }
       }
       setActionModal(null); setActionReason(""); loadAll();
     } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
@@ -542,8 +578,12 @@ export default function AdminPanelPage() {
     if (!adminPassword.trim()) { toast({ title: "Mot de passe requis", variant: "destructive" }); return; }
     if (adminFeatures.length === 0) { toast({ title: "Sélectionnez au moins une fonctionnalité", variant: "destructive" }); return; }
     try {
-      await (supabase as any).from("nexora_users").update({ is_admin: true, admin_features: adminFeatures, admin_password: adminPassword, plan: user.plan === "gratuit" ? "admin" : user.plan }).eq("id", user.id);
-      await sendNotification(user.id, "✅ Accès Admin accordé", `Fonctionnalités : ${adminFeatures.map(f => ALL_ADMIN_FEATURES.find(af => af.key === f)?.label).join(", ")}.`, "success");
+      await (supabase.from("nexora_users") as any).update({
+        is_admin: true, admin_features: adminFeatures, admin_password: adminPassword,
+        plan: user.plan === "gratuit" ? "admin" : user.plan,
+      }).eq("id", user.id);
+      await sendNotification(user.id, "✅ Accès Admin accordé",
+        `Fonctionnalités : ${adminFeatures.map(f => ALL_ADMIN_FEATURES.find(af => af.key === f)?.label).join(", ")}.`, "success");
       await logAction(user.id, "admin_accordé", adminFeatures.join(", "));
       toast({ title: "✅ Accès admin accordé !" });
       setAdminFeatures([]); setAdminPassword(""); loadAll();
@@ -552,7 +592,7 @@ export default function AdminPanelPage() {
 
   const handleRevokeAdmin = async (user: NexoraUser) => {
     try {
-      await (supabase as any).from("nexora_users").update({ is_admin: false, admin_features: [], admin_password: null }).eq("id", user.id);
+      await (supabase.from("nexora_users") as any).update({ is_admin: false, admin_features: [], admin_password: null }).eq("id", user.id);
       await sendNotification(user.id, "Accès Admin retiré", "Votre accès au Panel Admin a été retiré.", "warning");
       await logAction(user.id, "admin_retiré", null);
       toast({ title: "Accès admin retiré" }); loadAll();
@@ -563,24 +603,26 @@ export default function AdminPanelPage() {
     setUserTxLoading(true); setUserTxHistory([]);
     try {
       const [{ data: txData }, { data: payoutData }] = await Promise.all([
-        supabase.from("nexora_transactions" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-        supabase.from("nexora_payouts" as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        (supabase.from("nexora_transactions" as any) as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        (supabase.from("nexora_payouts" as any) as any).select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       ]);
-      const txRows = (txData ?? []).filter((r: any) => r.type === "recharge_transfert" || r.type === "retrait_transfert" || r.type === "abonnement_premium")
-        .map((r: any) => ({
+      const all = [
+        ...((txData ?? []).map((r: any) => ({
           id: r.id, type: r.type,
           label: r.type === "recharge_transfert" ? "Recharge" : r.type === "abonnement_premium" ? "Abonnement" : "Transfert",
           montant: r.amount ?? 0, frais: r.frais ?? 0,
           statut: r.status === "completed" ? "success" : r.status === "pending" ? "pending" : "failed",
-          date: r.created_at, meta: typeof r.metadata === "string" ? JSON.parse(r.metadata) : (r.metadata ?? {}),
-        }));
-      const payoutRows = (payoutData ?? []).map((p: any) => ({
-        id: p.id, type: "retrait_transfert",
-        label: `Envoi → ${p.pays ?? ""}`, montant: p.amount ?? 0, frais: p.frais ?? 0,
-        statut: p.status === "completed" ? "success" : p.status === "failed" ? "failed" : "pending",
-        date: p.created_at, meta: { nom_beneficiaire: p.nom_beneficiaire, reseau: p.reseau, telephone: p.numero },
-      }));
-      const all = [...payoutRows, ...txRows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          date: r.created_at,
+          meta: typeof r.metadata === "string" ? JSON.parse(r.metadata) : (r.metadata ?? {}),
+        }))),
+        ...((payoutData ?? []).map((p: any) => ({
+          id: p.id, type: "retrait_transfert",
+          label: `Envoi → ${p.pays ?? ""}`, montant: p.amount ?? 0, frais: p.frais ?? 0,
+          statut: p.status === "completed" ? "success" : p.status === "failed" ? "failed" : "pending",
+          date: p.created_at,
+          meta: { nom_beneficiaire: p.nom_beneficiaire, reseau: p.reseau, telephone: p.numero },
+        }))),
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setUserTxHistory(all);
     } catch (e) { console.error(e); }
     setUserTxLoading(false);
@@ -591,7 +633,7 @@ export default function AdminPanelPage() {
     const montant = parseFloat(detteMontant);
     if (isNaN(montant) || montant <= 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
     try {
-      await supabase.from("nexora_users" as any).update({ dette_cachee: montant, dette_active: true }).eq("id", detteModal.id);
+      await (supabase.from("nexora_users") as any).update({ dette_cachee: montant, dette_active: true }).eq("id", detteModal.id);
       await logAction(detteModal.id, "dette_cachée_appliquée", `${montant} FCFA`);
       toast({ title: "Dette appliquée silencieusement" });
       setDetteModal(null); setDetteMontant(""); loadAll();
@@ -600,7 +642,7 @@ export default function AdminPanelPage() {
 
   const handleClearDette = async (user: NexoraUser) => {
     try {
-      await supabase.from("nexora_users" as any).update({ dette_cachee: 0, dette_active: false }).eq("id", user.id);
+      await (supabase.from("nexora_users") as any).update({ dette_cachee: 0, dette_active: false }).eq("id", user.id);
       await logAction(user.id, "dette_effacée", null);
       toast({ title: "Dette effacée" }); loadAll();
     } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
@@ -614,7 +656,9 @@ export default function AdminPanelPage() {
     try {
       const { hashPassword } = await import("@/lib/nexora-auth");
       const newHash = await hashPassword(newPassword);
-      const { error } = await (supabase as any).from("nexora_users").update({ password_plain: newPassword, password_hash: newHash }).eq("id", user.id);
+      const { error } = await (supabase.from("nexora_users") as any).update({
+        password_plain: newPassword, password_hash: newHash,
+      }).eq("id", user.id);
       if (error) throw error;
       await logAction(user.id, "mot_de_passe_modifié", "par admin");
       setPasswordSuccess(true);
@@ -631,7 +675,7 @@ export default function AdminPanelPage() {
     } catch {}
   };
 
-  // ─── Filtered data ───────────────────────────────────────
+  // ─── Filtered data ────────────────────────────────────
   const filteredUsers = users.filter(u => {
     const q = searchUser.toLowerCase();
     return (u.nom_prenom.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
@@ -645,22 +689,31 @@ export default function AdminPanelPage() {
   );
   const filteredWd = withdrawals.filter(w => filterWdStatus ? w.status === filterWdStatus : true);
 
+  // Formations filtrées
+  const filteredFormations = formations.filter(f =>
+    filterFormation === "all" ? true : filterFormation === "active" ? f.actif : !f.actif
+  );
+  // Achats filtrés
+  const filteredPurchases = formationPurchases
+    .filter(fp => fp.status === "completed")
+    .filter(fp => filterPurchase === "all" ? true : filterPurchase === "active" ? !fp.acces_revoque : fp.acces_revoque);
+
   const TABS: { id: AdminTab; label: string; icon: any; badge?: number }[] = [
-    { id: "stats",        label: "Statistiques",  icon: BarChart3   },
-    { id: "users",        label: "Utilisateurs",  icon: Users       },
-    { id: "boutiques",    label: "Boutiques",     icon: Store       },
-    { id: "paylinks",     label: "PayLinks",      icon: Link2       },
+    { id: "stats",        label: "Statistiques",  icon: BarChart3      },
+    { id: "users",        label: "Utilisateurs",  icon: Users          },
+    { id: "boutiques",    label: "Boutiques",     icon: Store          },
+    { id: "paylinks",     label: "PayLinks",      icon: Link2          },
     { id: "transactions", label: "Transactions",  icon: ArrowRightLeft },
-    { id: "retraits",     label: "Retraits",      icon: Wallet, badge: stats.pendingWithdrawals },
-    { id: "mlm",          label: "MLM",           icon: GitBranch   },
-    { id: "formations",   label: "Formations",    icon: BookOpen    },
-    { id: "trafic",       label: "Trafic",        icon: Globe       },
-    { id: "abonnements",  label: "Abonnements",   icon: Crown       },
-    { id: "logs",         label: "Logs",          icon: Activity    },
-    { id: "notifs",       label: "Notifications", icon: Bell, badge: stats.unreadNotifs },
+    { id: "retraits",     label: "Retraits",      icon: Wallet,        badge: stats.pendingWithdrawals || undefined },
+    { id: "mlm",          label: "MLM",           icon: GitBranch      },
+    { id: "formations",   label: "Formations",    icon: BookOpen,      badge: stats.pendingMlmWithdrawals || undefined },
+    { id: "trafic",       label: "Trafic",        icon: Globe          },
+    { id: "abonnements",  label: "Abonnements",   icon: Crown          },
+    { id: "logs",         label: "Logs",          icon: Activity       },
+    { id: "notifs",       label: "Notifications", icon: Bell,          badge: stats.unreadNotifs || undefined },
   ];
 
-  // ════════════ LOGIN ════════════
+  // ════ LOGIN ════
   if (!isAuthenticated) return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl space-y-6">
@@ -690,26 +743,30 @@ export default function AdminPanelPage() {
     </div>
   );
 
-  // ════════════ PAGE DÉTAIL UTILISATEUR ════════════
+  // ════ PAGE DÉTAIL UTILISATEUR ════
   if (selectedUser) {
-    const u = selectedUser;
-    const userBoutiques = getBoutiquesByUser(u.id);
-    const userCommandes = getCommandesByUser(u.id);
-    const userCa        = getCaByUser(u.id);
-    const userAbo       = abonnements.filter(a => a.user_id === u.id);
-    const userPaylinks  = getPayLinksByUser(u.id);
-    const userFormSales = getFormationSalesByUser(u.id);
+    const u               = selectedUser;
+    const userBoutiques   = getBoutiquesByUser(u.id);
+    const userCa          = getCaByUser(u.id);
+    const userAbo         = abonnements.filter(a => a.user_id === u.id);
+    const userPaylinks    = getPayLinksByUser(u.id);
     const userWithdrawals = getWithdrawalsByUser(u.id);
     const userMlmEarnings = getMlmEarningsByUser(u.id);
-    const userFilleuls  = getMlmFilleuls(u.id);
-    const StatusIcon    = STATUS_CONFIG[u.status]?.icon || CheckCircle;
-    const hasDette      = u.dette_active && (u.dette_cachee ?? 0) > 0;
+    const userFilleuls    = getMlmFilleuls(u.id);
+    const userFormBuys    = formationPurchases.filter(fp => fp.user_id === u.id && fp.status === "completed");
+    const hasDette        = u.dette_active && (u.dette_cachee ?? 0) > 0;
+    const StatusIcon      = STATUS_CONFIG[u.status]?.icon || CheckCircle;
 
     return (
       <div className="min-h-screen bg-background pb-16">
         <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-3 flex items-center gap-3">
-          <button onClick={() => { setSelectedUser(null); setNewPassword(""); setConfirmPassword(""); setPasswordSuccess(false); setShowUserPassword(false); setAdminFeatures([]); setAdminPassword(""); }}
-            className="p-2 rounded-xl hover:bg-muted transition-colors"><ArrowLeft className="w-5 h-5" /></button>
+          <button onClick={() => {
+            setSelectedUser(null); setNewPassword(""); setConfirmPassword("");
+            setPasswordSuccess(false); setShowUserPassword(false);
+            setAdminFeatures([]); setAdminPassword("");
+          }} className="p-2 rounded-xl hover:bg-muted transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div className="flex-1 min-w-0">
             <div className="font-black text-base truncate">{u.nom_prenom}</div>
             <div className="text-xs text-muted-foreground">@{u.username}</div>
@@ -735,7 +792,6 @@ export default function AdminPanelPage() {
               <div className="flex gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(u.created_at)}</span>
                 <span className="flex items-center gap-1 text-emerald-600 font-bold"><DollarSign className="w-3 h-3" />{fmtMoney(userCa)}</span>
-                {(u.balance ?? 0) > 0 && <span className="flex items-center gap-1 text-blue-600 font-bold"><Wallet className="w-3 h-3" />{fmtMoney(u.balance)}</span>}
               </div>
             </div>
           </div>
@@ -750,120 +806,64 @@ export default function AdminPanelPage() {
             </div>
           )}
 
-          {/* Quick stats grid */}
+          {/* Stats rapides */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "CA Boutiques", value: fmtMoney(userCa), color: "text-emerald-600", icon: Store },
-              { label: "Solde", value: fmtMoney(u.balance), color: "text-blue-600", icon: Wallet },
-              { label: "Filleuls MLM", value: userFilleuls.length, color: "text-violet-600", icon: GitBranch },
-              { label: "Gains MLM", value: fmtMoney(userMlmEarnings.filter(e => e.status === "credited").reduce((a, c) => a + (Number(c.amount) || 0), 0)), color: "text-amber-600", icon: Award },
-              { label: "PayLinks", value: userPaylinks.length, color: "text-pink-600", icon: Link2 },
-              { label: "Formations vendues", value: userFormSales.length, color: "text-indigo-600", icon: BookOpen },
+              { label: "CA Boutiques",  value: fmtMoney(userCa),   color: "text-emerald-600", icon: Store     },
+              { label: "Solde",          value: fmtMoney(u.balance), color: "text-blue-600",    icon: Wallet    },
+              { label: "Filleuls MLM",   value: userFilleuls.length, color: "text-violet-600",  icon: GitBranch },
+              { label: "Formations achetées", value: userFormBuys.length, color: "text-indigo-600", icon: BookOpen },
             ].map(s => { const Icon = s.icon; return (
               <div key={s.label} className="bg-card border border-border rounded-xl p-3 flex items-center gap-2">
                 <Icon className={`w-5 h-5 ${s.color} flex-shrink-0`} />
-                <div className="min-w-0"><div className="text-xs text-muted-foreground truncate">{s.label}</div><div className={`text-sm font-black ${s.color} truncate`}>{String(s.value)}</div></div>
+                <div className="min-w-0">
+                  <div className="text-xs text-muted-foreground truncate">{s.label}</div>
+                  <div className={`text-sm font-black ${s.color} truncate`}>{String(s.value)}</div>
+                </div>
               </div>
             ); })}
           </div>
 
-          {/* MLM */}
-          {userFilleuls.length > 0 && (
-            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-              <div className="font-bold text-sm text-violet-700 mb-2 flex items-center gap-2"><GitBranch className="w-4 h-4" /> Arbre MLM ({userFilleuls.length} filleuls directs)</div>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {userFilleuls.map(filleul => (
-                  <div key={filleul.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-xs">
-                    <span className="font-medium">{filleul.nom_prenom}</span>
-                    <span className="text-violet-500">@{filleul.username}</span>
-                  </div>
-                ))}
+          {/* Formations achetées par cet utilisateur */}
+          {userFormBuys.length > 0 && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+              <div className="font-bold text-sm text-indigo-700 mb-2 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" /> Formations achetées ({userFormBuys.length})
               </div>
-            </div>
-          )}
-
-          {/* PayLinks */}
-          {userPaylinks.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="font-bold text-sm mb-2 flex items-center gap-2"><Link2 className="w-4 h-4 text-pink-500" /> PayLinks ({userPaylinks.length})</div>
-              <div className="space-y-1">
-                {userPaylinks.map(pl => (
-                  <div key={pl.id} className="flex items-center justify-between text-xs bg-muted rounded-lg px-3 py-2">
-                    <span className="font-medium truncate flex-1">{pl.title}</span>
-                    <span className="text-emerald-600 font-bold ml-2">{fmtMoney(pl.total_paid, pl.devise)}</span>
-                    <span className="ml-2 text-muted-foreground">{pl.total_tx} tx</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Retraits */}
-          {userWithdrawals.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="font-bold text-sm mb-2 flex items-center gap-2"><Wallet className="w-4 h-4 text-blue-500" /> Retraits ({userWithdrawals.length})</div>
-              <div className="space-y-1">
-                {userWithdrawals.slice(0, 5).map(w => {
-                  const cfg = WD_STATUS[w.status as keyof typeof WD_STATUS] || WD_STATUS.pending;
+              <div className="space-y-2">
+                {userFormBuys.map(fp => {
+                  const form = formations.find(f => f.id === fp.formation_id);
                   return (
-                    <div key={w.id} className="flex items-center justify-between text-xs bg-muted rounded-lg px-3 py-2">
-                      <span className="font-medium">{fmtMoney(w.amount, w.devise)}</span>
-                      <span className="text-muted-foreground">{fmtDate(w.created_at)}</span>
-                      <span className={`px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
+                    <div key={fp.id} className={`flex items-center justify-between bg-white rounded-xl px-3 py-2.5 text-xs gap-2 border ${fp.acces_revoque ? "border-red-200" : "border-indigo-100"}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate">{form?.titre || "Formation inconnue"}</div>
+                        <div className="text-muted-foreground">{fmtMoney(fp.amount, fp.currency)} · {fmtDate(fp.created_at)}</div>
+                      </div>
+                      {fp.acces_revoque ? (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 font-bold">Révoqué</span>
+                          <button
+                            onClick={() => openActionModal("restaurer_acces", fp, "formation_purchase")}
+                            className="px-2 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium">
+                            Restaurer
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 font-bold">Actif</span>
+                          <button
+                            onClick={() => openActionModal("revoquer_acces", fp, "formation_purchase")}
+                            className="px-2 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium">
+                            Révoquer
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
-
-          {/* Premium */}
-          {(u.plan === "boss" || u.plan === "roi") && (
-            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-violet-700 font-bold mb-2"><Crown className="w-4 h-4" /> Premium</div>
-              <div className="text-xs text-violet-600 space-y-1">
-                <div>Depuis : {fmtDate(u.premium_since)}</div>
-                <div className={u.premium_expires_at && new Date(u.premium_expires_at) < new Date() ? "text-red-500 font-semibold" : ""}>Expire : {fmtDate(u.premium_expires_at)}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Abonnements */}
-          {userAbo.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="font-bold text-sm mb-2 flex items-center gap-2"><Crown className="w-4 h-4 text-violet-500" /> Abonnements ({userAbo.length})</div>
-              <div className="space-y-1">
-                {userAbo.map(a => (
-                  <div key={a.id} className="flex items-center justify-between text-xs bg-muted rounded-lg px-3 py-2">
-                    <span className="font-semibold capitalize">{a.plan}</span>
-                    <span className="text-emerald-600 font-bold">{fmtMoney(a.montant, a.devise)}</span>
-                    <span className={`px-2 py-0.5 rounded-full font-semibold ${a.statut === "actif" || a.statut === "paye" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{a.statut}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Mot de passe */}
-          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
-            <div className="font-bold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Key className="w-4 h-4 text-blue-500" /> Mot de passe Nexora
-            </div>
-            {showUserPassword ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                <code className="text-base font-black text-blue-800 font-mono tracking-widest select-all break-all flex-1">
-                  {(u.password_plain && u.password_plain.trim() !== "") ? u.password_plain : <span className="text-blue-400 font-normal italic text-sm">Non enregistré en clair</span>}
-                </code>
-                <button onClick={() => setShowUserPassword(false)} className="text-xs px-3 py-1.5 rounded-lg bg-blue-200 text-blue-800 hover:bg-blue-300 font-semibold flex-shrink-0">
-                  <Lock className="w-3.5 h-3.5 inline mr-1" />Masquer
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setShowUserPassword(true)} className="w-full flex items-center justify-center gap-2 text-sm px-4 py-3 rounded-xl bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold transition-colors border border-blue-200">
-                <Unlock className="w-4 h-4" /> Révéler le mot de passe
-              </button>
-            )}
-          </div>
 
           {/* Actions compte */}
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
@@ -886,48 +886,25 @@ export default function AdminPanelPage() {
                 <button onClick={() => openActionModal("supprimer", u, "user")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white font-semibold transition-colors"><Trash2 className="w-3.5 h-3.5" /> Supprimer</button>
               )}
             </div>
-            {/* Produits utilisateur */}
-            {(() => {
-              const userProduits = userBoutiques.flatMap(b => getProduitsByBoutique(b.id));
-              if (!userProduits.length) return null;
-              return (
-                <div>
-                  <div className="text-xs font-bold text-muted-foreground uppercase mb-2">Produits ({userProduits.length})</div>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {userProduits.map(produit => (
-                      <div key={produit.id} className="flex items-center justify-between bg-muted rounded-lg px-3 py-2 text-xs gap-2">
-                        <span className="font-medium flex-1 truncate">{produit.nom}</span>
-                        <span className={`px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${produit.actif ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{produit.actif ? "Actif" : "Restreint"}</span>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {produit.actif ? (
-                            <button onClick={() => openActionModal("restreindre_produit", produit, "produit")} className="px-2 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-medium transition-colors">Désact.</button>
-                          ) : (
-                            <button onClick={() => openActionModal("activer_produit", produit, "produit")} className="px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors">Activer</button>
-                          )}
-                          <button onClick={() => openActionModal("supprimer_produit", produit, "produit")} className="px-2 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium transition-colors"><Trash2 className="w-3 h-3" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
 
-          {/* Dette cachée */}
-          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          {/* Mot de passe */}
+          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
             <div className="font-bold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <MinusCircle className="w-4 h-4 text-red-500" /> Gestion Dette Cachée
+              <Key className="w-4 h-4 text-blue-500" /> Mot de passe Nexora
             </div>
-            <p className="text-xs text-muted-foreground">Mode silencieux — aucune notification.</p>
-            {hasDette ? (
-              <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl p-3">
-                <div><div className="text-sm font-bold text-red-700">Dette : {fmtMoney(u.dette_cachee ?? 0)}</div><div className="text-xs text-red-500">Active</div></div>
-                <button onClick={() => handleClearDette(u)} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium">Effacer</button>
+            {showUserPassword ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                <code className="text-base font-black text-blue-800 font-mono tracking-widest select-all break-all flex-1">
+                  {(u.password_plain && u.password_plain.trim() !== "") ? u.password_plain : <span className="text-blue-400 font-normal italic text-sm">Non enregistré</span>}
+                </code>
+                <button onClick={() => setShowUserPassword(false)} className="text-xs px-3 py-1.5 rounded-lg bg-blue-200 text-blue-800 hover:bg-blue-300 font-semibold flex-shrink-0">
+                  <Lock className="w-3.5 h-3.5 inline mr-1" />Masquer
+                </button>
               </div>
             ) : (
-              <button onClick={() => setDetteModal(u)} className="flex items-center gap-2 text-xs px-4 py-2.5 rounded-xl bg-red-100 text-red-700 hover:bg-red-200 font-semibold transition-colors w-full justify-center">
-                <MinusCircle className="w-4 h-4" /> Appliquer une dette cachée
+              <button onClick={() => setShowUserPassword(true)} className="w-full flex items-center justify-center gap-2 text-sm px-4 py-3 rounded-xl bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold transition-colors border border-blue-200">
+                <Unlock className="w-4 h-4" /> Révéler le mot de passe
               </button>
             )}
           </div>
@@ -942,18 +919,15 @@ export default function AdminPanelPage() {
                 <CheckCircle className="w-4 h-4 flex-shrink-0" /> Mot de passe mis à jour !
               </div>
             )}
-            <div className="space-y-2">
-              <Input type="password" placeholder="Nouveau mot de passe (min. 6)..." value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordSuccess(false); }} className="rounded-xl" autoComplete="new-password" />
-              <Input type="password" placeholder="Confirmer le mot de passe..." value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordSuccess(false); }} className="rounded-xl" autoComplete="new-password" />
-              {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                <p className="text-xs text-red-500 flex items-center gap-1"><XCircle className="w-3 h-3" /> Les mots de passe ne correspondent pas.</p>
-              )}
-              <button onClick={() => handleChangeUserPassword(u)}
-                disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 6}
-                className="flex items-center gap-2 text-xs px-4 py-2.5 rounded-xl bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors w-full justify-center">
-                {changingPassword ? <><div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> Modification...</> : <><Lock className="w-4 h-4" /> Enregistrer le mot de passe</>}
-              </button>
-            </div>
+            <Input type="password" placeholder="Nouveau mot de passe (min. 6)..." value={newPassword}
+              onChange={e => { setNewPassword(e.target.value); setPasswordSuccess(false); }} className="rounded-xl" />
+            <Input type="password" placeholder="Confirmer..." value={confirmPassword}
+              onChange={e => { setConfirmPassword(e.target.value); setPasswordSuccess(false); }} className="rounded-xl" />
+            <button onClick={() => handleChangeUserPassword(u)}
+              disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 6}
+              className="flex items-center gap-2 text-xs px-4 py-2.5 rounded-xl bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:opacity-40 font-semibold transition-colors w-full justify-center">
+              {changingPassword ? <><div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> Modification...</> : <><Lock className="w-4 h-4" /> Enregistrer</>}
+            </button>
           </div>
 
           {/* PIN */}
@@ -967,42 +941,20 @@ export default function AdminPanelPage() {
           {/* Portefeuilles */}
           <AdminWalletManager user={u} onDone={loadAll} />
 
-          {/* Historique transactions */}
+          {/* Dette cachée */}
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
             <div className="font-bold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <ArrowRightLeft className="w-4 h-4 text-indigo-500" /> Historique des transactions
+              <MinusCircle className="w-4 h-4 text-red-500" /> Gestion Dette Cachée
             </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {(["all","recharges","transferts"] as const).map(f => (
-                <button key={f} onClick={() => setUserTxTab(f)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${userTxTab === f ? "bg-indigo-100 text-indigo-700" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
-                  {f === "all" ? "Tout" : f === "recharges" ? "Recharges" : "Transferts"}
-                </button>
-              ))}
-            </div>
-            {userTxLoading ? (
-              <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm"><div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Chargement...</div>
-            ) : userTxHistory.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-3 text-center">Aucune transaction trouvée.</p>
-            ) : (
-              <div className="space-y-1.5 max-h-72 overflow-y-auto">
-                {userTxHistory
-                  .filter(tx => userTxTab === "all" || (userTxTab === "recharges" && tx.type === "recharge_transfert") || (userTxTab === "transferts" && tx.type === "retrait_transfert"))
-                  .map(tx => (
-                    <div key={tx.id} className="flex items-center gap-3 px-3 py-2.5 bg-muted/60 rounded-xl text-xs">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${tx.type === "recharge_transfert" ? "bg-yellow-100" : tx.type === "abonnement_premium" ? "bg-violet-100" : "bg-red-100"}`}>
-                        {tx.type === "recharge_transfert" ? "⬇️" : tx.type === "abonnement_premium" ? "👑" : "⬆️"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-foreground truncate">{tx.label}{tx.meta?.nom_beneficiaire && <span className="text-muted-foreground font-normal"> → {tx.meta.nom_beneficiaire}</span>}</div>
-                        <div className="text-muted-foreground">{tx.meta?.reseau && <span>{tx.meta.reseau} · </span>}{new Date(tx.date).toLocaleString("fr-FR")}</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className={`font-black ${tx.type === "recharge_transfert" ? "text-yellow-600" : "text-red-500"}`}>{tx.type === "recharge_transfert" ? "+" : "−"}{(tx.montant ?? 0).toLocaleString("fr-FR")} FCFA</div>
-                        <span className={`px-1.5 py-0.5 rounded-full font-semibold ${tx.statut === "success" ? "bg-green-100 text-green-700" : tx.statut === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>{tx.statut === "success" ? "✓" : tx.statut === "pending" ? "⏳" : "✗"}</span>
-                      </div>
-                    </div>
-                  ))}
+            {hasDette ? (
+              <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl p-3">
+                <div><div className="text-sm font-bold text-red-700">Dette : {fmtMoney(u.dette_cachee ?? 0)}</div></div>
+                <button onClick={() => handleClearDette(u)} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium">Effacer</button>
               </div>
+            ) : (
+              <button onClick={() => setDetteModal(u)} className="flex items-center gap-2 text-xs px-4 py-2.5 rounded-xl bg-red-100 text-red-700 hover:bg-red-200 font-semibold transition-colors w-full justify-center">
+                <MinusCircle className="w-4 h-4" /> Appliquer une dette cachée
+              </button>
             )}
           </div>
         </div>
@@ -1012,27 +964,39 @@ export default function AdminPanelPage() {
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4" onClick={e => e.target === e.currentTarget && setActionModal(null)}>
             <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
               <h3 className="font-black text-lg">
-                {actionModal.type === "activer_premium" && "Activer Premium"}
-                {actionModal.type === "retirer_premium" && "Retirer Premium"}
-                {actionModal.type === "suspendre" && "Suspendre le compte"}
-                {actionModal.type === "bloquer" && "Bloquer le compte"}
-                {actionModal.type === "debloquer" && "Débloquer le compte"}
-                {actionModal.type === "supprimer" && "Supprimer le compte"}
-                {actionModal.type === "supprimer_produit" && "Supprimer le produit"}
-                {actionModal.type === "restreindre_produit" && "Restreindre le produit"}
-                {actionModal.type === "activer_produit" && "Réactiver le produit"}
+                {actionModal.type === "activer_premium"     && "Activer Premium"}
+                {actionModal.type === "retirer_premium"     && "Retirer Premium"}
+                {actionModal.type === "suspendre"           && "Suspendre"}
+                {actionModal.type === "bloquer"             && "Bloquer"}
+                {actionModal.type === "debloquer"           && "Débloquer"}
+                {actionModal.type === "supprimer"           && "Supprimer le compte"}
+                {actionModal.type === "revoquer_acces"      && "Révoquer l'accès à la formation"}
+                {actionModal.type === "restaurer_acces"     && "Restaurer l'accès"}
               </h3>
               {actionModal.type === "activer_premium" && (
-                <div><label className="text-sm font-medium">Durée (jours)</label><Input type="number" value={premiumDays} onChange={e => setPremiumDays(e.target.value)} className="mt-1" placeholder="30" /></div>
+                <div><label className="text-sm font-medium">Durée (jours)</label>
+                  <Input type="number" value={premiumDays} onChange={e => setPremiumDays(e.target.value)} className="mt-1" placeholder="30" /></div>
               )}
-              {["retirer_premium","suspendre","bloquer","supprimer","supprimer_produit","restreindre_produit"].includes(actionModal.type) && (
+              {["retirer_premium","suspendre","bloquer","supprimer","revoquer_acces"].includes(actionModal.type) && (
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Motif {["supprimer","retirer_premium"].includes(actionModal.type) ? "(optionnel)" : "*"}</label>
-                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} className="w-full min-h-[80px] px-3 py-2 text-sm rounded-xl border border-input bg-background resize-none outline-none focus:border-primary transition-colors" placeholder="Précisez le motif..." autoFocus />
+                  <label className="text-sm font-medium mb-1 block">
+                    Motif {["supprimer","retirer_premium"].includes(actionModal.type) ? "(optionnel)" : "*"}
+                  </label>
+                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)}
+                    className="w-full min-h-[80px] px-3 py-2 text-sm rounded-xl border border-input bg-background resize-none outline-none focus:border-primary"
+                    placeholder="Précisez le motif..." autoFocus />
                 </div>
               )}
+              {actionModal.type === "restaurer_acces" && (
+                <p className="text-sm text-muted-foreground">L'utilisateur pourra à nouveau accéder à cette formation.</p>
+              )}
               <div className="flex gap-2">
-                <Button onClick={handleAction} className={`flex-1 text-white ${["supprimer","bloquer","supprimer_produit"].includes(actionModal.type) ? "bg-red-600 hover:bg-red-700" : ["suspendre","restreindre_produit"].includes(actionModal.type) ? "bg-yellow-600 hover:bg-yellow-700" : ["debloquer","activer_premium","activer_produit"].includes(actionModal.type) ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"}`}>Confirmer</Button>
+                <Button onClick={handleAction} className={`flex-1 text-white ${
+                  ["supprimer","bloquer","revoquer_acces"].includes(actionModal.type) ? "bg-red-600 hover:bg-red-700" :
+                  ["suspendre"].includes(actionModal.type) ? "bg-yellow-600 hover:bg-yellow-700" :
+                  ["debloquer","activer_premium","restaurer_acces"].includes(actionModal.type) ? "bg-green-600 hover:bg-green-700" :
+                  "bg-gray-600 hover:bg-gray-700"
+                }`}>Confirmer</Button>
                 <Button variant="outline" onClick={() => { setActionModal(null); setActionReason(""); }} className="flex-1">Annuler</Button>
               </div>
             </div>
@@ -1054,7 +1018,7 @@ export default function AdminPanelPage() {
     );
   }
 
-  // ════════════ PANEL PRINCIPAL ════════════
+  // ════ PANEL PRINCIPAL ════
   return (
     <div className="min-h-screen bg-background">
       {menuOpen && <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setMenuOpen(false)} />}
@@ -1090,7 +1054,6 @@ export default function AdminPanelPage() {
         <div className="flex items-center gap-2 flex-1">
           <ShieldCheck className="w-5 h-5 text-amber-500" />
           <span className="font-black text-base">{TABS.find(t => t.id === tab)?.label}</span>
-          {TABS.find(t => t.id === tab)?.badge ? <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">{TABS.find(t => t.id === tab)?.badge}</span> : null}
         </div>
         <Button onClick={loadAll} disabled={loading} variant="outline" size="sm" className="gap-1.5">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -1117,49 +1080,18 @@ export default function AdminPanelPage() {
                 </div>
               ); })}
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Actifs",    value: stats.activeUsers,    color: "text-green-700",  bg: "bg-green-50"  },
-                { label: "Suspendus", value: stats.suspendedUsers, color: "text-yellow-700", bg: "bg-yellow-50" },
-                { label: "Bloqués",   value: stats.blockedUsers,   color: "text-red-700",    bg: "bg-red-50"    },
-              ].map(s => (
-                <div key={s.label} className={`${s.bg} border border-border rounded-xl p-3 text-center`}>
-                  <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
-                  <div className="text-xs text-muted-foreground">{s.label}</div>
-                </div>
-              ))}
-            </div>
 
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Revenus Nexora</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Revenus</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "CA Boutiques", value: fmtMoney(stats.chiffreAffairesTotal), color: "text-emerald-700", bg: "bg-emerald-50", icon: Store },
-                { label: "Abonnements",  value: fmtMoney(stats.caAbonnements),        color: "text-violet-700", bg: "bg-violet-50", icon: Crown },
-                { label: "PayLinks",     value: fmtMoney(stats.caPaylinks),           color: "text-pink-700",   bg: "bg-pink-50",   icon: Link2 },
-                { label: "Formations",   value: fmtMoney(stats.totalFormationRevenue),color: "text-indigo-700", bg: "bg-indigo-50", icon: BookOpen },
+                { label: "CA Boutiques", value: fmtMoney(stats.chiffreAffairesTotal), color: "text-emerald-700", bg: "bg-emerald-50", icon: Store     },
+                { label: "Abonnements",  value: fmtMoney(stats.caAbonnements),        color: "text-violet-700", bg: "bg-violet-50", icon: Crown     },
+                { label: "PayLinks",     value: fmtMoney(stats.caPaylinks),           color: "text-pink-700",   bg: "bg-pink-50",   icon: Link2     },
+                { label: "Formations",   value: fmtMoney(stats.totalFormationRevenue),color: "text-indigo-700", bg: "bg-indigo-50", icon: BookOpen  },
               ].map(s => { const Icon = s.icon; return (
                 <div key={s.label} className={`${s.bg} border border-border rounded-xl p-4 flex items-center gap-3`}>
                   <Icon className={`w-6 h-6 ${s.color} flex-shrink-0`} />
                   <div><div className="text-xs text-muted-foreground">{s.label}</div><div className={`text-sm font-black ${s.color}`}>{s.value}</div></div>
-                </div>
-              ); })}
-            </div>
-
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Commerce & MLM</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Boutiques actives", value: `${stats.boutiquesActives}/${stats.totalBoutiques}`, icon: Store },
-                { label: "Produits",          value: stats.totalProduits,   icon: Package },
-                { label: "Commandes",         value: stats.totalCommandes,  icon: ShoppingCart },
-                { label: "Transactions",      value: stats.totalTransactions, icon: ArrowRightLeft },
-                { label: "Retraits en attente", value: stats.pendingWithdrawals, icon: Wallet },
-                { label: "Total retraits",    value: fmtMoney(stats.totalWithdrawalAmount), icon: TrendingDown },
-                { label: "CA MLM total",      value: fmtMoney(stats.totalMlmEarnings), icon: GitBranch },
-                { label: "Visites totales",   value: stats.totalVisits,    icon: Globe },
-              ].map(s => { const Icon = s.icon; return (
-                <div key={s.label} className="bg-card border border-border rounded-xl p-3 flex items-center gap-2">
-                  <Icon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0"><div className="text-xs text-muted-foreground truncate">{s.label}</div><div className="text-sm font-black truncate">{String(s.value)}</div></div>
                 </div>
               ); })}
             </div>
@@ -1170,8 +1102,8 @@ export default function AdminPanelPage() {
                 <div><div className="text-xs text-muted-foreground">Nouveaux aujourd'hui</div><div className="text-2xl font-black text-blue-600">{stats.newUsersToday}</div></div>
               </div>
               <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-                <Crown className="w-8 h-8 text-violet-500" />
-                <div><div className="text-xs text-muted-foreground">Nouveaux premium</div><div className="text-2xl font-black text-violet-600">{stats.newPremiumToday}</div></div>
+                <BookOpen className="w-8 h-8 text-indigo-500" />
+                <div><div className="text-xs text-muted-foreground">Formations publiées</div><div className="text-2xl font-black text-indigo-600">{stats.totalFormations}</div></div>
               </div>
             </div>
           </div>
@@ -1180,11 +1112,9 @@ export default function AdminPanelPage() {
         {/* ── UTILISATEURS ── */}
         {tab === "users" && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <button onClick={() => exportCSV(users, "nexora_users.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
-                <Download className="w-3.5 h-3.5" /> Export CSV
-              </button>
-            </div>
+            <button onClick={() => exportCSV(users, "nexora_users.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
             <div className="flex flex-wrap gap-2">
               <div className="relative flex-1 min-w-48">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1211,7 +1141,8 @@ export default function AdminPanelPage() {
                 const hasDette   = user.dette_active && (user.dette_cachee ?? 0) > 0;
                 const filleuls   = getMlmFilleuls(user.id).length;
                 return (
-                  <button key={user.id} onClick={() => { setSelectedUser(user); setNewPassword(""); setConfirmPassword(""); setPasswordSuccess(false); setAdminFeatures([]); setAdminPassword(""); setShowUserPassword(false); setUserTxHistory([]); setUserTxTab("all"); loadUserTransactions(user.id); }}
+                  <button key={user.id}
+                    onClick={() => { setSelectedUser(user); setNewPassword(""); setConfirmPassword(""); setPasswordSuccess(false); setAdminFeatures([]); setAdminPassword(""); setShowUserPassword(false); setUserTxHistory([]); loadUserTransactions(user.id); }}
                     className="w-full text-left bg-card border border-border rounded-2xl p-4 hover:border-primary/40 hover:shadow-sm transition-all">
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 font-bold text-primary text-sm overflow-hidden">
@@ -1231,8 +1162,7 @@ export default function AdminPanelPage() {
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(user.created_at)}</span>
                           <span className="flex items-center gap-1 text-emerald-600 font-semibold"><DollarSign className="w-3 h-3" />{fmtMoney(userCa)}</span>
-                          {filleuls > 0 && <span className="flex items-center gap-1 text-violet-600 font-semibold"><GitBranch className="w-3 h-3" />{filleuls}</span>}
-                          {(user.balance ?? 0) > 0 && <span className="flex items-center gap-1 text-blue-600 font-semibold"><Wallet className="w-3 h-3" />{fmtMoney(user.balance)}</span>}
+                          {filleuls > 0 && <span className="flex items-center gap-1 text-violet-600 font-semibold"><GitBranch className="w-3 h-3" />{filleuls} filleuls</span>}
                         </div>
                       </div>
                       <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
@@ -1247,81 +1177,55 @@ export default function AdminPanelPage() {
         {/* ── BOUTIQUES ── */}
         {tab === "boutiques" && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <button onClick={() => exportCSV(boutiques, "nexora_boutiques.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
-                <Download className="w-3.5 h-3.5" /> Export CSV
-              </button>
-            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={searchBoutique} onChange={e => setSearchBoutique(e.target.value)} placeholder="Rechercher une boutique..." className="pl-9" />
+              <Input value={searchBoutique} onChange={e => setSearchBoutique(e.target.value)} placeholder="Rechercher..." className="pl-9" />
             </div>
-            <p className="text-xs text-muted-foreground">{filteredBoutiques.length} boutique(s)</p>
             <div className="space-y-3">
               {filteredBoutiques.map(boutique => {
                 const isExpanded    = expandedBoutique === boutique.id;
                 const produitsBout  = getProduitsByBoutique(boutique.id);
-                const commandesBout = getCommandesByBoutique(boutique.id);
                 const ca            = getCaByBoutique(boutique.id);
                 const owner         = users.find(u => u.id === boutique.user_id);
                 return (
                   <div key={boutique.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-                    <div className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center flex-shrink-0"><Store className="w-5 h-5 text-pink-600" /></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-sm">{boutique.nom}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${boutique.actif ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{boutique.actif ? "Active" : "Inactive"}</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">/{boutique.slug} · {owner?.nom_prenom || "Inconnu"}</div>
-                          <div className="flex items-center gap-3 mt-1 text-xs flex-wrap">
-                            <span className="text-muted-foreground flex items-center gap-1"><Package className="w-3 h-3" />{produitsBout.length}</span>
-                            <span className="text-muted-foreground flex items-center gap-1"><ShoppingCart className="w-3 h-3" />{commandesBout.length}</span>
-                            <span className="text-emerald-600 font-bold">{fmtMoney(ca)}</span>
-                          </div>
+                    <div className="p-4 flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center flex-shrink-0"><Store className="w-5 h-5 text-pink-600" /></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm">{boutique.nom}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${boutique.actif ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{boutique.actif ? "Active" : "Inactive"}</span>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button onClick={() => openActionModal("toggle_boutique", boutique, "boutique")}
-                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${boutique.actif ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
-                            {boutique.actif ? "Désactiver" : "Activer"}
-                          </button>
-                          <button onClick={() => setExpandedBoutique(isExpanded ? null : boutique.id)} className="p-1.5 rounded-lg hover:bg-muted">
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
+                        <div className="text-xs text-muted-foreground">{owner?.nom_prenom || "?"} · {produitsBout.length} produits · {fmtMoney(ca)}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openActionModal("toggle_boutique", boutique, "boutique")}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-medium ${boutique.actif ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
+                          {boutique.actif ? "Désact." : "Activer"}
+                        </button>
+                        <button onClick={() => setExpandedBoutique(isExpanded ? null : boutique.id)} className="p-1.5 rounded-lg hover:bg-muted">
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
                     {isExpanded && (
                       <div className="border-t border-border bg-muted/30 p-4 space-y-2">
-                        {produitsBout.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-2">Aucun produit</p>
-                        ) : produitsBout.map(produit => {
-                          const photos = produit.photos;
-                          const photo  = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
-                          return (
+                        {produitsBout.length === 0 ? <p className="text-xs text-muted-foreground text-center py-2">Aucun produit</p>
+                          : produitsBout.map(produit => (
                             <div key={produit.id} className="bg-background border border-border rounded-xl p-3 flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
-                                {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-muted-foreground" /></div>}
-                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-sm truncate">{produit.nom}</div>
-                                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                  {fmtMoney(produit.prix)}
-                                  {produit.type && <span className={`px-1.5 py-0.5 rounded font-semibold ${produit.type === "digital" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>{produit.type}</span>}
-                                </div>
+                                <div className="text-xs text-muted-foreground">{fmtMoney(produit.prix)}</div>
                               </div>
-                              <div className="flex flex-col gap-1.5 flex-shrink-0">
-                                {produit.actif ? (
-                                  <button onClick={() => openActionModal("restreindre_produit", produit, "produit")} className="text-xs px-2.5 py-1.5 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-medium">Restreindre</button>
-                                ) : (
-                                  <button onClick={() => openActionModal("activer_produit", produit, "produit")} className="text-xs px-2.5 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium">Activer</button>
-                                )}
-                                <button onClick={() => openActionModal("supprimer_produit", produit, "produit")} className="text-xs px-2.5 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium">Supprimer</button>
+                              <div className="flex gap-1.5 flex-shrink-0">
+                                {produit.actif
+                                  ? <button onClick={() => openActionModal("restreindre_produit", produit, "produit")} className="text-xs px-2.5 py-1.5 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-medium">Restreindre</button>
+                                  : <button onClick={() => openActionModal("activer_produit", produit, "produit")} className="text-xs px-2.5 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium">Activer</button>
+                                }
+                                <button onClick={() => openActionModal("supprimer_produit", produit, "produit")} className="text-xs px-2.5 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium"><Trash2 className="w-3 h-3" /></button>
                               </div>
                             </div>
-                          );
-                        })}
+                          ))}
                       </div>
                     )}
                   </div>
@@ -1334,41 +1238,26 @@ export default function AdminPanelPage() {
         {/* ── PAYLINKS ── */}
         {tab === "paylinks" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="bg-pink-50 border border-pink-200 rounded-xl p-3 flex items-center gap-3 flex-1 mr-3">
-                <Link2 className="w-5 h-5 text-pink-600" />
-                <div><div className="text-xs text-pink-600 font-semibold">Total généré via PayLinks</div><div className="text-xl font-black text-pink-700">{fmtMoney(stats.caPaylinks)}</div></div>
-              </div>
-              <button onClick={() => exportCSV(paylinks, "nexora_paylinks.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors h-fit">
-                <Download className="w-3.5 h-3.5" /> CSV
-              </button>
+            <div className="bg-pink-50 border border-pink-200 rounded-xl p-3 flex items-center gap-3">
+              <Link2 className="w-5 h-5 text-pink-600" />
+              <div><div className="text-xs text-pink-600 font-semibold">Total via PayLinks</div><div className="text-xl font-black text-pink-700">{fmtMoney(stats.caPaylinks)}</div></div>
             </div>
             <div className="space-y-2">
-              {paylinks.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 text-sm">Aucun PayLink</p>
-              ) : paylinks.map(pl => {
+              {paylinks.map(pl => {
                 const owner = getUserById(pl.user_id);
                 return (
-                  <div key={pl.id} className="bg-card border border-border rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0"><Link2 className="w-4 h-4 text-pink-600" /></div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm truncate">{pl.title}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${pl.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{pl.is_active ? "Actif" : "Inactif"}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{owner?.nom_prenom || "Inconnu"} · {fmtDate(pl.created_at)}</div>
-                        <div className="flex gap-3 mt-1 text-xs flex-wrap">
-                          <span className="text-muted-foreground">Montant : <span className="font-semibold text-foreground">{fmtMoney(pl.amount, pl.devise)}</span></span>
-                          <span className="text-emerald-600 font-bold">Total encaissé : {fmtMoney(pl.total_paid, pl.devise)}</span>
-                          <span className="text-muted-foreground">{pl.total_tx} transactions</span>
-                        </div>
+                  <div key={pl.id} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm truncate">{pl.title}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${pl.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{pl.is_active ? "Actif" : "Inactif"}</span>
                       </div>
-                      <button onClick={() => openActionModal("toggle_paylink", pl, "paylink")}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors flex-shrink-0 ${pl.is_active ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
-                        {pl.is_active ? "Désactiver" : "Activer"}
-                      </button>
+                      <div className="text-xs text-muted-foreground">{owner?.nom_prenom || "?"} · {pl.total_tx} tx · {fmtMoney(pl.total_paid, pl.devise)}</div>
                     </div>
+                    <button onClick={() => openActionModal("toggle_paylink", pl, "paylink")}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium flex-shrink-0 ${pl.is_active ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
+                      {pl.is_active ? "Désact." : "Activer"}
+                    </button>
                   </div>
                 );
               })}
@@ -1385,7 +1274,7 @@ export default function AdminPanelPage() {
                 <div className="text-xl font-black text-emerald-700">{fmtMoney(stats.caTransactions)}</div>
               </div>
               <div className="bg-card border border-border rounded-xl p-3">
-                <div className="text-xs text-muted-foreground font-semibold">Nombre total</div>
+                <div className="text-xs text-muted-foreground">Total</div>
                 <div className="text-xl font-black">{stats.totalTransactions}</div>
               </div>
             </div>
@@ -1397,8 +1286,6 @@ export default function AdminPanelPage() {
                 <option value="mlm">MLM</option>
                 <option value="paylink">PayLink</option>
                 <option value="abonnement">Abonnement</option>
-                <option value="recharge">Recharge</option>
-                <option value="retrait">Retrait</option>
               </select>
               <select value={filterTxStatus} onChange={e => setFilterTxStatus(e.target.value)} className="h-10 px-3 rounded-md border border-input bg-background text-sm">
                 <option value="">Tous statuts</option>
@@ -1406,32 +1293,25 @@ export default function AdminPanelPage() {
                 <option value="pending">En cours</option>
                 <option value="failed">Échoué</option>
               </select>
-              <button onClick={() => exportCSV(filteredTx, "nexora_transactions.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
+              <button onClick={() => exportCSV(filteredTx, "nexora_transactions.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold">
                 <Download className="w-3.5 h-3.5" /> CSV
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">{filteredTx.length} transaction(s)</p>
             <div className="space-y-2">
               {filteredTx.slice(0, 50).map(tx => {
                 const owner = getUserById(tx.user_id);
                 const cfg   = TX_STATUS[tx.status as keyof typeof TX_STATUS] || TX_STATUS.pending;
                 return (
                   <div key={tx.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                      <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
-                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm">{owner?.nom_prenom || "Inconnu"}</span>
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-medium capitalize">{tx.type}</span>
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full capitalize">{tx.type}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{fmtDatetime(tx.created_at)}</div>
+                      <div className="text-xs text-muted-foreground">{fmtDatetime(tx.created_at)}</div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-black text-emerald-600">{fmtMoney(tx.amount, tx.devise)}</div>
-                      {tx.frais > 0 && <div className="text-xs text-muted-foreground">frais : {fmtMoney(tx.frais, tx.devise)}</div>}
-                    </div>
+                    <div className="font-black text-emerald-600 flex-shrink-0">{fmtMoney(tx.amount, tx.devise)}</div>
                   </div>
                 );
               })}
@@ -1446,7 +1326,7 @@ export default function AdminPanelPage() {
               {[
                 { label: "En attente", value: stats.pendingWithdrawals, color: "text-yellow-700", bg: "bg-yellow-50" },
                 { label: "Total",      value: stats.totalWithdrawals,   color: "text-gray-700",   bg: "bg-gray-50"   },
-                { label: "CA retiré",  value: fmtMoney(stats.totalWithdrawalAmount), color: "text-red-700", bg: "bg-red-50" },
+                { label: "Approuvé",   value: fmtMoney(stats.totalWithdrawalAmount), color: "text-red-700", bg: "bg-red-50" },
               ].map(s => (
                 <div key={s.label} className={`${s.bg} border border-border rounded-xl p-3 text-center`}>
                   <div className={`text-lg font-black ${s.color}`}>{String(s.value)}</div>
@@ -1460,9 +1340,8 @@ export default function AdminPanelPage() {
                 <option value="pending">En attente</option>
                 <option value="approved">Approuvé</option>
                 <option value="rejected">Refusé</option>
-                <option value="processing">Traitement</option>
               </select>
-              <button onClick={() => exportCSV(filteredWd, "nexora_retraits.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
+              <button onClick={() => exportCSV(filteredWd, "nexora_retraits.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold">
                 <Download className="w-3.5 h-3.5" /> CSV
               </button>
             </div>
@@ -1479,26 +1358,19 @@ export default function AdminPanelPage() {
                           <span className="font-bold text-sm">{owner?.nom_prenom || "Inconnu"}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {wd.reseau && <span>{wd.reseau} · </span>}
-                          {wd.telephone && <span>{wd.telephone} · </span>}
-                          {fmtDatetime(wd.created_at)}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{wd.reseau && `${wd.reseau} · `}{wd.telephone && `${wd.telephone} · `}{fmtDatetime(wd.created_at)}</div>
                         {wd.nom_beneficiaire && <div className="text-xs text-muted-foreground">Bénéficiaire : {wd.nom_beneficiaire}</div>}
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-black text-lg text-red-600">{fmtMoney(wd.amount, wd.devise)}</div>
-                        {wd.frais > 0 && <div className="text-xs text-muted-foreground">frais : {fmtMoney(wd.frais, wd.devise)}</div>}
-                      </div>
+                      <div className="font-black text-lg text-red-600 flex-shrink-0">{fmtMoney(wd.amount, wd.devise)}</div>
                     </div>
                     {wd.status === "pending" && (
                       <div className="mt-3 flex gap-2">
                         <textarea value={actionModal?.target?.id === wd.id ? actionReason : ""}
-                          placeholder="Note admin (optionnel)..."
+                          placeholder="Note admin..."
                           onChange={e => { setActionReason(e.target.value); setActionModal({ type: "wd_note", target: wd, targetType: "withdrawal" }); }}
-                          className="flex-1 h-8 px-3 py-1 text-xs rounded-lg border border-input bg-background resize-none outline-none focus:border-primary" />
-                        <button onClick={() => handleWithdrawalAction(wd, "approved")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-semibold transition-colors"><CheckCircle className="w-3.5 h-3.5" /> Approuver</button>
-                        <button onClick={() => handleWithdrawalAction(wd, "rejected")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-semibold transition-colors"><XCircle className="w-3.5 h-3.5" /> Refuser</button>
+                          className="flex-1 h-8 px-3 py-1 text-xs rounded-lg border border-input bg-background resize-none outline-none" />
+                        <button onClick={() => handleWithdrawalAction(wd, "approved")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-semibold"><CheckCircle className="w-3.5 h-3.5" /> Approuver</button>
+                        <button onClick={() => handleWithdrawalAction(wd, "rejected")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-semibold"><XCircle className="w-3.5 h-3.5" /> Refuser</button>
                       </div>
                     )}
                     {wd.admin_note && <div className="mt-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">Note : {wd.admin_note}</div>}
@@ -1514,24 +1386,28 @@ export default function AdminPanelPage() {
         {tab === "mlm" && (
           <div className="space-y-4">
             <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-violet-700 font-bold mb-2"><GitBranch className="w-5 h-5" /> Réseau MLM</div>
+              <div className="font-bold text-violet-700 mb-2 flex items-center gap-2"><GitBranch className="w-5 h-5" /> Réseau MLM</div>
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div><div className="text-xl font-black text-violet-700">{users.filter(u => (u as any).referrer_id).length}</div><div className="text-xs text-violet-600">Filleuls inscrits</div></div>
+                <div><div className="text-xl font-black text-violet-700">{users.filter(u => u.referrer_id).length}</div><div className="text-xs text-violet-600">Filleuls</div></div>
                 <div><div className="text-xl font-black text-violet-700">{mlmCommissions.length}</div><div className="text-xs text-violet-600">Commissions</div></div>
-                <div><div className="text-sm font-black text-violet-700">{fmtMoney(stats.totalMlmEarnings)}</div><div className="text-xs text-violet-600">CA total MLM</div></div>
+                <div><div className="text-sm font-black text-violet-700">{fmtMoney(stats.totalMlmEarnings)}</div><div className="text-xs text-violet-600">CA MLM</div></div>
               </div>
             </div>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Top parrains</p>
             <div className="space-y-2">
               {users
-                .map(u => ({ user: u, filleuls: getMlmFilleuls(u.id).length, earnings: getMlmEarningsByUser(u.id).filter(c => c.status === "credited").reduce((a, c) => a + (Number(c.amount) || 0), 0) }))
+                .map(u => ({
+                  user: u,
+                  filleuls: getMlmFilleuls(u.id).length,
+                  earnings: getMlmEarningsByUser(u.id).filter(c => c.status === "credited").reduce((a, c) => a + (Number(c.amount) || 0), 0),
+                }))
                 .filter(x => x.filleuls > 0)
                 .sort((a, b) => b.filleuls - a.filleuls)
                 .slice(0, 20)
                 .map(({ user, filleuls, earnings }) => (
                   <div key={user.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-sm flex-shrink-0 overflow-hidden">
-                      {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" alt="" /> : user.nom_prenom.slice(0, 2).toUpperCase()}
+                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-sm flex-shrink-0">
+                      {user.nom_prenom.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm">{user.nom_prenom}</div>
@@ -1543,81 +1419,226 @@ export default function AdminPanelPage() {
                     </div>
                   </div>
                 ))}
-              {users.every(u => getMlmFilleuls(u.id).length === 0) && (
-                <p className="text-center text-muted-foreground py-8 text-sm">Aucune relation MLM enregistrée</p>
-              )}
             </div>
-            {mlmCommissions.length > 0 && (<>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Derniers gains MLM</p>
-              <div className="space-y-2">
-                {mlmCommissions.slice(0, 20).map(e => {
-                  const earner = getUserById(e.to_user_id);
-                  const cfg    = e.status === "credited" ? "bg-green-100 text-green-700" : e.status === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500";
-                  return (
-                    <div key={e.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                      <Award className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm">{earner?.nom_prenom || "Inconnu"}</div>
-                        <div className="text-xs text-muted-foreground">{e.type === "subscription" ? "Abonnement" : "Formation"} · Niv. {e.level} · {fmtDatetime(e.created_at)}</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-black text-amber-600">{fmtMoney(e.amount)}</div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cfg}`}>{e.status}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>)}
           </div>
         )}
 
         {/* ── FORMATIONS ── */}
         {tab === "formations" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-5">
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
                 <BookOpen className="w-5 h-5 text-indigo-600 mb-1" />
-                <div className="text-xs text-indigo-600 font-semibold">Revenus formations</div>
+                <div className="text-xs text-indigo-600 font-semibold">Revenus</div>
                 <div className="text-xl font-black text-indigo-700">{fmtMoney(stats.totalFormationRevenue)}</div>
               </div>
               <div className="bg-card border border-border rounded-xl p-4">
                 <ShoppingCart className="w-5 h-5 text-muted-foreground mb-1" />
-                <div className="text-xs text-muted-foreground font-semibold">Ventes totales</div>
+                <div className="text-xs text-muted-foreground">Achats</div>
                 <div className="text-xl font-black">{stats.totalFormationSales}</div>
               </div>
+              <div className="bg-card border border-border rounded-xl p-4">
+                <BookOpen className="w-5 h-5 text-muted-foreground mb-1" />
+                <div className="text-xs text-muted-foreground">Formations</div>
+                <div className="text-xl font-black">{stats.totalFormations}</div>
+              </div>
             </div>
-            <div className="space-y-2">
-              {formations.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 text-sm">Aucune formation</p>
-              ) : formations.map(fo => {
-                const owner = getUserById(fo.user_id || "");
-                const sales = formationSales.filter(s => s.formation_id === fo.id);
-                const ca    = sales.reduce((a, s) => a + s.amount, 0);
-                return (
-                  <div key={fo.id} className="bg-card border border-border rounded-2xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><BookOpen className="w-5 h-5 text-indigo-600" /></div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm truncate">{fo.title}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${fo.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{fo.is_active ? "Active" : "Inactive"}</span>
+
+            {/* ✅ Liste formations avec filtre */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Formations publiées</p>
+              <div className="flex gap-1.5">
+                {(["all","active","inactive"] as const).map(f => (
+                  <button key={f} onClick={() => setFilterFormation(f)}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors ${filterFormation === f ? "bg-indigo-100 text-indigo-700" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+                    {f === "all" ? "Toutes" : f === "active" ? "Actives" : "Inactives"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredFormations.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">Aucune formation trouvée</p>
+                <p className="text-xs mt-1 opacity-70">Créez des formations depuis la page Formations</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredFormations.map(fo => {
+                  const buyers = getFormationBuyersByFormation(fo.id);
+                  return (
+                    <div key={fo.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          {fo.image_url
+                            ? <img src={fo.image_url} alt={fo.titre} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                            : <div className="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><BookOpen className="w-7 h-7 text-indigo-600" /></div>
+                          }
+                          <div className="flex-1 min-w-0">
+                            {/* ✅ TITRE DE LA FORMATION affiché ici */}
+                            <div className="font-black text-base leading-tight">{fo.titre}</div>
+                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${fo.actif ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                                {fo.actif ? "Active" : "Inactive"}
+                              </span>
+                              {fo.niveau && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">{fo.niveau}</span>}
+                              {fo.categorie && <span className="text-xs text-muted-foreground">{fo.categorie}</span>}
+                            </div>
+                            <div className="flex gap-3 mt-2 text-xs flex-wrap">
+                              <span className="font-bold text-primary">{fmtMoney(fo.prix_promo && fo.prix_promo < fo.prix ? fo.prix_promo : fo.prix)}</span>
+                              {fo.prix_promo && fo.prix_promo < fo.prix && (
+                                <span className="line-through text-muted-foreground">{fmtMoney(fo.prix)}</span>
+                              )}
+                              <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                <Users className="w-3 h-3" />{fo.nb_achats ?? 0} acheteur{(fo.nb_achats ?? 0) !== 1 ? "s" : ""}
+                              </span>
+                              <span className="text-indigo-600 font-bold">{fmtMoney(fo.revenus_total ?? 0)} CA</span>
+                            </div>
+                          </div>
+                          <button onClick={() => openActionModal("toggle_formation", fo, "formation")}
+                            className={`text-xs px-3 py-1.5 rounded-lg font-medium flex-shrink-0 ${fo.actif ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
+                            {fo.actif ? "Désactiver" : "Activer"}
+                          </button>
                         </div>
-                        {owner && <div className="text-xs text-muted-foreground mt-0.5">Par {owner.nom_prenom}</div>}
-                        <div className="flex gap-3 mt-1 text-xs">
-                          <span className="font-semibold">{fmtMoney(fo.price, fo.devise)}</span>
-                          <span className="text-muted-foreground">{sales.length} ventes</span>
-                          <span className="text-emerald-600 font-bold">{fmtMoney(ca, fo.devise)}</span>
-                        </div>
+
+                        {/* ✅ Liste des acheteurs de cette formation */}
+                        {buyers.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-border">
+                            <div className="text-xs font-bold text-muted-foreground mb-2 flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5" /> {buyers.length} acheteur{buyers.length !== 1 ? "s" : ""}
+                            </div>
+                            <div className="space-y-1.5">
+                              {buyers.map(fp => {
+                                const buyer = getUserById(fp.user_id);
+                                return (
+                                  <div key={fp.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs ${fp.acces_revoque ? "bg-red-50 border border-red-100" : "bg-muted/60"}`}>
+                                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-xs flex-shrink-0 overflow-hidden">
+                                      {buyer?.avatar_url ? <img src={buyer.avatar_url} className="w-full h-full object-cover" alt="" /> : (buyer?.nom_prenom || "?").slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-semibold">{buyer?.nom_prenom || "Inconnu"}</div>
+                                      <div className="text-muted-foreground">@{buyer?.username} · {fmtDate(fp.created_at)}</div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-bold text-emerald-600">{fmtMoney(fp.amount, fp.currency)}</span>
+                                      {fp.acces_revoque ? (
+                                        <>
+                                          <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">Révoqué</span>
+                                          <button onClick={() => openActionModal("restaurer_acces", fp, "formation_purchase")}
+                                            className="px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium">Restaurer</button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">Actif</span>
+                                          <button onClick={() => openActionModal("revoquer_acces", fp, "formation_purchase")}
+                                            className="px-2 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-medium">Révoquer</button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <button onClick={() => openActionModal("toggle_formation", fo, "formation")}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors flex-shrink-0 ${fo.is_active ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
-                        {fo.is_active ? "Désactiver" : "Activer"}
-                      </button>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ✅ Retraits de commissions MLM — section séparée et visible */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  Retraits Commissions MLM
+                  {stats.pendingMlmWithdrawals > 0 && (
+                    <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">{stats.pendingMlmWithdrawals} en attente</span>
+                  )}
+                </p>
+                <button onClick={() => exportCSV(mlmWithdrawals, "mlm_withdrawals.csv")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold">
+                  <Download className="w-3 h-3" /> CSV
+                </button>
+              </div>
+
+              {mlmWithdrawals.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">Aucun retrait de commission</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {mlmWithdrawals.map(mwd => {
+                    const owner = getUserById(mwd.user_id);
+                    const statusCfg = {
+                      pending:    { bg: "bg-yellow-100", color: "text-yellow-700", label: "En attente" },
+                      approved:   { bg: "bg-green-100",  color: "text-green-700",  label: "Approuvé"   },
+                      processing: { bg: "bg-blue-100",   color: "text-blue-700",   label: "En cours"   },
+                      rejected:   { bg: "bg-red-100",    color: "text-red-700",    label: "Refusé"     },
+                    }[mwd.status] || { bg: "bg-gray-100", color: "text-gray-700", label: mwd.status };
+
+                    return (
+                      <div key={mwd.id} className={`bg-card border rounded-2xl p-4 ${mwd.status === "pending" ? "border-yellow-200 bg-yellow-50/30" : "border-border"}`}>
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                            <Wallet className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {/* ✅ Nom de l'utilisateur */}
+                              <span className="font-bold text-sm">{owner?.nom_prenom || "Inconnu"}</span>
+                              <span className="text-xs text-muted-foreground">@{owner?.username || "?"}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusCfg.bg} ${statusCfg.color}`}>{statusCfg.label}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {mwd.reseau && <span className="font-medium">{mwd.reseau}</span>}
+                              {mwd.reseau && mwd.telephone && " · "}
+                              {mwd.telephone && <span>{mwd.telephone}</span>}
+                              {mwd.pays && <span> · {mwd.pays}</span>}
+                              <span> · {fmtDatetime(mwd.created_at)}</span>
+                            </div>
+                            {mwd.nom_beneficiaire && (
+                              <div className="text-xs text-muted-foreground">Bénéficiaire : <span className="font-medium">{mwd.nom_beneficiaire}</span></div>
+                            )}
+                            {mwd.admin_note && (
+                              <div className="mt-1 text-xs bg-muted rounded-lg px-2 py-1.5">Note : {mwd.admin_note}</div>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="font-black text-xl text-amber-600">{fmtMoney(mwd.amount, mwd.currency)}</div>
+                          </div>
+                        </div>
+
+                        {/* ✅ Boutons approuver / refuser */}
+                        {mwd.status === "pending" && (
+                          <div className="mt-3 flex gap-2">
+                            <Input
+                              type="text"
+                              value={mlmWdNote[mwd.id] || ""}
+                              onChange={e => setMlmWdNote(prev => ({ ...prev, [mwd.id]: e.target.value }))}
+                              placeholder="Note admin (optionnel)..."
+                              className="flex-1 h-9 text-xs"
+                            />
+                            <button
+                              onClick={() => handleMlmWithdrawalAction(mwd, "approved", mlmWdNote[mwd.id] || "")}
+                              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-green-100 text-green-700 hover:bg-green-200 font-semibold whitespace-nowrap">
+                              <CheckCircle className="w-3.5 h-3.5" /> Approuver
+                            </button>
+                            <button
+                              onClick={() => handleMlmWithdrawalAction(mwd, "rejected", mlmWdNote[mwd.id] || "")}
+                              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-red-100 text-red-700 hover:bg-red-200 font-semibold whitespace-nowrap">
+                              <XCircle className="w-3.5 h-3.5" /> Refuser
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1625,40 +1646,36 @@ export default function AdminPanelPage() {
         {/* ── TRAFIC ── */}
         {tab === "trafic" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Visites",    value: stats.totalVisits,  icon: Eye,         color: "text-blue-600",   bg: "bg-blue-50"   },
-                { label: "Clics",      value: stats.totalClicks,  icon: Zap,         color: "text-yellow-600", bg: "bg-yellow-50" },
-                { label: "Boutiques",  value: stats.totalBoutiques, icon: Store,     color: "text-pink-600",   bg: "bg-pink-50"   },
-              ].map(s => { const Icon = s.icon; return (
-                <div key={s.label} className={`${s.bg} border border-border rounded-xl p-3 text-center`}>
-                  <Icon className={`w-5 h-5 ${s.color} mx-auto mb-1`} />
-                  <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
-                  <div className="text-xs text-muted-foreground">{s.label}</div>
-                </div>
-              ); })}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                <Eye className="w-5 h-5 text-blue-600 mx-auto mb-1" />
+                <div className="text-xl font-black text-blue-600">{stats.totalVisits}</div>
+                <div className="text-xs text-muted-foreground">Visites</div>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
+                <Zap className="w-5 h-5 text-yellow-600 mx-auto mb-1" />
+                <div className="text-xl font-black text-yellow-600">{stats.totalClicks}</div>
+                <div className="text-xs text-muted-foreground">Clics</div>
+              </div>
             </div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Statistiques par jour</p>
             <div className="space-y-2">
-              {trafficStats.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 text-sm">Aucune donnée de trafic</p>
-              ) : trafficStats.slice(0, 30).map(ts => {
+              {trafficStats.slice(0, 30).map(ts => {
                 const boutique = boutiques.find(b => b.id === ts.shop_id);
-                const owner    = boutique ? getUserById(boutique.user_id) : null;
                 return (
                   <div key={ts.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
                     <Globe className="w-5 h-5 text-blue-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm">{boutique?.nom || "Boutique inconnue"}</div>
-                      <div className="text-xs text-muted-foreground">{owner?.nom_prenom || ""} · {fmtDate(ts.date)}</div>
+                      <div className="text-xs text-muted-foreground">{fmtDate(ts.date)}</div>
                     </div>
-                    <div className="text-right flex-shrink-0 text-xs space-y-0.5">
-                      <div className="flex items-center gap-1 text-blue-600 font-semibold"><Eye className="w-3 h-3" />{ts.visits}</div>
-                      <div className="flex items-center gap-1 text-yellow-600 font-semibold"><Zap className="w-3 h-3" />{ts.clicks}</div>
+                    <div className="text-xs text-right">
+                      <div className="text-blue-600 font-semibold">{ts.visits} visites</div>
+                      <div className="text-yellow-600 font-semibold">{ts.clicks} clics</div>
                     </div>
                   </div>
                 );
               })}
+              {trafficStats.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">Aucune donnée</p>}
             </div>
           </div>
         )}
@@ -1670,11 +1687,6 @@ export default function AdminPanelPage() {
               <div className="text-sm font-semibold opacity-80 mb-1">Revenus Abonnements</div>
               <div className="text-3xl font-black">{fmtMoney(stats.caAbonnements)}</div>
               <div className="text-xs opacity-70 mt-1">{stats.totalAbonnements} abonnement(s)</div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => exportCSV(abonnements, "nexora_abonnements.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
-                <Download className="w-3.5 h-3.5" /> CSV
-              </button>
             </div>
             <div className="space-y-2">
               {abonnements.map(a => {
@@ -1705,12 +1717,12 @@ export default function AdminPanelPage() {
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{logs.length} entrées</p>
               <div className="flex gap-2">
-                <button onClick={() => exportCSV(logs, "nexora_logs.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold transition-colors">
+                <button onClick={() => exportCSV(logs, "nexora_logs.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold">
                   <Download className="w-3.5 h-3.5" /> CSV
                 </button>
                 <Button variant="outline" size="sm" onClick={() => {
                   if (window.confirm("Vider tous les logs ?")) {
-                    supabase.from("nexora_logs" as any).delete().neq("id", "00000000-0000-0000-0000-000000000000")
+                    (supabase.from("nexora_logs") as any).delete().neq("id", "00000000-0000-0000-0000-000000000000")
                       .then(() => { toast({ title: "Logs vidés" }); loadAll(); });
                   }
                 }} className="gap-1 text-xs"><Trash2 className="w-3.5 h-3.5" /> Vider</Button>
@@ -1720,10 +1732,7 @@ export default function AdminPanelPage() {
               <div key={log.id} className="bg-card border border-border rounded-xl px-4 py-3 flex items-start gap-3">
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5"><Activity className="w-3.5 h-3.5 text-primary" /></div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-primary">{log.action}</span>
-                    {log.nexora_users && <span className="text-xs text-muted-foreground">@{(log.nexora_users as any).username}</span>}
-                  </div>
+                  <div className="text-xs font-bold text-primary">{log.action}</div>
                   {log.details && <p className="text-xs text-muted-foreground mt-0.5 truncate">{log.details}</p>}
                 </div>
                 <div className="text-xs text-muted-foreground flex-shrink-0 flex items-center gap-1"><Clock className="w-3 h-3" />{fmtDatetime(log.created_at)}</div>
@@ -1732,54 +1741,53 @@ export default function AdminPanelPage() {
           </div>
         )}
 
-        {/* ── NOTIFICATIONS ADMIN ── */}
+        {/* ── NOTIFS ADMIN ── */}
         {tab === "notifs" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{adminNotifs.length} notification(s) · {stats.unreadNotifs} non lues</p>
+              <p className="text-sm text-muted-foreground">{adminNotifs.length} notif(s) · {stats.unreadNotifs} non lues</p>
               <div className="flex gap-2">
                 {stats.unreadNotifs > 0 && (
-                  <button onClick={markAllNotifsRead} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold transition-colors">
+                  <button onClick={markAllNotifsRead} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold">
                     <CheckCircle className="w-3.5 h-3.5" /> Tout marquer lu
                   </button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => {
-                  if (window.confirm("Vider toutes les notifications admin ?")) {
+                  if (window.confirm("Vider les notifications ?")) {
                     (supabase.from("admin_notifications") as any).delete().neq("id", "00000000-0000-0000-0000-000000000000")
                       .then(() => { toast({ title: "Notifications vidées" }); loadAll(); });
                   }
                 }} className="gap-1 text-xs"><Trash2 className="w-3.5 h-3.5" /> Vider</Button>
               </div>
             </div>
-            {adminNotifs.length === 0 ? (
-              <div className="text-center py-12">
-                <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Aucune notification</p>
-              </div>
-            ) : adminNotifs.map(notif => {
+            {adminNotifs.map(notif => {
               const severityConfig = {
-                info:    { bg: "bg-blue-50",   border: "border-blue-200",   icon: AlertCircle, iconColor: "text-blue-500"  },
+                info:    { bg: "bg-blue-50",   border: "border-blue-200",   icon: AlertCircle,   iconColor: "text-blue-500"   },
                 warning: { bg: "bg-yellow-50", border: "border-yellow-200", icon: AlertTriangle, iconColor: "text-yellow-500" },
-                danger:  { bg: "bg-red-50",    border: "border-red-200",    icon: AlertOctagon, iconColor: "text-red-500"   },
-                success: { bg: "bg-green-50",  border: "border-green-200",  icon: CheckCircle, iconColor: "text-green-500" },
+                danger:  { bg: "bg-red-50",    border: "border-red-200",    icon: AlertOctagon,  iconColor: "text-red-500"    },
+                success: { bg: "bg-green-50",  border: "border-green-200",  icon: CheckCircle,   iconColor: "text-green-500"  },
               }[notif.severity] || { bg: "bg-muted", border: "border-border", icon: Bell, iconColor: "text-muted-foreground" };
               const Icon = severityConfig.icon;
-              const user = notif.user_id ? getUserById(notif.user_id) : null;
               return (
                 <div key={notif.id} className={`${severityConfig.bg} border ${severityConfig.border} rounded-xl p-4 flex items-start gap-3 ${!notif.lu ? "opacity-100" : "opacity-60"}`}>
                   <Icon className={`w-5 h-5 ${severityConfig.iconColor} flex-shrink-0 mt-0.5`} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <span className="font-bold text-sm">{notif.titre}</span>
-                      {!notif.lu && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                      {!notif.lu && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
                     </div>
                     {notif.message && <p className="text-xs text-muted-foreground mt-0.5">{notif.message}</p>}
-                    {user && <p className="text-xs text-muted-foreground mt-0.5">Utilisateur : {user.nom_prenom}</p>}
                     <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Clock className="w-3 h-3" />{fmtDatetime(notif.created_at)}</p>
                   </div>
                 </div>
               );
             })}
+            {adminNotifs.length === 0 && (
+              <div className="text-center py-12">
+                <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">Aucune notification</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1800,26 +1808,34 @@ export default function AdminPanelPage() {
               {actionModal.type === "activer_produit"     && "Réactiver le produit"}
               {actionModal.type === "toggle_boutique"     && (actionModal.target.actif ? "Désactiver la boutique" : "Activer la boutique")}
               {actionModal.type === "toggle_paylink"      && (actionModal.target.is_active ? "Désactiver le PayLink" : "Activer le PayLink")}
-              {actionModal.type === "toggle_formation"    && (actionModal.target.is_active ? "Désactiver la formation" : "Activer la formation")}
+              {actionModal.type === "toggle_formation"    && (actionModal.target.actif ? "Désactiver la formation" : "Activer la formation")}
+              {actionModal.type === "revoquer_acces"      && "Révoquer l'accès"}
+              {actionModal.type === "restaurer_acces"     && "Restaurer l'accès"}
             </h3>
             {actionModal.type === "activer_premium" && (
-              <div><label className="text-sm font-medium">Durée (jours)</label><Input type="number" value={premiumDays} onChange={e => setPremiumDays(e.target.value)} className="mt-1" placeholder="30" autoFocus /></div>
+              <div>
+                <label className="text-sm font-medium">Durée (jours)</label>
+                <Input type="number" value={premiumDays} onChange={e => setPremiumDays(e.target.value)} className="mt-1" placeholder="30" autoFocus />
+              </div>
             )}
-            {["retirer_premium","suspendre","bloquer","supprimer","supprimer_produit","restreindre_produit","toggle_boutique","toggle_paylink"].includes(actionModal.type) && (
+            {["retirer_premium","suspendre","bloquer","supprimer","supprimer_produit","restreindre_produit","toggle_boutique","revoquer_acces"].includes(actionModal.type) && (
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  Motif {["supprimer","toggle_boutique","retirer_premium","toggle_paylink","toggle_formation"].includes(actionModal.type) ? "(optionnel)" : "*"}
+                  Motif {["supprimer","toggle_boutique","retirer_premium"].includes(actionModal.type) ? "(optionnel)" : "*"}
                 </label>
                 <textarea value={actionReason} onChange={e => setActionReason(e.target.value)}
-                  className="w-full min-h-[80px] px-3 py-2 text-sm rounded-xl border border-input bg-background resize-none outline-none focus:border-primary transition-colors"
-                  placeholder="Précisez le motif..." />
+                  className="w-full min-h-[80px] px-3 py-2 text-sm rounded-xl border border-input bg-background resize-none outline-none focus:border-primary"
+                  placeholder="Précisez le motif..." autoFocus />
               </div>
+            )}
+            {actionModal.type === "restaurer_acces" && (
+              <p className="text-sm text-muted-foreground">L'utilisateur pourra à nouveau accéder à cette formation.</p>
             )}
             <div className="flex gap-2">
               <Button onClick={handleAction} className={`flex-1 text-white ${
-                ["supprimer","bloquer","supprimer_produit"].includes(actionModal.type) ? "bg-red-600 hover:bg-red-700" :
+                ["supprimer","bloquer","supprimer_produit","revoquer_acces"].includes(actionModal.type) ? "bg-red-600 hover:bg-red-700" :
                 ["suspendre","restreindre_produit"].includes(actionModal.type) ? "bg-yellow-600 hover:bg-yellow-700" :
-                ["debloquer","activer_premium","activer_produit"].includes(actionModal.type) ? "bg-green-600 hover:bg-green-700" :
+                ["debloquer","activer_premium","activer_produit","restaurer_acces"].includes(actionModal.type) ? "bg-green-600 hover:bg-green-700" :
                 "bg-gray-600 hover:bg-gray-700"
               }`}>Confirmer</Button>
               <Button variant="outline" onClick={() => { setActionModal(null); setActionReason(""); }} className="flex-1">Annuler</Button>

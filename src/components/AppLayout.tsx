@@ -5,7 +5,7 @@ import {
   Search, ChevronRight, TrendingUp, History,
   HandCoins, Receipt, Store, BadgeCheck, Map,
   ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, CreditCard,
-  GraduationCap, Network, Coins, BookOpen, Filter, Sparkles
+  GraduationCap, Network, Coins, BookOpen, Filter, Sparkles, Leaf, ClipboardList
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
 import { logoutUser, getNexoraUser, isNexoraAdmin, refreshNexoraSession } from "@/lib/nexora-auth";
@@ -29,6 +29,7 @@ const getNavItems = (isAdmin: boolean) => {
     { path: "/paylink",          icon: CreditCard,      label: "Nexora PayLink",      color: "text-cyan-400",    bg: "bg-cyan-400/10"    },
     { path: "/factures",         icon: Receipt,         label: "Factures",             color: "text-purple-300",  bg: "bg-purple-300/10"  },
     { path: "/boutique",         icon: Store,           label: "Nexora Shop",          color: "text-pink-300",    bg: "bg-pink-300/10"    },
+    { path: "/yupi-shop",        icon: Leaf,            label: "BIEN-ÊTRE YUPI",       color: "text-green-400",   bg: "bg-green-400/10"   },
     // { path: "/funnels",          icon: Filter,          label: "Funnels",              color: "text-indigo-400",  bg: "bg-indigo-400/10"  },
     { path: "/contacts-whatsapp", icon: Phone,           label: "Contacts WhatsApp",    color: "text-green-400",   bg: "bg-green-400/10"   },
     { path: "/immobilier",        icon: Map,             label: "Marché Immobilier",    color: "text-blue-300",    bg: "bg-blue-300/10"    },
@@ -38,6 +39,7 @@ const getNavItems = (isAdmin: boolean) => {
     items.push({ path: "/liens",       icon: Link2,      label: "Liens & Contacts", color: "text-green-300", bg: "bg-green-300/10" });
     items.push({ path: "/prets",       icon: HandCoins,  label: "Contrats Prêt", color: "text-orange-300", bg: "bg-orange-300/10" });
     items.push({ path: "/admin",             icon: ShieldCheck,   label: "Panel Admin",         color: "text-amber-400",   bg: "bg-amber-400/10"   });
+    items.push({ path: "/yupi-commandes",    icon: ClipboardList, label: "Commandes YUPI",      color: "text-green-300",   bg: "bg-green-300/10"   });
     items.push({ path: "/admin/formations", icon: GraduationCap, label: "Gestion Formations",  color: "text-emerald-300", bg: "bg-emerald-300/10" });
     items.push({ path: "/medias",           icon: Image,         label: "Médias",               color: "text-sky-300",     bg: "bg-sky-300/10"     });
   }
@@ -80,7 +82,7 @@ export default function AppLayout({
   function applyThemeLocal(t: "dark" | "light") {
     if (t === "dark") document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
-    try { localStorage.setItem("nexora-theme", t); } catch {}
+    try { localStorage.setItem("nexora-theme", t); } catch (e) { console.warn("Erreur ignorée:", e); }
   }
 
   useEffect(() => { refreshNexoraSession(); }, []);
@@ -106,7 +108,8 @@ export default function AppLayout({
   const currentPage = navItems.find(
     (i) =>
       i.path === location.pathname ||
-      (i.path === "/boutique" && location.pathname.startsWith("/boutique")) ||
+      (i.path === "/boutique" && location.pathname.startsWith("/boutique") && !location.pathname.startsWith("/boutique") === false && location.pathname !== "/yupi-shop") ||
+      (i.path === "/yupi-shop" && location.pathname === "/yupi-shop") ||
       (i.path === "/formations" && location.pathname.startsWith("/formations") && !location.pathname.startsWith("/formations/")) ||
       (i.path === "/mes-formations" && location.pathname === "/mes-formations")
   );
@@ -186,7 +189,7 @@ export default function AppLayout({
           {navItems.map(({ path, icon: Icon, label, color, bg }) => {
             const active =
               location.pathname === path ||
-              (path === "/boutique" && location.pathname.startsWith("/boutique")) ||
+              (path === "/boutique" && location.pathname.startsWith("/boutique") && location.pathname !== "/yupi-shop") ||
               (path === "/formations" && location.pathname.startsWith("/formations"));
             const isAdminItem = path === "/admin";
             return (

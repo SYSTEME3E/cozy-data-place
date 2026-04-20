@@ -35,7 +35,7 @@ function playOrderSound() {
     };
     playTone(523, 0.0, 0.15, 0.3); playTone(659, 0.18, 0.15, 0.3);
     playTone(784, 0.36, 0.15, 0.3); playTone(1047, 0.54, 0.3, 0.4);
-  } catch {}
+  } catch (e) { console.warn("Erreur ignorée:", e); }
 }
 
 function playNotifSound() {
@@ -48,7 +48,7 @@ function playNotifSound() {
     gain.gain.setValueAtTime(0.2, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.35);
-  } catch {}
+  } catch (e) { console.warn("Erreur ignorée:", e); }
 }
 
 export default function NexoraNotifications() {

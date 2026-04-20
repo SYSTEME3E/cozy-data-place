@@ -46,6 +46,31 @@ export default function ProduitsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQ, setSearchQ] = useState("");
 
+  const load = async () => {
+    setLoading(true);
+    const userId = getNexoraUser()?.id;
+    if (!userId) { setLoading(false); return; }
+    const { data: b } = await supabase
+      .from("boutiques" as any).select("*").eq("user_id", userId).limit(1).maybeSingle();
+    if (b) {
+      setBoutique(b);
+      const { data: phys } = await supabase
+        .from("produits" as any).select("*, variations_produit(*)")
+        .eq("boutique_id", (b as any).id).eq("type", "physique")
+        .order("created_at", { ascending: false });
+      setProduitsPhysiques((phys as any[] || []).map((p) => ({
+        ...p,
+        variations: p.variations_produit || [],
+        moyens_paiement: p.moyens_paiement || [],
+        tags: p.tags || [],
+        reseaux_sociaux: p.reseaux_sociaux || {},
+      })));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
   // ── Mur premium ──
   if (!isPremium) {
     return (
@@ -75,31 +100,6 @@ export default function ProduitsPage() {
       </BoutiqueLayout>
     );
   }
-
-  const load = async () => {
-    setLoading(true);
-    const userId = getNexoraUser()?.id;
-    if (!userId) { setLoading(false); return; }
-    const { data: b } = await supabase
-      .from("boutiques" as any).select("*").eq("user_id", userId).limit(1).maybeSingle();
-    if (b) {
-      setBoutique(b);
-      const { data: phys } = await supabase
-        .from("produits" as any).select("*, variations_produit(*)")
-        .eq("boutique_id", (b as any).id).eq("type", "physique")
-        .order("created_at", { ascending: false });
-      setProduitsPhysiques((phys as any[] || []).map((p) => ({
-        ...p,
-        variations: p.variations_produit || [],
-        moyens_paiement: p.moyens_paiement || [],
-        tags: p.tags || [],
-        reseaux_sociaux: p.reseaux_sociaux || {},
-      })));
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
 
   const copyLink = (produitId: string) => {
     if (!boutique?.slug) {
@@ -353,6 +353,7 @@ export default function ProduitsPage() {
                         </div>
                       )}
 
+                      
                       <div>
                         <p className="text-xs font-bold text-gray-500 mb-1.5">Paiements acceptés</p>
                         <div className="flex gap-1.5 flex-wrap">

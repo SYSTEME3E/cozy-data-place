@@ -136,7 +136,7 @@ export default function NexoraAcademy() {
   const { daysRef, hoursRef, minsRef, secsRef } = useCountdown();
   useFadeIn();
 
-  const FORMATION_URL = "https://cozy-data-place-nu.vercel.app/formations/14050f23-500d-43b2-9a0c-2485767a1437";
+  const FORMATION_URL = "https://cozy-data-place-nu.vercel.app/formations/14050f23-500d-43b2-9a0c-2485767a1437/";
   const goFormation = () => window.open(FORMATION_URL, "_blank");
 
   // Progress bar + sticky countdown
@@ -180,14 +180,29 @@ export default function NexoraAcademy() {
       {/* ── BANNIÈRE URGENCE STICKY ── */}
       <div className="na-sticky-bar">
         <span className="na-sticky-fire">🔥</span>
-        <span>Offre à <strong>-80%</strong> — Plus que </span>
+        <span>Offre à <strong>-50%</strong> — Plus que </span>
         <span className="na-sticky-countdown" ref={stickyRef} />
         <button className="na-sticky-btn" onClick={goFormation}>J'EN PROFITE →</button>
       </div>
 
       {/* ── BOUTON FLOTTANT MOBILE ── */}
       <div className="na-float-cta">
-        <button className="na-btn na-btn-red na-pulse" style={{width:"100%",padding:"16px 20px",fontSize:".9rem",borderRadius:14}} onClick={goFormation}>
+        <button
+          className="na-btn na-btn-purple na-pulse"
+          style={{
+            width: "100%",
+            padding: "16px 20px",
+            fontSize: ".9rem",
+            borderRadius: 14,
+            backgroundColor: "#7C3AED",
+            background: "linear-gradient(135deg, #7C3AED, #9D4EDD)",
+            color: "#fff",
+            border: "none",
+            cursor: "pointer",
+            boxShadow: "0 4px 20px rgba(124, 58, 237, 0.45)"
+          }}
+          onClick={goFormation}
+        >
           🚀 REJOINDRE NEXORA ACADEMY
         </button>
       </div>
@@ -276,7 +291,7 @@ export default function NexoraAcademy() {
           <ul className="na-ta-list" style={{marginBottom:40}}>
             <li>
               <svg viewBox="0 0 24 24" width="26" height="26" style={{flexShrink:0}}><circle cx="12" cy="12" r="10" fill="#e60000"/><path d="M10 8l4 4-4 4" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <p>Avec ton accès <strong>Digital Profit Academy</strong>, tu recevras également un outil exclusif qui te permet d'identifier les produits low ticket les plus rentables du moment.</p>
+              <p>Avec ton accès <strong>Digital Profit Academy</strong>, tu recevras également un outil exclusif qui te permet d'identifier les produits les plus rentables du moment.</p>
             </li>
             <li>
               <svg viewBox="0 0 24 24" width="26" height="26" style={{flexShrink:0}}><circle cx="12" cy="12" r="10" fill="#e60000"/><path d="M10 8l4 4-4 4" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -587,7 +602,7 @@ export default function NexoraAcademy() {
 
             {/* Colonne droite — pricing card */}
             <div className="na-pricing-card">
-              <div className="na-discount-badge">80% DE RÉDUCTION</div>
+              <div className="na-discount-badge">50% DE RÉDUCTION</div>
               <p className="na-immediate">Immédiate</p>
               <h3 className="na-warning-title">⚠️ MAIS ATTENTION</h3>
               <p className="na-warning-text">
@@ -878,6 +893,16 @@ const CSS = `
     color: #fff; box-shadow: 0 6px 24px rgba(0,179,125,.35);
   }
   .na-btn-green:hover { filter: brightness(1.1); transform: translateY(-2px); }
+  .na-btn-purple {
+    background: linear-gradient(135deg, #7C3AED, #9D4EDD);
+    color: #fff; box-shadow: 0 4px 20px rgba(124,58,237,.45);
+    border: none;
+  }
+  .na-btn-purple:hover {
+    background: linear-gradient(135deg, #6D28D9, #8B3FC7);
+    box-shadow: 0 6px 25px rgba(124,58,237,.6);
+    transform: translateY(-2px);
+  }
   .na-btn-xl { padding: 18px 32px; font-size: 1rem; letter-spacing: .5px; width: 100%; }
   @keyframes na-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
   .na-pulse { animation: na-pulse 2s infinite; }
@@ -1114,8 +1139,79 @@ const CSS = `
   }
   .na-footer-note strong { color: #333; font-family:'Montserrat',sans-serif; }
 
+  /* ── Sticky urgency bar ── */
+  .na-sticky-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+    background: linear-gradient(135deg, #cc0000 0%, #ff1a1a 100%);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 10px 16px; font-size: .82rem; font-weight: 600;
+    flex-wrap: wrap; text-align: center;
+    box-shadow: 0 2px 12px rgba(230,0,0,.4);
+  }
+  .na-sticky-fire { font-size: 1.1rem; }
+  .na-sticky-countdown {
+    font-family: 'Montserrat', sans-serif; font-weight: 900;
+    font-size: 1rem; letter-spacing: 2px;
+    background: rgba(0,0,0,.25); border-radius: 6px;
+    padding: 2px 10px;
+  }
+  .na-sticky-btn {
+    background: #fff; color: #cc0000;
+    border: none; cursor: pointer;
+    font-family: 'Montserrat', sans-serif; font-weight: 900;
+    font-size: .75rem; padding: 6px 14px; border-radius: 20px;
+    transition: transform .2s;
+    white-space: nowrap;
+  }
+  .na-sticky-btn:hover { transform: scale(1.05); }
+
+  /* ── Progress bar ── */
+  .na-progress-bar {
+    position: fixed; top: 40px; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, #e60000, #ff6b6b);
+    z-index: 998; transition: width .1s linear;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* ── Float CTA (mobile only) ── */
+  .na-float-cta {
+    display: none;
+    position: fixed; bottom: 16px; left: 16px; right: 16px;
+    z-index: 997;
+    filter: drop-shadow(0 4px 16px rgba(124,58,237,.4));
+  }
+
   /* ── Responsive ── */
-  @media (max-width:768px) {
+  @media (max-width: 768px) {
+    .na-float-cta { display: block; }
+
+    /* Hero padding adapté à la nouvelle hauteur de la sticky bar */
+    .na-hero { padding-top: 80px; }
+
+    /* ── STICKY BAR RÉDUITE sur mobile ── */
+    .na-sticky-bar {
+      font-size: .70rem;
+      gap: 4px;
+      padding: 5px 8px;
+    }
+    .na-sticky-fire {
+      font-size: .9rem;
+    }
+    .na-sticky-countdown {
+      font-size: .82rem;
+      padding: 1px 6px;
+      letter-spacing: 1px;
+    }
+    .na-sticky-btn {
+      font-size: .68rem;
+      padding: 4px 10px;
+    }
+
+    /* Progress bar ajustée à la nouvelle hauteur sticky */
+    .na-progress-bar {
+      top: 30px;
+    }
+
     .na-modules-grid-2 { grid-template-columns:1fr; }
     .na-offer-grid { grid-template-columns:1fr; }
     .na-steps-row { grid-template-columns:1fr; }
@@ -1193,7 +1289,6 @@ const CSS = `
   .na-ta-list { list-style: none; padding: 0; margin: 0; }
   .na-ta-list li { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 22px; }
   .na-ta-list p { font-size: 1rem; line-height: 1.6; margin: 0; color: #333; }
-  /* old grid classes - kept for compatibility */
   .na-ta-grid { display: block; }
   .na-ta-powers-grid { display: block; }
 
@@ -1201,53 +1296,6 @@ const CSS = `
   .na-etc-grid { display:flex; flex-direction:column; gap:20px; margin-bottom:8px; }
   .na-etc-item { display:flex; align-items:flex-start; gap:16px; }
   .na-etc-icon { width:52px; height:52px; min-width:52px; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:6px; }
-
-  /* ── Sticky urgency bar ── */
-  .na-sticky-bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-    background: linear-gradient(135deg, #cc0000 0%, #ff1a1a 100%);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    gap: 10px; padding: 10px 16px; font-size: .82rem; font-weight: 600;
-    flex-wrap: wrap; text-align: center;
-    box-shadow: 0 2px 12px rgba(230,0,0,.4);
-  }
-  .na-sticky-fire { font-size: 1.1rem; }
-  .na-sticky-countdown {
-    font-family: 'Montserrat', sans-serif; font-weight: 900;
-    font-size: 1rem; letter-spacing: 2px;
-    background: rgba(0,0,0,.25); border-radius: 6px;
-    padding: 2px 10px;
-  }
-  .na-sticky-btn {
-    background: #fff; color: #cc0000;
-    border: none; cursor: pointer;
-    font-family: 'Montserrat', sans-serif; font-weight: 900;
-    font-size: .75rem; padding: 6px 14px; border-radius: 20px;
-    transition: transform .2s;
-    white-space: nowrap;
-  }
-  .na-sticky-btn:hover { transform: scale(1.05); }
-
-  /* ── Progress bar ── */
-  .na-progress-bar {
-    position: fixed; top: 40px; left: 0; height: 3px; width: 0%;
-    background: linear-gradient(90deg, #e60000, #ff6b6b);
-    z-index: 998; transition: width .1s linear;
-    border-radius: 0 2px 2px 0;
-  }
-
-  /* ── Float CTA (mobile only) ── */
-  .na-float-cta {
-    display: none;
-    position: fixed; bottom: 16px; left: 16px; right: 16px;
-    z-index: 997;
-    filter: drop-shadow(0 4px 16px rgba(230,0,0,.4));
-  }
-  @media (max-width: 768px) {
-    .na-float-cta { display: block; }
-    .na-hero { padding-top: 100px; }
-    .na-sticky-bar { font-size: .75rem; gap: 6px; padding: 8px 10px; }
-  }
 
   /* ── Avant / Après ── */
   .na-aa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -1302,12 +1350,6 @@ const CSS = `
   }
   @media (max-width: 768px) {
     .na-guarantee-box { flex-direction: column; padding: 28px 20px; gap: 20px; text-align: center; }
-    .na-modules-grid-2 { grid-template-columns:1fr; }
-    .na-offer-grid { grid-template-columns:1fr; }
-    .na-steps-row { grid-template-columns:1fr; }
-    .na-step { border-right:none; border-bottom:1px solid #eee; }
-    .na-module-img-wrap { margin-top:-30px; }
-    .na-cta-box { padding:32px 16px; }
   }
   .na-guarantee-badge {
     display: flex; flex-direction: column; align-items: center;

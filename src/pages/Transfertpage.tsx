@@ -80,13 +80,13 @@ type PendingRechargeData = {
   payment_url: string; montant: number; total: number; email: string; timestamp: number;
 };
 function savePendingRecharge(data: PendingRechargeData) {
-  try { localStorage.setItem(PENDING_RECHARGE_KEY, JSON.stringify(data)); } catch {}
+  try { localStorage.setItem(PENDING_RECHARGE_KEY, JSON.stringify(data)); } catch (e) { console.warn("Erreur ignorée:", e); }
 }
 function loadPendingRecharge(): PendingRechargeData | null {
   try { const raw = localStorage.getItem(PENDING_RECHARGE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 function clearPendingRecharge() {
-  try { localStorage.removeItem(PENDING_RECHARGE_KEY); } catch {}
+  try { localStorage.removeItem(PENDING_RECHARGE_KEY); } catch (e) { console.warn("Erreur ignorée:", e); }
 }
 
 function mapSupabaseRow(row: any): Transaction {

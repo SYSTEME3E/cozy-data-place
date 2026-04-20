@@ -193,7 +193,7 @@ export async function registerUser(data: {
         }));
         await supabase.from("nexora_notifications" as any).insert(notifs);
       }
-    } catch (_) {}
+    } catch (_) { console.warn("Erreur ignorée:", _); }
 
     return { success: true };
   } catch (err: any) {

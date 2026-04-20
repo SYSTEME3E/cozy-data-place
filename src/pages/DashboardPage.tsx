@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import {
   Wallet, Users, BookOpen, TrendingUp, DollarSign,
   ChevronRight, ArrowUpRight, Network, Calendar, Zap,
-  Crown, Loader2, ChevronDown, RefreshCw, Globe
+  Crown, Loader2, ChevronDown, RefreshCw, Globe, Leaf
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,8 @@ interface DashStats {
   totalAbonnementsGeneres: number;
   recentCommissions: any[];
 }
+
+const PRODUITS_COUNT = 17;
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -347,6 +349,46 @@ export default function DashboardPage() {
               <ArrowUpRight className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
           ))}
+        </div>
+
+        {/* ── BIEN-ÊTRE YUPI ─────────────────────────────────────────────── */}
+        <div className="space-y-2">
+          <Link
+            to="/yupi-shop"
+            className="group relative overflow-hidden rounded-3xl flex items-center gap-4 p-5 hover:opacity-95 transition-all shadow-lg"
+            style={{ background: "linear-gradient(135deg, #0f172a 0%, #3730a3 40%, #059669 100%)" }}
+          >
+            <div className="absolute right-0 top-0 w-32 h-32 rounded-full bg-green-400/20 translate-x-8 -translate-y-8" />
+            <div className="absolute right-10 bottom-0 w-20 h-20 rounded-full bg-yellow-400/10 translate-y-6" />
+            <div className="relative z-10 w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/20 flex-shrink-0 shadow">
+              <img src="https://i.postimg.cc/bYSB8r5L/Yupi-logo-1536x1058.png" alt="BIEN-ÊTRE YUPI" className="w-full h-full object-cover" />
+            </div>
+            <div className="relative z-10 flex-1 min-w-0">
+              <p className="font-black text-white text-base leading-tight">BIEN-ÊTRE YUPI 🌿</p>
+              <p className="text-indigo-200 text-xs mt-0.5">{PRODUITS_COUNT} produits · Santé naturelle</p>
+            </div>
+            <ChevronRight className="relative z-10 w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all flex-shrink-0" />
+          </Link>
+
+          {/* Lien public de la boutique — visible et copiable */}
+          <div className="bg-card border border-green-500/30 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+              <Leaf className="w-4 h-4 text-green-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-muted-foreground mb-0.5">🔗 Lien public de votre boutique</p>
+              <p className="text-xs font-mono text-green-500 truncate">{typeof window !== "undefined" ? window.location.origin : ""}/bien-etre-yupi</p>
+            </div>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/bien-etre-yupi`;
+                navigator.clipboard.writeText(url).then(() => alert("✅ Lien copié ! Partagez-le avec vos clients."));
+              }}
+              className="flex-shrink-0 text-xs bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl transition-colors"
+            >
+              Copier
+            </button>
+          </div>
         </div>
       </div>
     </AppLayout>

@@ -65,6 +65,16 @@ async function getDeviceFingerprint(): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 
+/** Timeout utilitaire — rejette la promesse après N ms */
+function withTimeout<T>(promise: Promise<T>, ms: number, label = "Timeout"): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} dépassé (${ms}ms)`)), ms)
+    ),
+  ]);
+}
+
 /** Appel à l'Edge Function pour obtenir un URL signé */
 async function fetchSecureToken(
   videoId: string,
@@ -72,8 +82,18 @@ async function fetchSecureToken(
   deviceFingerprint: string
 ): Promise<{ signedUrl: string; expiresAt: string } | null> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    // ✅ FIX A1 : timeout sur getSession (peut figer sur mobile sans connexion)
+    const sessionResult = await withTimeout(
+      supabase.auth.getSession(),
+      5_000,
+      "getSession"
+    ).catch(() => ({ data: { session: null } }));
+    const session = sessionResult.data.session;
     if (!session) return null;
+
+    // ✅ FIX A2 : AbortController avec timeout sur le fetch Edge Function
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 8_000);
 
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-video-token`,
@@ -85,11 +105,13 @@ async function fetchSecureToken(
           "X-Device-Fingerprint": deviceFingerprint,
         },
         body: JSON.stringify({ videoId, courseId, deviceFingerprint }),
+        signal: controller.signal,
       }
     );
+    clearTimeout(abortTimer);
 
     if (!response.ok) {
-      const err = await response.json();
+      const err = await response.json().catch(() => ({}));
       console.error("[SecurePlayer] Token refusé:", err);
       return null;
     }
@@ -187,7 +209,7 @@ export default function VideoPlayerPage() {
   const tokenRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const devToolsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warningCountRef = useRef(0);
-  const deviceFingerprintRef = useRef<string>("");
+  const videoLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [lecon, setLecon] = useState<Lecon | null>(null);
@@ -337,7 +359,13 @@ export default function VideoPlayerPage() {
       }
     };
     const onBlur = () => {
-      videoRef.current?.pause();
+      // ✅ FIX 3 : Ne pas pauser si la vidéo est encore en chargement
+      // Sur mobile, le focus se perd brièvement lors du chargement réseau
+      if (!videoRef.current) return;
+      const vid = videoRef.current;
+      const isLoading = vid.readyState < 3; // HAVE_FUTURE_DATA
+      if (isLoading) return;
+      vid.pause();
       setIsPaused(true);
     };
 
@@ -354,6 +382,7 @@ export default function VideoPlayerPage() {
     return () => {
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current);
+      if (videoLoadingTimeoutRef.current) clearTimeout(videoLoadingTimeoutRef.current);
     };
   }, []);
 
@@ -379,37 +408,44 @@ export default function VideoPlayerPage() {
           return;
         }
 
-        // ✅ FIX: Utiliser l'URL signée directement (streaming natif)
-        // loadVideoAsBlob() téléchargeait tout le fichier avant de jouer → spinner infini
+        // Utiliser l'URL signée directement (streaming natif)
         if (blobUrlRef.current) {
           URL.revokeObjectURL(blobUrlRef.current);
           blobUrlRef.current = null;
         }
         videoRef.current.src = tokenData.signedUrl;
-        const success = true;
+        // ✅ FIX 1 : appel explicite à .load() indispensable sur mobile
+        // Sans lui, le navigateur Android/iOS ignore le changement de src
+        videoRef.current.load();
 
-        if (!success) {
-          setVideoError(true);
+        // ✅ FIX 4 : timeout de sécurité — si onCanPlay ne se déclenche pas
+        // dans les 10s (réseau lent, bug navigateur mobile), on retire le spinner
+        if (videoLoadingTimeoutRef.current) clearTimeout(videoLoadingTimeoutRef.current);
+        videoLoadingTimeoutRef.current = setTimeout(() => {
           setVideoLoading(false);
-          return;
-        }
+        }, 10_000);
 
         // Planifier le refresh du token avant expiration (à 80% du TTL)
         if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current);
         const ttlMs = new Date(tokenData.expiresAt).getTime() - Date.now();
-        tokenRefreshTimerRef.current = setTimeout(() => {
-          loadSecureVideo(leconData);
-        }, ttlMs * 0.8);
+        if (ttlMs > 0) {
+          tokenRefreshTimerRef.current = setTimeout(() => {
+            loadSecureVideo(leconData);
+          }, ttlMs * 0.8);
+        }
 
       } else if (leconData.url) {
-        // Fallback legacy : URL directe (moins sécurisée)
+        // Fallback legacy : URL directe
         console.warn("[SecurePlayer] Fallback URL directe — migrez vers storage_path");
         videoRef.current.src = leconData.url;
+        videoRef.current.load(); // ✅ FIX 1 aussi pour le fallback
       } else {
         setVideoError(true);
+        setVideoLoading(false); // seulement en cas d'erreur
       }
-
-      setVideoLoading(false);
+      // ✅ FIX 2 : NE PAS appeler setVideoLoading(false) ici
+      // C'est onCanPlay / onLoadedData qui doit l'éteindre,
+      // sinon onWaiting le rallume et le spinner reste bloqué indéfiniment
     },
     [courseId]
   );
@@ -430,15 +466,21 @@ export default function VideoPlayerPage() {
     setLoading(true);
 
     try {
+      // ✅ FIX A3 : timeout sur chaque requête Supabase (mobile peut figer sans réseau)
+      const QUERY_TIMEOUT = 12_000;
+
       // Vérifier achat
       if (!adminAccess) {
-        const { data: purchase } = await (supabase as any)
-          .from("formation_purchases")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("formation_id", courseId)
-          .eq("status", "completed")
-          .maybeSingle();
+        const { data: purchase } = await withTimeout(
+          (supabase as any)
+            .from("formation_purchases")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("formation_id", courseId)
+            .eq("status", "completed")
+            .maybeSingle(),
+          QUERY_TIMEOUT, "formation_purchases"
+        ).catch(() => ({ data: null }));
 
         if (!purchase) {
           setAccessDenied(true);
@@ -449,20 +491,26 @@ export default function VideoPlayerPage() {
       }
 
       // Charger modules et leçons
-      const { data: mData } = await (supabase as any)
-        .from("formation_modules")
-        .select("id, titre, ordre")
-        .eq("formation_id", courseId)
-        .order("ordre", { ascending: true });
+      const { data: mData } = await withTimeout(
+        (supabase as any)
+          .from("formation_modules")
+          .select("id, titre, ordre")
+          .eq("formation_id", courseId)
+          .order("ordre", { ascending: true }),
+        QUERY_TIMEOUT, "formation_modules"
+      ).catch(() => ({ data: [] }));
 
       const modIds = (mData || []).map((m: any) => m.id);
 
-      const { data: leconsData } = await (supabase as any)
-        .from("formation_lecons")
-        .select("id, titre, type, url, storage_path, duree_secondes, ordre, module_id")
-        .in("module_id", modIds)
-        .eq("type", "video")
-        .order("ordre", { ascending: true });
+      const { data: leconsData } = await withTimeout(
+        (supabase as any)
+          .from("formation_lecons")
+          .select("id, titre, type, url, storage_path, duree_secondes, ordre, module_id")
+          .in("module_id", modIds)
+          .eq("type", "video")
+          .order("ordre", { ascending: true }),
+        QUERY_TIMEOUT, "formation_lecons"
+      ).catch(() => ({ data: [] }));
 
       const modMap: Record<string, any> = {};
       (mData || []).forEach((m: any) => { modMap[m.id] = m; });
@@ -480,17 +528,20 @@ export default function VideoPlayerPage() {
       const currentLecon = flatLecons.find((l) => l.id === videoId);
       if (!currentLecon) { navigate(`/mes-formations/${courseId}/cours`); return; }
 
-      // Vérifier progression séquentielle côté client (double contrôle avec serveur)
+      // Vérifier progression séquentielle côté client
       if (!adminAccess) {
         const idx = flatLecons.findIndex((l) => l.id === videoId);
         if (idx > 0) {
           const prevL = flatLecons[idx - 1];
-          const { data: prevProgress } = await (supabase as any)
-            .from("video_progress")
-            .select("status")
-            .eq("user_id", user.id)
-            .eq("video_id", prevL.id)
-            .maybeSingle();
+          const { data: prevProgress } = await withTimeout(
+            (supabase as any)
+              .from("video_progress")
+              .select("status")
+              .eq("user_id", user.id)
+              .eq("video_id", prevL.id)
+              .maybeSingle(),
+            QUERY_TIMEOUT, "video_progress_prev"
+          ).catch(() => ({ data: null }));
 
           if (!prevProgress || prevProgress.status !== "completed") {
             setAccessDenied(true);
@@ -504,27 +555,34 @@ export default function VideoPlayerPage() {
       setLecon(currentLecon);
 
       // Vérifier si déjà complétée
-      const { data: progress } = await (supabase as any)
-        .from("video_progress")
-        .select("status")
-        .eq("user_id", user.id)
-        .eq("video_id", videoId)
-        .maybeSingle();
+      const { data: progress } = await withTimeout(
+        (supabase as any)
+          .from("video_progress")
+          .select("status")
+          .eq("user_id", user.id)
+          .eq("video_id", videoId)
+          .maybeSingle(),
+        QUERY_TIMEOUT, "video_progress_current"
+      ).catch(() => ({ data: null }));
 
       setIsCompleted(progress?.status === "completed");
 
       if (!progress) {
-        await (supabase as any).from("video_progress").upsert({
+        // Upsert non bloquant — on ne l'attend pas pour débloquer l'UI
+        (supabase as any).from("video_progress").upsert({
           user_id: user.id,
           course_id: courseId,
           module_id: currentLecon.module_id,
           video_id: videoId,
           status: "unlocked",
-        }, { onConflict: "user_id,video_id" });
+        }, { onConflict: "user_id,video_id" }).then().catch(console.warn);
       }
 
-      // Charger la vidéo de façon sécurisée
-      await loadSecureVideo(currentLecon);
+      // ✅ FIX B : NE PAS appeler loadSecureVideo ici !
+      // À ce stade loading=true donc <video> n'est pas dans le DOM,
+      // videoRef.current vaut null → la vidéo ne chargerait jamais.
+      // loadSecureVideo est déclenché par le useEffect ci-dessous,
+      // une fois que loading passe à false et que <video> est monté.
 
     } catch (err) {
       console.error("Erreur chargement:", err);
@@ -534,6 +592,14 @@ export default function VideoPlayerPage() {
   }, [courseId, videoId, navigate, loadSecureVideo]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ✅ FIX B : Déclencher le chargement vidéo APRÈS que loading passe à false
+  // À ce moment le <video> est dans le DOM et videoRef.current est valide
+  useEffect(() => {
+    if (!loading && lecon && videoRef.current) {
+      loadSecureVideo(lecon);
+    }
+  }, [loading, lecon, loadSecureVideo]);
 
   // ── Marquer comme terminée ────────────────────────────────────────────────
   const handleVideoEnded = useCallback(async () => {
@@ -674,9 +740,10 @@ export default function VideoPlayerPage() {
             onEnded={handleVideoEnded}
             onPlay={() => { setIsPaused(false); setIsBlurred(false); }}
             onPause={() => setIsPaused(true)}
-            onError={() => setVideoError(true)}
-            onWaiting={() => setVideoLoading(true)}
+            onError={() => { setVideoError(true); setVideoLoading(false); }}
+            onWaiting={() => { if (videoRef.current?.src) setVideoLoading(true); }}
             onCanPlay={() => setVideoLoading(false)}
+            onLoadedData={() => setVideoLoading(false)}
             playsInline
             // Pas d'attribut "src" ici — chargé dynamiquement via JS
           />

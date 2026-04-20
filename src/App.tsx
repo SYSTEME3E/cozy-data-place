@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { useState, useEffect } from "react";
 
+
 // Auth
 import NexoraLoginPage from "@/pages/NexoraLoginPage";
 import LandingPage from "@/pages/LandingPage";
@@ -91,6 +92,11 @@ import ContactsWhatsAppPage from "@/pages/ContactsWhatsAppPage";
 // import FunnelPopupEditor from "@/pages/pages/funnels/popup-editor";
 // import FunnelProductList   from "@/pages/pages/funnels/product-list";
 // import FunnelProductCreate from "@/pages/pages/funnels/product-create";
+
+// YUPI GLOBAL SHOP
+import YupiGlobalShopPage from "@/pages/YupiGlobalShopPage";
+import YupiCommandesPage from "@/pages/YupiCommandesPage";
+import YupiPublicShopPage from "@/pages/YupiPublicShopPage";
 
 // Admin
 import AdminPanelPage from "@/pages/AdminPanelPage";
@@ -253,6 +259,13 @@ const App = () => {
               <Route path="/shop/:slug/checkout"           element={<CheckoutPage />} />
               <Route path="/immobilier/vendeur/:userId"    element={<ProfilVendeurPage />} />
               <Route path="/commande/:commandeId"          element={<CommandeTrackingPage />} />
+
+              {/* YUPI — Page publique (sans compte) */}
+              <Route path="/bien-etre-yupi" element={<YupiPublicShopPage />} />
+
+              {/* YUPI GLOBAL SHOP (connecté) */}
+              <Route path="/yupi-shop" element={<ProtectedPage><YupiGlobalShopPage /></ProtectedPage>} />
+              <Route path="/yupi-commandes" element={<AdminPage><YupiCommandesPage /></AdminPage>} />
 
               {/* Admin */}
               <Route path="/admin"            element={<AdminPage><AdminPanelPage /></AdminPage>} />

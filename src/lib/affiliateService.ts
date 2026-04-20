@@ -28,14 +28,14 @@ export function saveAffiliateRef(ref: string): void {
     localStorage.setItem(AFFILIATE_REF_KEY, ref);
     sessionStorage.setItem(AFFILIATE_REF_KEY, ref);
     document.cookie = `${AFFILIATE_REF_KEY}=${encodeURIComponent(ref)}; path=/; max-age=31536000; SameSite=Lax`;
-  } catch (_) {}
+  } catch (_) { console.warn('Erreur ignorée:', _); }
 }
 
 export function saveAffiliateFormation(formationId: string): void {
   try {
     localStorage.setItem(AFFILIATE_FORMATION_KEY, formationId);
     sessionStorage.setItem(AFFILIATE_FORMATION_KEY, formationId);
-  } catch (_) {}
+  } catch (_) { console.warn('Erreur ignorée:', _); }
 }
 
 export function getAffiliateRef(): string | null {
@@ -69,14 +69,14 @@ export function clearAffiliateRef(): void {
     localStorage.removeItem(AFFILIATE_REF_KEY);
     sessionStorage.removeItem(AFFILIATE_REF_KEY);
     document.cookie = `${AFFILIATE_REF_KEY}=; path=/; max-age=0`;
-  } catch (_) {}
+  } catch (_) { console.warn('Erreur ignorée:', _); }
 }
 
 export function clearAffiliateFormation(): void {
   try {
     localStorage.removeItem(AFFILIATE_FORMATION_KEY);
     sessionStorage.removeItem(AFFILIATE_FORMATION_KEY);
-  } catch (_) {}
+  } catch (_) { console.warn('Erreur ignorée:', _); }
 }
 
 // ─── Résolution referrer_id ───────────────────────────────────────────────────

@@ -165,7 +165,7 @@ export default function CoursPage() {
           m.formation_lecons.map((l) => l.id)
         );
 
-        let progMap: Record<string, VideoStatus> = {};
+        const progMap: Record<string, VideoStatus> = {};
         if (allLeconIds.length > 0) {
           const { data: progData } = await (supabase as any)
             .from("video_progress")
@@ -201,7 +201,7 @@ export default function CoursPage() {
   const toggleModule = (modId: string) => {
     setExpandedModules((prev) => {
       const next = new Set(prev);
-      next.has(modId) ? next.delete(modId) : next.add(modId);
+      if (next.has(modId)) { next.delete(modId); } else { next.add(modId); }
       return next;
     });
   };

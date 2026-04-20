@@ -108,7 +108,7 @@ export function DeviseProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as DeviseCode | null;
       if (stored && DEVISES_LISTE.find(d => d.code === stored)) return stored;
-    } catch {}
+    } catch (e) { console.warn("Erreur ignorée:", e); }
     return "XOF";
   });
 
@@ -140,7 +140,7 @@ export function DeviseProvider({ children }: { children: React.ReactNode }) {
               return;
             }
           }
-        } catch {}
+        } catch (e) { console.warn("Erreur ignorée:", e); }
       }
 
       // Appel API exchangerate-api (gratuit, sans clé pour EUR base)
@@ -173,7 +173,7 @@ export function DeviseProvider({ children }: { children: React.ReactNode }) {
         setLastUpdated(new Date(now));
         try {
           localStorage.setItem(RATES_CACHE_KEY, JSON.stringify({ ts: now, data: newRates }));
-        } catch {}
+        } catch (e) { console.warn("Erreur ignorée:", e); }
       }
     } catch (err) {
       console.warn("[Nexora Devise] API indisponible, taux de fallback utilisés.", err);
@@ -194,7 +194,7 @@ export function DeviseProvider({ children }: { children: React.ReactNode }) {
   // ── Changement de devise ────────────────────────────────────────────────────
   const setDevise = useCallback((d: DeviseCode) => {
     setDeviseState(d);
-    try { localStorage.setItem(STORAGE_KEY, d); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, d); } catch (e) { console.warn("Erreur ignorée:", e); }
   }, []);
 
   // ── Helpers de conversion ───────────────────────────────────────────────────

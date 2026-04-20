@@ -461,6 +461,54 @@ export type Database = {
           },
         ]
       }
+      yupi_commandes: {
+        Row: {
+          id: string
+          reference: string
+          client_nom: string
+          client_whatsapp: string
+          ville: string
+          adresse_livraison: string | null
+          notes: string | null
+          items: Json
+          total: number
+          statut: string
+          user_id: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          reference: string
+          client_nom: string
+          client_whatsapp: string
+          ville: string
+          adresse_livraison?: string | null
+          notes?: string | null
+          items?: Json
+          total?: number
+          statut?: string
+          user_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          reference?: string
+          client_nom?: string
+          client_whatsapp?: string
+          ville?: string
+          adresse_livraison?: string | null
+          notes?: string | null
+          items?: Json
+          total?: number
+          statut?: string
+          user_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       crypto_offers: {
         Row: {
           allowed_countries: Json
