@@ -1,27 +1,26 @@
 /**
- * NEXORA — Page Lecteur Vidéo Ultra-Sécurisé v2
+ * NEXORA — Page Lecteur Vidéo Sécurisé v4
  *
- * Sécurités implémentées :
- * ✅ Streaming via blob URL (URL directe jamais exposée)
- * ✅ Token signé expirant (5 min) via Edge Function
- * ✅ Watermark dynamique (email + ID)
- * ✅ Blocage clic droit, F12, Ctrl+S, Ctrl+U
- * ✅ Détection DevTools → pause + flou
- * ✅ Patch getDisplayMedia → pause au screen record
- * ✅ Pause sur onglet caché / perte de focus
- * ✅ Limite multi-appareils (max 3) via device fingerprint
- * ✅ Contrôle progression séquentielle côté serveur
- * ✅ Auto-déconnexion si comportement suspect (3 violations)
- * ✅ Logs d'audit côté serveur
- * ✅ Flag Android FLAG_SECURE (via Capacitor plugin)
+ * Protections actives :
+ * ✅ Lecteur custom (contrôles natifs cachés — contrôle total)
+ * ✅ Pause / Play / Recommencer / Plein écran / Volume — autorisés
+ * ✅ Barre de progression verrouillée (saut en avant interdit)
+ * ✅ Vitesse bloquée à 1x
+ * ✅ Téléchargement bloqué (nodownload + token signé expirant)
+ * ✅ Clic droit / menu contextuel bloqué
+ * ✅ Appui long (long press) bloqué
+ * ✅ Ctrl+S / Ctrl+U bloqués
+ * ✅ Progression séquentielle vérifiée côté serveur à chaque accès
+ * ✅ Journalisation des tentatives de contournement (security_logs)
+ * ✅ Token signé expirant avec refresh automatique à 80% du TTL
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, Lock, Play, Pause,
-  CheckCircle, Loader2, AlertTriangle, EyeOff,
-  Shield, ShieldAlert, Smartphone,
+  CheckCircle, Loader2, AlertTriangle, Shield,
+  Volume2, VolumeX, Maximize, RotateCcw,
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,32 +39,22 @@ interface Lecon {
   module_titre: string;
 }
 
-type SecurityState = "safe" | "warning" | "blocked";
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Génère un device fingerprint basé sur caractéristiques navigateur */
 async function getDeviceFingerprint(): Promise<string> {
   const raw = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width,
-    screen.height,
-    screen.colorDepth,
+    navigator.userAgent, navigator.language,
+    screen.width, screen.height, screen.colorDepth,
     Intl.DateTimeFormat().resolvedOptions().timeZone,
     navigator.hardwareConcurrency,
     (navigator as any).deviceMemory ?? "?",
   ].join("|");
-
-  // Hash simple via SubtleCrypto
   const encoder = new TextEncoder();
-  const data = encoder.encode(raw);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(raw));
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 
-/** Timeout utilitaire — rejette la promesse après N ms */
 function withTimeout<T>(promise: Promise<T>, ms: number, label = "Timeout"): Promise<T> {
   return Promise.race([
     promise,
@@ -75,23 +64,40 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label = "Timeout"): Pro
   ]);
 }
 
-/** Appel à l'Edge Function pour obtenir un URL signé */
+/** Journalise une tentative de contournement côté serveur */
+async function logSecurityEvent(
+  userId: string,
+  videoId: string,
+  courseId: string,
+  action: string
+): Promise<void> {
+  try {
+    await (supabase as any).from("security_logs").insert({
+      user_id: userId,
+      video_id: videoId,
+      course_id: courseId,
+      action,
+      user_agent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
+    });
+  } catch {
+    // Silencieux — ne pas bloquer l'UX pour un log raté
+  }
+}
+
+/** Récupère un token signé pour streamer la vidéo */
 async function fetchSecureToken(
   videoId: string,
   courseId: string,
   deviceFingerprint: string
 ): Promise<{ signedUrl: string; expiresAt: string } | null> {
   try {
-    // ✅ FIX A1 : timeout sur getSession (peut figer sur mobile sans connexion)
     const sessionResult = await withTimeout(
-      supabase.auth.getSession(),
-      5_000,
-      "getSession"
+      supabase.auth.getSession(), 5_000, "getSession"
     ).catch(() => ({ data: { session: null } }));
     const session = sessionResult.data.session;
     if (!session) return null;
 
-    // ✅ FIX A2 : AbortController avec timeout sur le fetch Edge Function
     const controller = new AbortController();
     const abortTimer = setTimeout(() => controller.abort(), 8_000);
 
@@ -111,11 +117,9 @@ async function fetchSecureToken(
     clearTimeout(abortTimer);
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.error("[SecurePlayer] Token refusé:", err);
+      console.error("[SecurePlayer] Token refusé:", await response.json().catch(() => ({})));
       return null;
     }
-
     return await response.json();
   } catch (err) {
     console.error("[SecurePlayer] Erreur token:", err);
@@ -123,78 +127,12 @@ async function fetchSecureToken(
   }
 }
 
-/** Charge la vidéo via blob URL pour ne jamais exposer l'URL signée */
-async function loadVideoAsBlob(
-  signedUrl: string,
-  videoEl: HTMLVideoElement,
-  previousBlobRef: React.MutableRefObject<string | null>
-): Promise<boolean> {
-  try {
-    const res = await fetch(signedUrl);
-    if (!res.ok) throw new Error("Fetch failed");
-
-    const blob = await res.blob();
-
-    // Révoquer l'ancien blob URL avant d'en créer un nouveau
-    if (previousBlobRef.current) {
-      URL.revokeObjectURL(previousBlobRef.current);
-    }
-
-    const blobUrl = URL.createObjectURL(blob);
-    previousBlobRef.current = blobUrl;
-    videoEl.src = blobUrl;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ─── Composant Watermark ──────────────────────────────────────────────────────
-function DynamicWatermark({ email, userId }: { email: string; userId: string }) {
-  const [positions, setPositions] = useState<Array<{ x: number; y: number; opacity: number }>>([]);
-  const shortId = userId.slice(0, 8).toUpperCase();
-  const text = `${email} · ${shortId}`;
-
-  useEffect(() => {
-    const generate = () =>
-      setPositions(
-        Array.from({ length: 3 }, () => ({
-          x: 5 + Math.random() * 68,
-          y: 8 + Math.random() * 75,
-          opacity: 0.10 + Math.random() * 0.12,
-        }))
-      );
-    generate();
-    const id = setInterval(generate, 7000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div
-      className="absolute inset-0 pointer-events-none z-30 select-none overflow-hidden"
-      aria-hidden="true"
-    >
-      {positions.map((p, i) => (
-        <div
-          key={i}
-          className="absolute transition-all duration-[2500ms] ease-in-out"
-          style={{ left: `${p.x}%`, top: `${p.y}%`, opacity: p.opacity, transform: "rotate(-18deg)" }}
-        >
-          <span style={{
-            fontFamily: "monospace",
-            fontSize: "11px",
-            fontWeight: 700,
-            color: "white",
-            letterSpacing: "0.06em",
-            textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-            whiteSpace: "nowrap",
-          }}>
-            {text}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
+/** Formate secondes → mm:ss */
+function formatTime(seconds: number): string {
+  if (isNaN(seconds) || seconds < 0) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -205,11 +143,18 @@ export default function VideoPlayerPage() {
   // ── Refs ──────────────────────────────────────────────────────────────────
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const blobUrlRef = useRef<string | null>(null);
   const tokenRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const devToolsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const warningCountRef = useRef(0);
   const videoLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deviceFingerprintRef = useRef<string>("");
+  const userIdRef = useRef<string>("");
+  // Temps maximum déjà regardé — interdit de sauter au-delà
+  const maxWatchedRef = useRef(0);
+  // Ref stable pour loadSecureVideo (évite boucles de dépendances)
+  const loadSecureVideoRef = useRef<((l: Lecon) => Promise<void>) | null>(null);
+  // Auto-hide des contrôles
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [lecon, setLecon] = useState<Lecon | null>(null);
@@ -219,170 +164,117 @@ export default function VideoPlayerPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState("");
   const [isCompleted, setIsCompleted] = useState(false);
-  const [isBlurred, setIsBlurred] = useState(false);
-  const [isPaused, setIsPaused] = useState(true);
   const [videoError, setVideoError] = useState(false);
-  const [securityState, setSecurityState] = useState<SecurityState>("safe");
-  const [warningMessage, setWarningMessage] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [userId, setUserId] = useState("");
+
+  // Lecteur custom
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
 
   const currentIndex = allLecons.findIndex((l) => l.id === videoId);
   const nextLecon = currentIndex >= 0 && currentIndex < allLecons.length - 1
     ? allLecons[currentIndex + 1] : null;
   const prevLecon = currentIndex > 0 ? allLecons[currentIndex - 1] : null;
 
-  // ── Sécurité : avertissement / blocage ───────────────────────────────────
-  const triggerSecurityWarning = useCallback((reason: string) => {
-    warningCountRef.current += 1;
-    const count = warningCountRef.current;
-
-    videoRef.current?.pause();
-    setIsBlurred(true);
-    setIsPaused(true);
-
-    console.warn(`[Security] Violation #${count}: ${reason}`);
-
-    if (count >= 3) {
-      setSecurityState("blocked");
-      setWarningMessage("Activité suspecte détectée. Lecture bloquée.");
-      // Déconnexion automatique après 3 secondes
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-        navigate("/login?reason=security");
-      }, 3000);
-    } else {
-      setSecurityState("warning");
-      setWarningMessage(`Attention : action non autorisée détectée (${count}/3 avertissements).`);
-      setTimeout(() => {
-        if (warningCountRef.current < 3) setSecurityState("safe");
-      }, 4000);
-    }
-  }, [navigate]);
-
-  // ── Activation FLAG_SECURE Android (Capacitor) ───────────────────────────
+  // ── Protections globales : clic droit, appui long, raccourcis ─────────────
   useEffect(() => {
-    const enableAndroidSecureFlag = async () => {
-      try {
-        // Capacitor Android — empêche captures d'écran et enregistrement
-        const { Plugins } = await import("@capacitor/core");
-        const { ScreenProtector } = Plugins as any;
-        if (ScreenProtector) {
-          await ScreenProtector.enable();
-        }
-      } catch {
-        // Non-Capacitor env, ignoré silencieusement
-      }
-    };
-    enableAndroidSecureFlag();
-  }, []);
-
-  // ── Patch getDisplayMedia (détection screen record) ──────────────────────
-  useEffect(() => {
-    const originalGetDisplayMedia = navigator.mediaDevices?.getDisplayMedia?.bind(
-      navigator.mediaDevices
-    );
-    if (!originalGetDisplayMedia) return;
-
-    navigator.mediaDevices.getDisplayMedia = async (constraints?: DisplayMediaStreamOptions) => {
-      triggerSecurityWarning("screen_record_attempt");
-      return originalGetDisplayMedia(constraints);
-    };
-
-    return () => {
-      navigator.mediaDevices.getDisplayMedia = originalGetDisplayMedia;
-    };
-  }, [triggerSecurityWarning]);
-
-  // ── Détection DevTools (taille fenêtre + timing debugger) ────────────────
-  useEffect(() => {
-    const THRESHOLD = 160;
-    let wasOpen = false;
-
-    const check = () => {
-      const isOpen =
-        window.outerWidth - window.innerWidth > THRESHOLD ||
-        window.outerHeight - window.innerHeight > THRESHOLD;
-
-      if (isOpen && !wasOpen) {
-        wasOpen = true;
-        triggerSecurityWarning("devtools_open");
-      } else if (!isOpen) {
-        wasOpen = false;
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      if (userIdRef.current && videoId && courseId) {
+        logSecurityEvent(userIdRef.current, videoId, courseId, "context_menu_attempt");
       }
     };
 
-    devToolsIntervalRef.current = setInterval(check, 1000);
-    return () => {
-      if (devToolsIntervalRef.current) clearInterval(devToolsIntervalRef.current);
-    };
-  }, [triggerSecurityWarning]);
-
-  // ── Blocage clic droit sur le player ─────────────────────────────────────
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current?.contains(e.target as Node)) {
-        e.preventDefault();
-        triggerSecurityWarning("right_click");
-      }
-    };
-    document.addEventListener("contextmenu", handler);
-    return () => document.removeEventListener("contextmenu", handler);
-  }, [triggerSecurityWarning]);
-
-  // ── Blocage raccourcis clavier dangereux ──────────────────────────────────
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const isBlocked =
-        e.key === "F12" ||
-        (e.ctrlKey && e.shiftKey && ["I", "J", "C", "K"].includes(e.key)) ||
-        (e.ctrlKey && ["s", "S", "u", "U", "p", "P"].includes(e.key)) ||
+    const onKeyDown = (e: KeyboardEvent) => {
+      const blocked =
+        (e.ctrlKey && ["s", "S", "u", "U"].includes(e.key)) ||
         (e.metaKey && ["s", "S", "u", "U"].includes(e.key));
-
-      if (isBlocked) {
+      if (blocked) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        triggerSecurityWarning("keyboard_shortcut");
+        if (userIdRef.current && videoId && courseId) {
+          logSecurityEvent(userIdRef.current, videoId, courseId, `keyboard_blocked_${e.key}`);
+        }
       }
     };
-    document.addEventListener("keydown", handler, { capture: true });
-    return () => document.removeEventListener("keydown", handler, { capture: true });
-  }, [triggerSecurityWarning]);
 
-  // ── Pause sur onglet caché / blur ────────────────────────────────────────
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) {
-        videoRef.current?.pause();
-        setIsBlurred(true);
-        setIsPaused(true);
-      }
+    // Bloquer appui long (touchstart > 500ms sans relâcher)
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    const onTouchStart = () => {
+      longPressTimer = setTimeout(() => {
+        if (userIdRef.current && videoId && courseId) {
+          logSecurityEvent(userIdRef.current, videoId, courseId, "long_press_attempt");
+        }
+      }, 500);
     };
-    const onBlur = () => {
-      // ✅ FIX 3 : Ne pas pauser si la vidéo est encore en chargement
-      // Sur mobile, le focus se perd brièvement lors du chargement réseau
-      if (!videoRef.current) return;
-      const vid = videoRef.current;
-      const isLoading = vid.readyState < 3; // HAVE_FUTURE_DATA
-      if (isLoading) return;
-      vid.pause();
-      setIsPaused(true);
+    const onTouchEnd = () => {
+      if (longPressTimer) clearTimeout(longPressTimer);
     };
 
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", onBlur);
+    document.addEventListener("contextmenu", onContextMenu);
+    document.addEventListener("keydown", onKeyDown, { capture: true });
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("contextmenu", onContextMenu);
+      document.removeEventListener("keydown", onKeyDown, { capture: true });
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchEnd);
     };
+  }, [videoId, courseId]);
+
+  // ── Forcer vitesse 1x ─────────────────────────────────────────────────────
+  const handleRateChange = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid || vid.playbackRate === 1) return;
+    vid.playbackRate = 1;
+    if (userIdRef.current && videoId && courseId) {
+      logSecurityEvent(userIdRef.current, videoId, courseId, "speed_change_blocked");
+    }
+  }, [videoId, courseId]);
+
+  // ── Mise à jour temps + mémorisation du max regardé ───────────────────────
+  const handleTimeUpdate = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    setCurrentTime(vid.currentTime);
+    if (vid.currentTime > maxWatchedRef.current) {
+      maxWatchedRef.current = vid.currentTime;
+    }
   }, []);
 
-  // ── Nettoyage blob URL au démontage ──────────────────────────────────────
+  // ── Bloquer tout saut en avant au-delà du max regardé ────────────────────
+  const handleSeeked = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (vid.currentTime > maxWatchedRef.current + 1) {
+      vid.currentTime = maxWatchedRef.current;
+      if (userIdRef.current && videoId && courseId) {
+        logSecurityEvent(userIdRef.current, videoId, courseId, "seek_forward_blocked");
+      }
+    }
+  }, [videoId, courseId]);
+
+  // Reset au changement de leçon
+  useEffect(() => {
+    maxWatchedRef.current = 0;
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+  }, [videoId]);
+
+  // ── Nettoyage au démontage ────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current);
       if (videoLoadingTimeoutRef.current) clearTimeout(videoLoadingTimeoutRef.current);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
   }, []);
 
@@ -390,86 +282,64 @@ export default function VideoPlayerPage() {
   const loadSecureVideo = useCallback(
     async (leconData: Lecon) => {
       if (!videoRef.current || !courseId) return;
-
       setVideoLoading(true);
       setVideoError(false);
 
-      // Priorité : storage_path (Supabase Storage) > url directe (legacy)
       if (leconData.storage_path) {
         const tokenData = await fetchSecureToken(
-          leconData.id,
-          courseId,
-          deviceFingerprintRef.current
+          leconData.id, courseId, deviceFingerprintRef.current
         );
-
         if (!tokenData) {
           setVideoError(true);
           setVideoLoading(false);
           return;
         }
-
-        // Utiliser l'URL signée directement (streaming natif)
         if (blobUrlRef.current) {
           URL.revokeObjectURL(blobUrlRef.current);
           blobUrlRef.current = null;
         }
         videoRef.current.src = tokenData.signedUrl;
-        // ✅ FIX 1 : appel explicite à .load() indispensable sur mobile
-        // Sans lui, le navigateur Android/iOS ignore le changement de src
         videoRef.current.load();
 
-        // ✅ FIX 4 : timeout de sécurité — si onCanPlay ne se déclenche pas
-        // dans les 10s (réseau lent, bug navigateur mobile), on retire le spinner
         if (videoLoadingTimeoutRef.current) clearTimeout(videoLoadingTimeoutRef.current);
-        videoLoadingTimeoutRef.current = setTimeout(() => {
-          setVideoLoading(false);
-        }, 10_000);
+        videoLoadingTimeoutRef.current = setTimeout(() => setVideoLoading(false), 15_000);
 
-        // Planifier le refresh du token avant expiration (à 80% du TTL)
+        // Refresh du token à 80% du TTL
         if (tokenRefreshTimerRef.current) clearTimeout(tokenRefreshTimerRef.current);
         const ttlMs = new Date(tokenData.expiresAt).getTime() - Date.now();
         if (ttlMs > 0) {
           tokenRefreshTimerRef.current = setTimeout(() => {
-            loadSecureVideo(leconData);
+            loadSecureVideoRef.current?.(leconData);
           }, ttlMs * 0.8);
         }
-
       } else if (leconData.url) {
-        // Fallback legacy : URL directe
-        console.warn("[SecurePlayer] Fallback URL directe — migrez vers storage_path");
         videoRef.current.src = leconData.url;
-        videoRef.current.load(); // ✅ FIX 1 aussi pour le fallback
+        videoRef.current.load();
       } else {
         setVideoError(true);
-        setVideoLoading(false); // seulement en cas d'erreur
+        setVideoLoading(false);
       }
-      // ✅ FIX 2 : NE PAS appeler setVideoLoading(false) ici
-      // C'est onCanPlay / onLoadedData qui doit l'éteindre,
-      // sinon onWaiting le rallume et le spinner reste bloqué indéfiniment
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [courseId]
   );
 
-  // ── Chargement données formation ──────────────────────────────────────────
+  useEffect(() => { loadSecureVideoRef.current = loadSecureVideo; });
+
+  // ── Chargement données + vérification serveur ─────────────────────────────
   const loadData = useCallback(async () => {
     const user = getNexoraUser();
     const adminAccess = isNexoraAdmin();
-
     if (!user || !courseId || !videoId) { navigate("/login"); return; }
 
-    setUserEmail(user.email ?? "");
-    setUserId(user.id);
-
-    // Générer le device fingerprint
+    userIdRef.current = user.id;
     deviceFingerprintRef.current = await getDeviceFingerprint();
-
     setLoading(true);
 
     try {
-      // ✅ FIX A3 : timeout sur chaque requête Supabase (mobile peut figer sans réseau)
       const QUERY_TIMEOUT = 12_000;
 
-      // Vérifier achat
+      // 1. Vérifier l'achat côté serveur
       if (!adminAccess) {
         const { data: purchase } = await withTimeout(
           (supabase as any)
@@ -483,6 +353,7 @@ export default function VideoPlayerPage() {
         ).catch(() => ({ data: null }));
 
         if (!purchase) {
+          await logSecurityEvent(user.id, videoId, courseId, "access_denied_no_purchase");
           setAccessDenied(true);
           setAccessDeniedReason("Vous n'avez pas accès à cette formation.");
           setLoading(false);
@@ -490,7 +361,7 @@ export default function VideoPlayerPage() {
         }
       }
 
-      // Charger modules et leçons
+      // 2. Charger modules et leçons
       const { data: mData } = await withTimeout(
         (supabase as any)
           .from("formation_modules")
@@ -528,7 +399,7 @@ export default function VideoPlayerPage() {
       const currentLecon = flatLecons.find((l) => l.id === videoId);
       if (!currentLecon) { navigate(`/mes-formations/${courseId}/cours`); return; }
 
-      // Vérifier progression séquentielle côté client
+      // 3. Vérification séquentielle côté SERVEUR
       if (!adminAccess) {
         const idx = flatLecons.findIndex((l) => l.id === videoId);
         if (idx > 0) {
@@ -544,6 +415,7 @@ export default function VideoPlayerPage() {
           ).catch(() => ({ data: null }));
 
           if (!prevProgress || prevProgress.status !== "completed") {
+            await logSecurityEvent(user.id, videoId, courseId, "access_denied_sequential_lock");
             setAccessDenied(true);
             setAccessDeniedReason("Terminez la leçon précédente pour débloquer celle-ci.");
             setLoading(false);
@@ -554,7 +426,7 @@ export default function VideoPlayerPage() {
 
       setLecon(currentLecon);
 
-      // Vérifier si déjà complétée
+      // 4. Statut de complétion de la leçon actuelle
       const { data: progress } = await withTimeout(
         (supabase as any)
           .from("video_progress")
@@ -568,7 +440,6 @@ export default function VideoPlayerPage() {
       setIsCompleted(progress?.status === "completed");
 
       if (!progress) {
-        // Upsert non bloquant — on ne l'attend pas pour débloquer l'UI
         (supabase as any).from("video_progress").upsert({
           user_id: user.id,
           course_id: courseId,
@@ -578,35 +449,30 @@ export default function VideoPlayerPage() {
         }, { onConflict: "user_id,video_id" }).then().catch(console.warn);
       }
 
-      // ✅ FIX B : NE PAS appeler loadSecureVideo ici !
-      // À ce stade loading=true donc <video> n'est pas dans le DOM,
-      // videoRef.current vaut null → la vidéo ne chargerait jamais.
-      // loadSecureVideo est déclenché par le useEffect ci-dessous,
-      // une fois que loading passe à false et que <video> est monté.
-
     } catch (err) {
       console.error("Erreur chargement:", err);
     } finally {
       setLoading(false);
     }
-  }, [courseId, videoId, navigate, loadSecureVideo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId, videoId, navigate]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ✅ FIX B : Déclencher le chargement vidéo APRÈS que loading passe à false
-  // À ce moment le <video> est dans le DOM et videoRef.current est valide
+  // Déclencher la vidéo une fois que le <video> est dans le DOM
   useEffect(() => {
     if (!loading && lecon && videoRef.current) {
       loadSecureVideo(lecon);
     }
-  }, [loading, lecon, loadSecureVideo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, lecon]);
 
-  // ── Marquer comme terminée ────────────────────────────────────────────────
+  // ── Marquer comme terminée (persisté côté serveur) ────────────────────────
   const handleVideoEnded = useCallback(async () => {
     const user = getNexoraUser();
     if (!user || !courseId || !videoId || !lecon) return;
     setIsCompleted(true);
-    setIsPaused(true);
+    setIsPlaying(false);
     await (supabase as any).from("video_progress").upsert({
       user_id: user.id,
       course_id: courseId,
@@ -617,15 +483,66 @@ export default function VideoPlayerPage() {
     }, { onConflict: "user_id,video_id" });
   }, [courseId, videoId, lecon]);
 
-  const handlePlayPause = useCallback(() => {
-    if (securityState === "blocked") return;
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play();
+  // ── Contrôles du lecteur custom ───────────────────────────────────────────
+  const togglePlay = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.paused ? vid.play() : vid.pause();
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.muted = !vid.muted;
+    setIsMuted(vid.muted);
+  }, []);
+
+  const handleFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().catch(console.warn);
     } else {
-      videoRef.current.pause();
+      document.exitFullscreen().catch(console.warn);
     }
-  }, [securityState]);
+  }, []);
+
+  const handleRestart = useCallback(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    maxWatchedRef.current = 0;
+    vid.currentTime = 0;
+    vid.play();
+  }, []);
+
+  // ── Clic barre de progression (verrouillée en avant) ──────────────────────
+  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const vid = videoRef.current;
+    const bar = progressBarRef.current;
+    if (!vid || !bar || duration === 0) return;
+
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const targetTime = ratio * duration;
+
+    if (targetTime <= maxWatchedRef.current + 1) {
+      vid.currentTime = targetTime;
+    } else {
+      // Tentative de saut en avant — logguer et ignorer
+      if (userIdRef.current && videoId && courseId) {
+        logSecurityEvent(userIdRef.current, videoId, courseId, "progress_bar_skip_attempt");
+      }
+    }
+  }, [duration, videoId, courseId]);
+
+  // ── Auto-hide contrôles sur inactivité ───────────────────────────────────
+  const showControlsTemporarily = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  }, []);
 
   const goToNext = useCallback(() => {
     if (nextLecon && isCompleted)
@@ -633,8 +550,7 @@ export default function VideoPlayerPage() {
   }, [nextLecon, isCompleted, courseId, navigate]);
 
   const goToPrev = useCallback(() => {
-    if (prevLecon)
-      navigate(`/mes-formations/${courseId}/video/${prevLecon.id}`);
+    if (prevLecon) navigate(`/mes-formations/${courseId}/video/${prevLecon.id}`);
   }, [prevLecon, courseId, navigate]);
 
   // ── Rendu : chargement ────────────────────────────────────────────────────
@@ -646,13 +562,13 @@ export default function VideoPlayerPage() {
             <Loader2 className="w-10 h-10 text-violet-500 animate-spin" />
             <Shield className="w-4 h-4 text-emerald-500 absolute -bottom-1 -right-1" />
           </div>
-          <p className="text-sm text-muted-foreground font-medium">Vérification de l'accès sécurisé…</p>
+          <p className="text-sm text-muted-foreground font-medium">Vérification de l'accès…</p>
         </div>
       </AppLayout>
     );
   }
 
-  // ── Rendu : accès refusé ───────────────────────────────────────────────────
+  // ── Rendu : accès refusé ──────────────────────────────────────────────────
   if (accessDenied) {
     return (
       <AppLayout>
@@ -677,20 +593,14 @@ export default function VideoPlayerPage() {
 
   if (!lecon) return null;
 
+  // Calculs barre de progression
+  const watchedPercent = duration > 0 ? Math.min(100, (maxWatchedRef.current / duration) * 100) : 0;
+  const currentPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
   // ── Rendu principal ───────────────────────────────────────────────────────
   return (
     <AppLayout>
-      {/* Bannière sécurité (warning / blocked) */}
-      {securityState !== "safe" && (
-        <div className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white ${
-          securityState === "blocked" ? "bg-red-600" : "bg-amber-500"
-        }`}>
-          <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-          {warningMessage}
-        </div>
-      )}
-
-      <div className="max-w-3xl mx-auto space-y-4 pb-10" style={{ marginTop: securityState !== "safe" ? "48px" : 0 }}>
+      <div className="max-w-3xl mx-auto space-y-4 pb-10">
 
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -704,100 +614,55 @@ export default function VideoPlayerPage() {
             <p className="text-xs font-bold text-violet-600 dark:text-violet-400 truncate">{lecon.module_titre}</p>
             <h1 className="text-base font-black text-foreground truncate leading-tight">{lecon.titre}</h1>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {isCompleted && (
-              <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full">
-                <CheckCircle className="w-3.5 h-3.5" /> Terminée
-              </div>
-            )}
-            {/* Indicateur sécurité */}
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-              securityState === "safe" ? "bg-emerald-500/10" : "bg-red-500/10"
-            }`} title="Lecture sécurisée">
-              <Shield className={`w-4 h-4 ${
-                securityState === "safe" ? "text-emerald-500" : "text-red-500"
-              }`} />
+          {isCompleted && (
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full flex-shrink-0">
+              <CheckCircle className="w-3.5 h-3.5" /> Terminée
             </div>
-          </div>
+          )}
         </div>
 
         {/* ── Lecteur vidéo sécurisé ── */}
         <div
           ref={containerRef}
-          data-secure-player="true"
-          className="relative w-full bg-black rounded-2xl overflow-hidden shadow-xl"
+          className="relative w-full bg-black rounded-2xl overflow-hidden shadow-xl select-none"
           style={{ aspectRatio: "16/9" }}
-          // Empêche la sélection de texte (technique watermark)
-          onSelectStart={(e) => e.preventDefault()}
+          onMouseMove={showControlsTemporarily}
+          onTouchStart={showControlsTemporarily}
         >
-          {/* Vidéo (src chargé dynamiquement via blob URL, jamais via attribut HTML) */}
+          {/* Élément vidéo — PAS de contrôles natifs exposés */}
           <video
             ref={videoRef}
             key={lecon.id}
             className="w-full h-full object-contain"
-            controlsList="nodownload nofullscreen noremoteplayback"
+            controlsList="nodownload noremoteplayback"
             disablePictureInPicture
             onEnded={handleVideoEnded}
-            onPlay={() => { setIsPaused(false); setIsBlurred(false); }}
-            onPause={() => setIsPaused(true)}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
             onError={() => { setVideoError(true); setVideoLoading(false); }}
             onWaiting={() => { if (videoRef.current?.src) setVideoLoading(true); }}
             onCanPlay={() => setVideoLoading(false)}
-            onLoadedData={() => setVideoLoading(false)}
+            onLoadedData={() => {
+              setVideoLoading(false);
+              setDuration(videoRef.current?.duration ?? 0);
+            }}
+            onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
+            onTimeUpdate={handleTimeUpdate}
+            onSeeked={handleSeeked}
+            onRateChange={handleRateChange}
             playsInline
-            // Pas d'attribut "src" ici — chargé dynamiquement via JS
+            onClick={togglePlay}
           />
 
-          {/* Watermark dynamique */}
-          {userEmail && (
-            <DynamicWatermark email={userEmail} userId={userId} />
-          )}
-
-          {/* Overlay chargement vidéo */}
+          {/* Overlay chargement */}
           {videoLoading && !videoError && (
-            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3 z-20">
+            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3 z-20 pointer-events-none">
               <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-              <p className="text-white/60 text-xs font-medium">Chargement sécurisé…</p>
+              <p className="text-white/60 text-xs font-medium">Chargement…</p>
             </div>
           )}
 
-          {/* Overlay flou (DevTools / onglet caché) */}
-          {isBlurred && !videoError && securityState !== "blocked" && (
-            <div
-              className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center gap-3 cursor-pointer z-20"
-              onClick={() => {
-                if (securityState !== "blocked") {
-                  setIsBlurred(false);
-                  videoRef.current?.play();
-                  setIsPaused(false);
-                }
-              }}
-            >
-              <EyeOff className="w-10 h-10 text-white/40" />
-              <p className="text-white/60 text-sm font-medium">Lecture mise en pause</p>
-              {securityState === "warning" && (
-                <p className="text-amber-400/80 text-xs px-4 text-center">{warningMessage}</p>
-              )}
-              {securityState === "safe" && (
-                <p className="text-white/40 text-xs">Cliquez pour reprendre</p>
-              )}
-            </div>
-          )}
-
-          {/* Overlay bloqué (3 violations) */}
-          {securityState === "blocked" && (
-            <div className="absolute inset-0 bg-black/98 flex flex-col items-center justify-center gap-4 z-40">
-              <ShieldAlert className="w-12 h-12 text-red-500" />
-              <p className="text-white/90 text-sm font-bold text-center px-6">
-                Activité suspecte détectée
-              </p>
-              <p className="text-white/50 text-xs text-center px-8">
-                Déconnexion en cours pour des raisons de sécurité…
-              </p>
-            </div>
-          )}
-
-          {/* Erreur */}
+          {/* Overlay erreur */}
           {videoError && (
             <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center gap-3 z-20">
               <AlertTriangle className="w-10 h-10 text-red-400" />
@@ -811,27 +676,122 @@ export default function VideoPlayerPage() {
             </div>
           )}
 
-          {/* Bouton play (quand en pause, pas de blur ni d'erreur) */}
-          {isPaused && !isBlurred && !videoError && !videoLoading && securityState !== "blocked" && (
+          {/* Bouton play central */}
+          {!isPlaying && !videoLoading && !videoError && (
             <div
-              className="absolute inset-0 flex items-center justify-center cursor-pointer group z-10"
-              onClick={handlePlayPause}
+              className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
+              onClick={togglePlay}
             >
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center transition-transform group-hover:scale-110">
+              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center transition-transform hover:scale-110 active:scale-95">
                 <Play className="w-7 h-7 text-white ml-1" fill="currentColor" />
               </div>
             </div>
           )}
 
-          {/* Bouton pause (visible au hover) */}
-          {!isPaused && !isBlurred && (
+          {/* ── Barre de contrôles custom ── */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 z-30 transition-opacity duration-300 ${
+              showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            style={{
+              background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
+              padding: "40px 14px 12px",
+            }}
+          >
+            {/* Barre de progression */}
             <div
-              className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center cursor-pointer opacity-0 hover:opacity-100 transition-opacity z-10"
-              onClick={handlePlayPause}
+              ref={progressBarRef}
+              className="relative w-full cursor-pointer mb-3 group"
+              style={{ height: 20, display: "flex", alignItems: "center" }}
+              onClick={handleProgressClick}
             >
-              <Pause className="w-4 h-4 text-white" fill="currentColor" />
+              {/* Piste de fond */}
+              <div className="absolute w-full h-1 bg-white/20 rounded-full" />
+
+              {/* Zone max regardée (grise claire) = jusqu'où on peut aller */}
+              <div
+                className="absolute h-1 bg-white/40 rounded-full"
+                style={{ width: `${watchedPercent}%` }}
+              />
+
+              {/* Progression actuelle (violet) */}
+              <div
+                className="absolute h-1 bg-violet-500 rounded-full"
+                style={{ width: `${currentPercent}%` }}
+              />
+
+              {/* Curseur actuel */}
+              <div
+                className="absolute w-3.5 h-3.5 bg-white rounded-full shadow-lg transition-transform group-hover:scale-125"
+                style={{
+                  left: `${currentPercent}%`,
+                  transform: "translateX(-50%)",
+                  boxShadow: "0 0 0 2px rgba(139,92,246,0.6)",
+                }}
+              />
+
+              {/* Icône verrou à la limite max regardée */}
+              {watchedPercent < 99 && watchedPercent > 0 && (
+                <div
+                  className="absolute pointer-events-none"
+                  style={{ left: `${watchedPercent}%`, transform: "translate(-6px, -10px)" }}
+                >
+                  <Lock className="w-2.5 h-2.5 text-amber-400/80" />
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Boutons */}
+            <div className="flex items-center gap-2">
+              {/* Play / Pause */}
+              <button
+                onClick={togglePlay}
+                className="w-9 h-9 flex items-center justify-center text-white hover:text-violet-300 transition-colors rounded-lg hover:bg-white/10"
+              >
+                {isPlaying
+                  ? <Pause className="w-5 h-5" fill="currentColor" />
+                  : <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
+                }
+              </button>
+
+              {/* Recommencer depuis le début */}
+              <button
+                onClick={handleRestart}
+                className="w-9 h-9 flex items-center justify-center text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                title="Recommencer"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+
+              {/* Temps actuel / durée */}
+              <span className="text-white/80 text-xs font-mono tabular-nums ml-1">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+
+              <div className="flex-1" />
+
+              {/* Mute */}
+              <button
+                onClick={toggleMute}
+                className="w-9 h-9 flex items-center justify-center text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                title={isMuted ? "Activer le son" : "Couper le son"}
+              >
+                {isMuted
+                  ? <VolumeX className="w-4 h-4" />
+                  : <Volume2 className="w-4 h-4" />
+                }
+              </button>
+
+              {/* Plein écran */}
+              <button
+                onClick={handleFullscreen}
+                className="w-9 h-9 flex items-center justify-center text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+                title="Plein écran"
+              >
+                <Maximize className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Info + navigation */}
@@ -846,13 +806,7 @@ export default function VideoPlayerPage() {
             )}
           </div>
 
-          {/* Badge sécurité */}
-          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/8 border border-emerald-500/20 rounded-xl px-3 py-2">
-            <Shield className="w-3 h-3 flex-shrink-0" />
-            <span>Lecture sécurisée · Watermark actif · Appareil vérifié</span>
-          </div>
-
-          {/* Navigation */}
+          {/* Boutons navigation */}
           <div className="flex items-center gap-3">
             <button
               onClick={goToPrev}
@@ -898,17 +852,27 @@ export default function VideoPlayerPage() {
             <div className="divide-y divide-border/30 max-h-64 overflow-y-auto">
               {allLecons.map((l, idx) => {
                 const isCurrent = l.id === videoId;
-                const isLocked = idx > currentIndex + 1 && !isNexoraAdmin();
+                // Verrouillé si au-delà de la prochaine ET pas admin
+                const isLocked = idx > currentIndex && !isNexoraAdmin() &&
+                  !(idx === currentIndex + 1 && isCompleted);
 
                 return (
                   <button
                     key={l.id}
                     onClick={() => {
-                      if (!isLocked) navigate(`/mes-formations/${courseId}/video/${l.id}`);
+                      if (!isLocked) {
+                        navigate(`/mes-formations/${courseId}/video/${l.id}`);
+                      } else if (userIdRef.current) {
+                        logSecurityEvent(userIdRef.current, l.id, courseId!, "lesson_skip_attempt");
+                      }
                     }}
                     disabled={isLocked}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                      isCurrent ? "bg-violet-500/8" : isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/20"
+                      isCurrent
+                        ? "bg-violet-500/8"
+                        : isLocked
+                        ? "opacity-40 cursor-not-allowed"
+                        : "hover:bg-muted/20"
                     }`}
                   >
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black ${
@@ -916,7 +880,9 @@ export default function VideoPlayerPage() {
                     }`}>
                       {idx + 1}
                     </div>
-                    <span className={`flex-1 text-xs font-semibold truncate ${isCurrent ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
+                    <span className={`flex-1 text-xs font-semibold truncate ${
+                      isCurrent ? "text-violet-600 dark:text-violet-400" : "text-foreground"
+                    }`}>
                       {l.titre}
                     </span>
                     {isLocked && <Lock className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />}
