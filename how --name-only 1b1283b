@@ -1,0 +1,10 @@
+[33m0c12960[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: commit: Fix: retirer script du repo
+[33m687d81b[m HEAD@{1}: commit: Fix: retirer script avec token du repo
+[33m1b1283b[m HEAD@{2}: commit: v -
+[33me8a7067[m HEAD@{3}: commit: Fix: exclure APK du repo
+[33m9c088c3[m HEAD@{4}: commit: APK v2.0 - nouvelle version complete
+[33m93a588f[m[33m ([m[1;33mtag: [m[1;33mv2.0-nouvelle-version[m[33m)[m HEAD@{5}: commit: feat: mise a jour complete nouvelle version
+[33mcc6e92f[m HEAD@{6}: commit: feat: ajout toutes les nouvelles pages et fonctionnalites
+[33m864d5ce[m[33m ([m[1;32msauvegarde-travail-actuel[m[33m)[m HEAD@{7}: checkout: moving from sauvegarde-travail-actuel to main
+[33m864d5ce[m[33m ([m[1;32msauvegarde-travail-actuel[m[33m)[m HEAD@{8}: checkout: moving from main to sauvegarde-travail-actuel
+[33m864d5ce[m[33m ([m[1;32msauvegarde-travail-actuel[m[33m)[m HEAD@{9}: commit: Fix: exclude android build folders + nouvelles fonctionnalites
