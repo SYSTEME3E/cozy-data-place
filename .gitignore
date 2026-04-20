@@ -34,3 +34,5 @@ android/build/
 # APK dans public
 public/*.apk
 assets/public/*.apk
+
+public/*.apk
