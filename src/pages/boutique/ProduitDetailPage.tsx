@@ -188,6 +188,7 @@ export default function ProduitDetailPage() {
           .eq('boutique_id', boutiqueData.id)
           .or('actif.eq.true,actif.is.null').maybeSingle();
 
+        // Rediriger vers slug uniquement s'il est défini en BDD
         if (data?.slug) {
           navigate(`/shop/${slug}/produit/${data.slug}`, { replace: true });
           return;
