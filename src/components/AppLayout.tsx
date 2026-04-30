@@ -6,7 +6,7 @@ import {
   HandCoins, Receipt, Store, BadgeCheck, Map,
   ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, CreditCard,
   GraduationCap, Coins, BookOpen, Filter, Sparkles, Leaf, ClipboardList, ShoppingBag,
-  Headphones, Users, Info
+  Headphones, Users, Info, Zap, Tv2
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
 import { logoutUser, getNexoraUser, isNexoraAdmin, refreshNexoraSession } from "@/lib/nexora-auth";
@@ -22,6 +22,8 @@ const getNavItems = (isAdmin: boolean) => {
     { path: "/mes-formations",   icon: BookOpen,        label: "Mes Formations",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/nexora-academy",   icon: Sparkles,        label: "Nexora Academy",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/transfert",        icon: ArrowLeftRight,  label: "Nexora Transfert",     color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/electricite",      icon: Zap,             label: "Électricité",           color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/canal-plus",       icon: Tv2,             label: "Canal+",                color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/paylink",          icon: CreditCard,      label: "Nexora PayLink",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/boutique",         icon: Store,           label: "Nexora Shop",          color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/nexora-shop",      icon: ShoppingBag,     label: "Shopping Public",      color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
