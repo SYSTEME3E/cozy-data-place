@@ -5,6 +5,7 @@ import { formatPrix } from "@/lib/devise-utils";
 import SectionAvis from "@/pages/boutique/SectionAvis";
 import CryptoPaymentModal from "@/components/CryptoPaymentModal";
 import { getCryptoWallets, hasCryptoEnabled } from "@/lib/cryptoPayment";
+import { isUUID } from "@/lib/slugUtils";
 import {
   ArrowLeft, BookOpen, Video, Code2, Palette, File, Key, Zap,
   Tag, Star, Share2, CheckCircle, Globe, Hash,
