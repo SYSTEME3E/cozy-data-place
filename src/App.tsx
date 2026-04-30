@@ -101,6 +101,10 @@ import YupiCommandesPage from "@/pages/YupiCommandesPage";
 // Admin
 import AdminPanelPage from "@/pages/AdminPanelPage";
 
+// Services de paiement
+import ElectricitePage from "@/pages/ElectricitePage";
+import CanalPlusPage from "@/pages/CanalPlusPage";
+
 
 
 import NotFound from "@/pages/NotFound";
@@ -286,6 +290,10 @@ const App = () => {
               {/* YUPI GLOBAL SHOP (connecté) */}
               <Route path="/yupi-shop" element={<ProtectedPage><YupiGlobalShopPage /></ProtectedPage>} />
               <Route path="/yupi-commandes" element={<AdminPage><YupiCommandesPage /></AdminPage>} />
+
+              {/* Services de paiement */}
+              <Route path="/electricite" element={<ProtectedPage><ElectricitePage /></ProtectedPage>} />
+              <Route path="/canal-plus"  element={<ProtectedPage><CanalPlusPage /></ProtectedPage>} />
 
               {/* Admin */}
               <Route path="/admin"            element={<AdminPage><AdminPanelPage /></AdminPage>} />
