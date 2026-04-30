@@ -995,7 +995,7 @@ export default function ProduitsDigitauxPage() {
 
   const copyLink = (id: string) => {
     if (!boutique?.slug) { toast({ title: "Configurez d'abord votre boutique", variant: "destructive" }); return; }
-    navigator.clipboard.writeText(`${window.location.origin}/shop/${boutique.slug}/produit/${id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/shop/${boutique.slug}/digital/${id}`);
     toast({ title: "✅ Lien copié !" });
   };
 
@@ -1285,7 +1285,7 @@ export default function ProduitsDigitauxPage() {
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${produit.vedette ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"}`}>
                           <Star className="w-3.5 h-3.5" /> {produit.vedette ? "Retirer vedette" : "Vedette"}
                         </button>
-                        <button onClick={() => window.open(`/shop/${boutique?.slug}/produit/${produit.id}`, "_blank")}
+                        <button onClick={() => window.open(`/shop/${boutique?.slug}/digital/${produit.id}`, "_blank")}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-100 text-[#305CDE] dark:bg-[#305CDE]/30 dark:text-[#305CDE]">
                           <ExternalLink className="w-3.5 h-3.5" /> Voir la page
                         </button>
