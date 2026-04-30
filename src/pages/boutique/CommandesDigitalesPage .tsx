@@ -43,17 +43,17 @@ interface Commande {
 
 const STATUTS: Record<StatutCommande, { label: string; color: string; bg: string; darkColor: string; darkBg: string; icon: any }> = {
   en_attente:     { label: "En attente",      color: "text-slate-700",  bg: "bg-slate-100",  darkColor: "dark:text-slate-300",  darkBg: "dark:bg-slate-800",  icon: Clock },
-  nouvelle:       { label: "Nouvelle",        color: "text-blue-700",   bg: "bg-blue-100",   darkColor: "dark:text-blue-300",   darkBg: "dark:bg-blue-950/50",   icon: Zap },
-  confirmee:      { label: "Confirmée",       color: "text-purple-700", bg: "bg-purple-100", darkColor: "dark:text-purple-300", darkBg: "dark:bg-purple-950/50", icon: CheckCircle },
+  nouvelle:       { label: "Nouvelle",        color: "text-[#305CDE]",   bg: "bg-blue-100",   darkColor: "dark:text-[#305CDE]",   darkBg: "dark:bg-blue-950/50",   icon: Zap },
+  confirmee:      { label: "Confirmée",       color: "text-[#305CDE]", bg: "bg-[#305CDE]", darkColor: "dark:text-[#305CDE]", darkBg: "dark:bg-[#305CDE]/20", icon: CheckCircle },
   en_preparation: { label: "En préparation",  color: "text-yellow-700", bg: "bg-yellow-100", darkColor: "dark:text-yellow-300", darkBg: "dark:bg-yellow-950/50", icon: Package },
   expediee:       { label: "Envoyée",         color: "text-orange-700", bg: "bg-orange-100", darkColor: "dark:text-orange-300", darkBg: "dark:bg-orange-950/50", icon: Zap },
-  livree:         { label: "Livrée",          color: "text-green-700",  bg: "bg-green-100",  darkColor: "dark:text-green-300",  darkBg: "dark:bg-green-950/50",  icon: CheckCircle },
+  livree:         { label: "Livrée",          color: "text-[#008000]",  bg: "bg-[#008000]",  darkColor: "dark:text-[#008000]",  darkBg: "dark:bg-green-950/50",  icon: CheckCircle },
   annulee:        { label: "Annulée",         color: "text-red-700",    bg: "bg-red-100",    darkColor: "dark:text-red-300",    darkBg: "dark:bg-red-950/50",    icon: XCircle },
 };
 
 const STATUTS_PAIEMENT: Record<StatutPaiement, { label: string; color: string; bg: string; darkColor: string; darkBg: string }> = {
   en_attente: { label: "En attente", color: "text-yellow-700", bg: "bg-yellow-100", darkColor: "dark:text-yellow-300", darkBg: "dark:bg-yellow-950/50" },
-  paye:       { label: "Payé",       color: "text-green-700",  bg: "bg-green-100",  darkColor: "dark:text-green-300",  darkBg: "dark:bg-green-950/50"  },
+  paye:       { label: "Payé",       color: "text-[#008000]",  bg: "bg-[#008000]",  darkColor: "dark:text-[#008000]",  darkBg: "dark:bg-green-950/50"  },
   echoue:     { label: "Échoué",     color: "text-red-700",    bg: "bg-red-100",    darkColor: "dark:text-red-300",    darkBg: "dark:bg-red-950/50"    },
   rembourse:  { label: "Remboursé",  color: "text-gray-700",   bg: "bg-gray-100",   darkColor: "dark:text-gray-300",   darkBg: "dark:bg-gray-800"      },
 };
@@ -181,8 +181,8 @@ export default function CommandesDigitalesPage() {
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <div className="w-8 h-8 rounded-lg bg-[#305CDE] dark:bg-[#305CDE]/40 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-[#305CDE] dark:text-[#305CDE]" />
             </div>
             <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">Commandes Digitales</h1>
           </div>
@@ -191,17 +191,17 @@ export default function CommandesDigitalesPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900 rounded-2xl p-4">
-            <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Nouvelles</p>
-            <p className="text-3xl font-black text-purple-700 dark:text-purple-300">{stats.nouvelles}</p>
+          <div className="bg-[#305CDE]/5 dark:bg-[#305CDE]/20 border border-[#305CDE] dark:border-[#305CDE] rounded-2xl p-4">
+            <p className="text-xs text-[#305CDE] dark:text-[#305CDE] font-medium">Nouvelles</p>
+            <p className="text-3xl font-black text-[#305CDE] dark:text-[#305CDE]">{stats.nouvelles}</p>
           </div>
-          <div className="bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-900 rounded-2xl p-4">
-            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Livrées</p>
-            <p className="text-3xl font-black text-green-700 dark:text-green-300">{stats.livrees}</p>
+          <div className="bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-[#008000] rounded-2xl p-4">
+            <p className="text-xs text-[#008000] dark:text-[#008000] font-medium">Livrées</p>
+            <p className="text-3xl font-black text-[#008000] dark:text-[#008000]">{stats.livrees}</p>
           </div>
-          <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-2xl p-4 col-span-2">
-            <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Chiffre d'affaires digital</p>
-            <p className="text-2xl font-black text-indigo-700 dark:text-indigo-300">
+          <div className="bg-[#305CDE]/5 dark:bg-[#305CDE]/20 border border-[#305CDE] dark:border-[#305CDE] rounded-2xl p-4 col-span-2">
+            <p className="text-xs text-[#305CDE] dark:text-[#305CDE] font-medium">Chiffre d'affaires digital</p>
+            <p className="text-2xl font-black text-[#305CDE] dark:text-[#305CDE]">
               {formatMontant(stats.chiffre, boutique?.devise || "XOF")}
             </p>
           </div>
@@ -236,7 +236,7 @@ export default function CommandesDigitalesPage() {
         {/* Liste */}
         {loading ? (
           <div className="flex justify-center py-10">
-            <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-[#305CDE] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-14 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl">
@@ -256,8 +256,8 @@ export default function CommandesDigitalesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-purple-600 dark:text-purple-400 text-sm">#{cmd.numero}</span>
-                          <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                          <span className="font-bold text-[#305CDE] dark:text-[#305CDE] text-sm">#{cmd.numero}</span>
+                          <span className="text-xs bg-[#305CDE] dark:bg-[#305CDE]/40 text-[#305CDE] dark:text-[#305CDE] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                             <Zap className="w-3 h-3" /> Digital
                           </span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1
@@ -279,7 +279,7 @@ export default function CommandesDigitalesPage() {
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(cmd.created_at)}</span>
                         </div>
 
-                        <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-1">
+                        <div className="text-lg font-black text-[#305CDE] dark:text-[#305CDE] mt-1">
                           {formatMontant(cmd.total, cmd.devise)}
                         </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -312,15 +312,15 @@ export default function CommandesDigitalesPage() {
                               const photoArt = (art as any).photo_url || null;
                               return (
                                 <div key={i} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-3">
-                                  <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                  <div className="w-12 h-12 rounded-lg bg-[#305CDE] dark:bg-[#305CDE]/30 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                     {photoArt
                                       ? <img src={photoArt} alt="" className="w-full h-full object-cover" />
-                                      : <Zap className="w-5 h-5 text-purple-400" />
+                                      : <Zap className="w-5 h-5 text-[#305CDE]" />
                                     }
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{nomArt}</p>
-                                    <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">Digital</span>
+                                    <span className="text-xs bg-[#305CDE] dark:bg-[#305CDE]/40 text-[#305CDE] dark:text-[#305CDE] px-2 py-0.5 rounded-full font-medium">Digital</span>
                                     {(art as any).variations_choisies && Object.keys((art as any).variations_choisies).length > 0 && (
                                       <p className="text-xs text-gray-400 dark:text-gray-500">
                                         {Object.entries((art as any).variations_choisies).map(([k, v]) => `${k}: ${v}`).join(" • ")}
@@ -330,7 +330,7 @@ export default function CommandesDigitalesPage() {
                                       {qteArt} × {formatMontant(prixUnit, cmd.devise)}
                                     </p>
                                   </div>
-                                  <span className="font-bold text-purple-600 dark:text-purple-400 text-sm flex-shrink-0">
+                                  <span className="font-bold text-[#305CDE] dark:text-[#305CDE] text-sm flex-shrink-0">
                                     {formatMontant(montantArt, cmd.devise)}
                                   </span>
                                 </div>
@@ -338,7 +338,7 @@ export default function CommandesDigitalesPage() {
                             })}
                           </div>
                           <div className="mt-3 space-y-1 text-sm">
-                            <div className="flex justify-between font-black text-purple-600 dark:text-purple-400 border-t border-gray-200 dark:border-gray-700 pt-1">
+                            <div className="flex justify-between font-black text-[#305CDE] dark:text-[#305CDE] border-t border-gray-200 dark:border-gray-700 pt-1">
                               <span>Total</span>
                               <span>{formatMontant(cmd.total, cmd.devise)}</span>
                             </div>
@@ -393,7 +393,7 @@ export default function CommandesDigitalesPage() {
                       {cmd.client_tel && (
                         <div className="flex gap-2">
                           <a href={`tel:${cmd.client_tel}`}
-                            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold">
+                            className="flex-1 flex items-center justify-center gap-2 bg-[#008000] text-white rounded-xl py-2.5 text-sm font-semibold">
                             <Phone className="w-4 h-4" /> Appeler
                           </a>
                           <a href={`https://wa.me/${cmd.client_tel.replace(/[^0-9]/g, "")}?text=Bonjour ${cmd.client_nom}, concernant votre commande #${cmd.numero}`}

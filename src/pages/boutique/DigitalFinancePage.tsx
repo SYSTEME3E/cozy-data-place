@@ -137,8 +137,8 @@ const MOCK_RETRAITS: Retrait[] = [
 
 const STATUT_RETRAIT: Record<StatutRetrait, { label: string; color: string; bg: string; icon: any }> = {
   en_attente:  { label: "En attente",  color: "text-yellow-700", bg: "bg-yellow-50  border-yellow-200", icon: Clock },
-  traitement:  { label: "En cours",    color: "text-blue-700",   bg: "bg-blue-50    border-blue-200",   icon: Loader2 },
-  complete:    { label: "Reçu",        color: "text-green-700",  bg: "bg-green-50   border-green-200",  icon: CheckCircle },
+  traitement:  { label: "En cours",    color: "text-[#305CDE]",   bg: "bg-blue-50    border-blue-200",   icon: Loader2 },
+  complete:    { label: "Reçu",        color: "text-[#008000]",  bg: "bg-green-50   border-green-200",  icon: CheckCircle },
   refuse:      { label: "Refusé",      color: "text-red-700",    bg: "bg-red-50     border-red-200",    icon: XCircle },
 };
 
@@ -182,7 +182,7 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-pink-500 to-rose-600 p-6 text-white">
+        <div className="relative bg-gradient-to-br from-[#FF1A00] to-rose-600 p-6 text-white">
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/10 -translate-y-1/2 translate-x-1/2 blur-xl" />
           <div className="flex items-center justify-between relative">
             <div>
@@ -207,7 +207,7 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
             <div className="relative">
               <input type="number" value={montant} onChange={e => setMontant(e.target.value)}
                 placeholder="Ex: 10000" min={500} max={solde}
-                className="w-full px-4 py-3.5 pr-20 bg-gray-50 border-2 border-gray-200 focus:border-pink-400 rounded-2xl text-xl font-black outline-none transition-colors" />
+                className="w-full px-4 py-3.5 pr-20 bg-gray-50 border-2 border-gray-200 focus:border-[#FF1A00] rounded-2xl text-xl font-black outline-none transition-colors" />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400 dark:text-gray-500">{devise}</span>
             </div>
             {montantNum > solde && (
@@ -218,12 +218,12 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
             <div className="flex gap-2 mt-2">
               {[1000, 5000, 10000, 25000].filter(v => v <= solde).map(v => (
                 <button key={v} type="button" onClick={() => setMontant(String(v))}
-                  className="flex-1 py-1.5 text-xs font-black rounded-xl bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors border border-pink-100">
+                  className="flex-1 py-1.5 text-xs font-black rounded-xl bg-[#FF1A00]/5 text-[#FF1A00] hover:bg-[#FF1A00] transition-colors border border-[#FF1A00]">
                   {(v / 1000)}k
                 </button>
               ))}
               <button type="button" onClick={() => setMontant(String(solde))}
-                className="flex-1 py-1.5 text-xs font-black rounded-xl bg-pink-500 text-white hover:bg-pink-600 transition-colors">
+                className="flex-1 py-1.5 text-xs font-black rounded-xl bg-[#FF1A00] text-white hover:bg-[#FF1A00] transition-colors">
                 Max
               </button>
             </div>
@@ -234,14 +234,14 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
             <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">Nom & Prénom du bénéficiaire</label>
             <input type="text" value={nom} onChange={e => setNom(e.target.value)}
               placeholder="Jean Dupont"
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-pink-400 rounded-2xl text-sm font-semibold outline-none transition-colors" />
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#FF1A00] rounded-2xl text-sm font-semibold outline-none transition-colors" />
           </div>
 
           {/* Pays */}
           <div>
             <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">Pays</label>
             <select value={pays} onChange={e => handlePaysChange(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-pink-400 rounded-2xl text-sm font-semibold outline-none transition-colors">
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#FF1A00] rounded-2xl text-sm font-semibold outline-none transition-colors">
               {PAYS_LIST.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
@@ -254,8 +254,8 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
                 <button key={r} type="button" onClick={() => setReseau(r)}
                   className={`py-3 px-3 rounded-2xl text-sm font-black border-2 transition-all ${
                     reseau === r
-                      ? "border-pink-400 bg-pink-50 text-pink-600 shadow-sm shadow-pink-100"
-                      : "border-gray-200 bg-gray-50 text-gray-600 hover:border-pink-200"
+                      ? "border-[#FF1A00] bg-[#FF1A00]/5 text-[#FF1A00] shadow-sm shadow-pink-100"
+                      : "border-gray-200 bg-gray-50 text-gray-600 hover:border-[#FF1A00]"
                   }`}>
                   {r}
                 </button>
@@ -270,7 +270,7 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
               <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input type="tel" value={numero} onChange={e => setNumero(e.target.value)}
                 placeholder="+229 97 00 00 00"
-                className="w-full pl-11 pr-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-pink-400 rounded-2xl text-sm font-semibold outline-none transition-colors" />
+                className="w-full pl-11 pr-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#FF1A00] rounded-2xl text-sm font-semibold outline-none transition-colors" />
             </div>
           </div>
 
@@ -283,7 +283,7 @@ function ModalRetrait({ solde, devise, onClose, onConfirm }: ModalRetraitProps) 
           </div>
 
           <button onClick={handleSubmit} disabled={!valid || loading}
-            className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-pink-200 text-sm">
+            className="w-full py-4 bg-gradient-to-r from-[#FF1A00] to-rose-500 hover:from-[#FF1A00] hover:to-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-pink-200 text-sm">
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Traitement en cours...</>
               : <><ArrowUpRight className="w-4 h-4" /> Retirer {montantNum > 0 ? fmt(montantNum, devise) : ""}</>}
@@ -307,16 +307,16 @@ function CarteVente({ vente }: { vente: VenteDigitale }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-              vente.disponible_retrait ? "bg-green-100" : "bg-amber-100"
+              vente.disponible_retrait ? "bg-[#008000]" : "bg-amber-100"
             }`}>
               {vente.disponible_retrait
-                ? <CheckCircle className="w-5 h-5 text-green-600" />
+                ? <CheckCircle className="w-5 h-5 text-[#008000]" />
                 : <Clock className="w-5 h-5 text-amber-600" />}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-black text-xs text-pink-500">#{vente.numero}</span>
-                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 flex items-center gap-1">
+                <span className="font-black text-xs text-[#FF1A00]">#{vente.numero}</span>
+                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-blue-100 text-[#305CDE] flex items-center gap-1">
                   <Zap className="w-3 h-3" /> Digital
                 </span>
               </div>
@@ -327,7 +327,7 @@ function CarteVente({ vente }: { vente: VenteDigitale }) {
 
           <div className="flex items-center gap-2">
             <div className="text-right">
-              <p className="font-black text-pink-600">{fmt(vente.net_vendeur, vente.devise)}</p>
+              <p className="font-black text-[#FF1A00]">{fmt(vente.net_vendeur, vente.devise)}</p>
               <p className="text-xs text-gray-400 dark:text-gray-500">net vendeur</p>
             </div>
             <button onClick={() => setExpanded(!expanded)}
@@ -351,7 +351,7 @@ function CarteVente({ vente }: { vente: VenteDigitale }) {
         )}
         {vente.disponible_retrait && (
           <div className="mt-2">
-            <span className="text-xs font-black text-green-600 flex items-center gap-1">
+            <span className="text-xs font-black text-[#008000] flex items-center gap-1">
               <BadgeCheck className="w-3.5 h-3.5" /> Disponible pour retrait
             </span>
           </div>
@@ -370,14 +370,14 @@ function CarteVente({ vente }: { vente: VenteDigitale }) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 flex items-center gap-1">
-                <span className="w-4 h-4 rounded-full bg-pink-100 text-pink-600 text-[10px] font-black flex items-center justify-center">%</span>
+                <span className="w-4 h-4 rounded-full bg-red-100 text-[#FF1A00] text-[10px] font-black flex items-center justify-center">%</span>
                 Commission plateforme (5%)
               </span>
               <span className="font-bold text-red-500">− {fmt(vente.commission, vente.devise)}</span>
             </div>
             <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
               <span className="font-black text-gray-700 dark:text-gray-200">Votre gain net</span>
-              <span className="font-black text-green-600">{fmt(vente.net_vendeur, vente.devise)}</span>
+              <span className="font-black text-[#008000]">{fmt(vente.net_vendeur, vente.devise)}</span>
             </div>
           </div>
 
@@ -529,7 +529,7 @@ export default function DigitalFinancePage() {
   if (loading) return (
     <BoutiqueLayout boutiqueName={boutique?.nom}>
       <div className="flex items-center justify-center h-64">
-        <div className="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#FF1A00] border-t-transparent rounded-full animate-spin" />
       </div>
     </BoutiqueLayout>
   );
@@ -554,9 +554,9 @@ export default function DigitalFinancePage() {
       <div className="space-y-5 pb-12">
 
         {/* ── HERO SOLDE ── */}
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-gray-900 via-pink-950 to-rose-900 p-6 text-white shadow-2xl">
-          <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-pink-500/20 -translate-y-1/3 translate-x-1/3 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-36 h-36 rounded-full bg-rose-500/20 translate-y-1/3 -translate-x-1/3 blur-2xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-gray-900 via-[#FF1A00] to-rose-900 p-6 text-white shadow-2xl">
+          <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-[#FF1A00]/20 -translate-y-1/3 translate-x-1/3 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-36 h-36 rounded-full bg-[#FF1A00]/20 translate-y-1/3 -translate-x-1/3 blur-2xl pointer-events-none" />
 
           <div className="relative">
             <div className="flex items-center justify-between mb-5">
@@ -565,7 +565,7 @@ export default function DigitalFinancePage() {
                 <h1 className="text-xl font-black tracking-wide">Finances & Retraits</h1>
               </div>
               <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-pink-300" />
+                <Zap className="w-5 h-5 text-[#FF1A00]" />
               </div>
             </div>
 
@@ -592,7 +592,7 @@ export default function DigitalFinancePage() {
               </div>
               <div className="bg-white/10 rounded-2xl p-3 text-center">
                 <p className="text-xs text-white/50 font-bold">Retiré</p>
-                <p className="text-base font-black text-green-300">{Math.round(totalRetire).toLocaleString()}</p>
+                <p className="text-base font-black text-[#008000]">{Math.round(totalRetire).toLocaleString()}</p>
                 <p className="text-[10px] text-white/40">{devise}</p>
               </div>
             </div>
@@ -600,21 +600,21 @@ export default function DigitalFinancePage() {
             {/* Bouton retrait */}
             <button
               onClick={() => soldeDisponible >= 500 ? setShowModal(true) : toast({ title: "Solde insuffisant (min. 500 FCFA)", variant: "destructive" })}
-              className="w-full py-3.5 bg-white text-gray-900 font-black rounded-2xl transition-all hover:bg-pink-50 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-lg">
-              <ArrowUpRight className="w-5 h-5 text-pink-600" />
+              className="w-full py-3.5 bg-white text-gray-900 font-black rounded-2xl transition-all hover:bg-[#FF1A00] hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 shadow-lg">
+              <ArrowUpRight className="w-5 h-5 text-[#FF1A00]" />
               Effectuer un retrait
             </button>
           </div>
         </div>
 
         {/* Info commission */}
-        <div className="flex items-start gap-3 p-4 bg-pink-50 border border-pink-100 rounded-2xl">
-          <div className="w-7 h-7 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <div className="flex items-start gap-3 p-4 bg-[#FF1A00]/5 border border-[#FF1A00] rounded-2xl">
+          <div className="w-7 h-7 rounded-xl bg-[#FF1A00] flex items-center justify-center flex-shrink-0 mt-0.5">
             <span className="text-white text-xs font-black">5%</span>
           </div>
           <div>
-            <p className="text-sm font-black text-pink-800">Commission sur ventes digitales</p>
-            <p className="text-xs text-pink-600 mt-0.5">
+            <p className="text-sm font-black text-[#FF1A00]">Commission sur ventes digitales</p>
+            <p className="text-xs text-[#FF1A00] mt-0.5">
               5% prélevés automatiquement sur chaque vente. Retrait disponible <strong>24h après la vente</strong>. Délai de traitement : <strong>5 minutes</strong>.
             </p>
           </div>
@@ -626,8 +626,8 @@ export default function DigitalFinancePage() {
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black whitespace-nowrap transition-all flex-shrink-0 ${
                 activeTab === tab.id
-                  ? "bg-pink-500 text-white shadow-lg shadow-pink-200"
-                  : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-pink-300 hover:text-pink-500"
+                  ? "bg-[#FF1A00] text-white shadow-lg shadow-pink-200"
+                  : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-[#FF1A00] hover:text-[#FF1A00]"
               }`}>
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
@@ -643,16 +643,16 @@ export default function DigitalFinancePage() {
             {/* Stats globales */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-5 shadow-sm">
-                <div className="w-9 h-9 rounded-2xl bg-green-100 flex items-center justify-center mb-3">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
+                <div className="w-9 h-9 rounded-2xl bg-[#008000] flex items-center justify-center mb-3">
+                  <TrendingUp className="w-4 h-4 text-[#008000]" />
                 </div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Gains totaux</p>
                 <p className="text-2xl font-black text-gray-800 dark:text-gray-100">{Math.round(totalGains).toLocaleString()}</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">{devise}</p>
               </div>
               <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-5 shadow-sm">
-                <div className="w-9 h-9 rounded-2xl bg-purple-100 flex items-center justify-center mb-3">
-                  <Zap className="w-4 h-4 text-purple-600" />
+                <div className="w-9 h-9 rounded-2xl bg-[#305CDE] flex items-center justify-center mb-3">
+                  <Zap className="w-4 h-4 text-[#305CDE]" />
                 </div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Produits vendus</p>
                 <p className="text-2xl font-black text-gray-800 dark:text-gray-100">{ventes.length}</p>
@@ -668,7 +668,7 @@ export default function DigitalFinancePage() {
               </div>
               <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-5 shadow-sm">
                 <div className="w-9 h-9 rounded-2xl bg-blue-100 flex items-center justify-center mb-3">
-                  <Users className="w-4 h-4 text-blue-600" />
+                  <Users className="w-4 h-4 text-[#305CDE]" />
                 </div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Clients uniques</p>
                 <p className="text-2xl font-black text-gray-800 dark:text-gray-100">{clientsUniques.length}</p>
@@ -679,14 +679,14 @@ export default function DigitalFinancePage() {
             {/* Ventes récentes */}
             <div>
               <h3 className="font-black text-gray-800 text-sm mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-pink-500" /> Ventes récentes
+                <Clock className="w-4 h-4 text-[#FF1A00]" /> Ventes récentes
               </h3>
               <div className="space-y-2">
                 {ventes.slice(0, 3).map(v => (
                   <div key={v.id} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-3 shadow-sm">
-                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${v.disponible_retrait ? "bg-green-100" : "bg-amber-100"}`}>
+                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${v.disponible_retrait ? "bg-[#008000]" : "bg-amber-100"}`}>
                       {v.disponible_retrait
-                        ? <CheckCircle className="w-4 h-4 text-green-600" />
+                        ? <CheckCircle className="w-4 h-4 text-[#008000]" />
                         : <Clock className="w-4 h-4 text-amber-600" />}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -694,7 +694,7 @@ export default function DigitalFinancePage() {
                       <p className="text-xs text-gray-400 dark:text-gray-500">{v.client_nom}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-pink-600 text-sm">{fmt(v.net_vendeur, devise)}</p>
+                      <p className="font-black text-[#FF1A00] text-sm">{fmt(v.net_vendeur, devise)}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">net</p>
                     </div>
                   </div>
@@ -713,12 +713,12 @@ export default function DigitalFinancePage() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input value={searchVente} onChange={e => setSearchVente(e.target.value)}
                 placeholder="Produit, client, numéro..."
-                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm outline-none focus:border-pink-400 transition-colors" />
+                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm outline-none focus:border-[#FF1A00] transition-colors" />
             </div>
 
             {/* Légende */}
             <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
-              <span className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> Disponible retrait</span>
+              <span className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-[#008000]" /> Disponible retrait</span>
               <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-500" /> Attente 24h</span>
             </div>
 
@@ -741,7 +741,7 @@ export default function DigitalFinancePage() {
         {activeTab === "retraits" && (
           <div className="space-y-4">
             <button onClick={() => setShowModal(true)}
-              className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-pink-200 hover:scale-[1.01] transition-all">
+              className="w-full py-3.5 bg-gradient-to-r from-[#FF1A00] to-rose-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-pink-200 hover:scale-[1.01] transition-all">
               <ArrowUpRight className="w-5 h-5" /> Nouveau retrait
             </button>
 
@@ -777,12 +777,12 @@ export default function DigitalFinancePage() {
                               <p className="text-xs text-gray-400 dark:text-gray-500">{formatDate(r.created_at)}</p>
                               {r.statut === "traitement" && (
                                 <div className="flex items-center gap-1.5 mt-1">
-                                  <Timer className="w-3.5 h-3.5 text-blue-500" />
-                                  <span className="text-xs text-blue-600 font-bold">Arrivée dans ~5 minutes</span>
+                                  <Timer className="w-3.5 h-3.5 text-[#305CDE]" />
+                                  <span className="text-xs text-[#305CDE] font-bold">Arrivée dans ~5 minutes</span>
                                 </div>
                               )}
                               {r.completed_at && (
-                                <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1">
+                                <p className="text-xs text-[#008000] font-bold mt-1 flex items-center gap-1">
                                   <BadgeCheck className="w-3.5 h-3.5" /> Reçu le {formatDate(r.completed_at)}
                                 </p>
                               )}
@@ -810,7 +810,7 @@ export default function DigitalFinancePage() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input value={searchVente} onChange={e => setSearchVente(e.target.value)}
                 placeholder="Rechercher un client..."
-                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm outline-none focus:border-pink-400 transition-colors" />
+                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm outline-none focus:border-[#FF1A00] transition-colors" />
             </div>
 
             <p className="text-xs text-gray-400 font-bold">{clientsFiltres.length} client{clientsFiltres.length > 1 ? "s" : ""} unique{clientsFiltres.length > 1 ? "s" : ""}</p>
@@ -828,7 +828,7 @@ export default function DigitalFinancePage() {
                   return (
                     <div key={client.client_telephone} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl p-4 shadow-sm">
                       <div className="flex items-start gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-black text-base flex-shrink-0">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#FF1A00] to-rose-500 flex items-center justify-center text-white font-black text-base flex-shrink-0">
                           {client.client_nom.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -848,7 +848,7 @@ export default function DigitalFinancePage() {
                           )}
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="font-black text-pink-600">{fmt(totalClient, devise)}</p>
+                          <p className="font-black text-[#FF1A00]">{fmt(totalClient, devise)}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500">{achatsClient.length} achat{achatsClient.length > 1 ? "s" : ""}</p>
                         </div>
                       </div>
@@ -856,7 +856,7 @@ export default function DigitalFinancePage() {
                       {/* Produits achetés */}
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {achatsClient.map(a => (
-                          <span key={a.id} className="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 rounded-xl font-semibold border border-purple-100 flex items-center gap-1">
+                          <span key={a.id} className="text-xs px-2.5 py-1 bg-[#305CDE]/5 text-[#305CDE] rounded-xl font-semibold border border-[#305CDE] flex items-center gap-1">
                             <Zap className="w-3 h-3" /> {a.produit_nom}
                           </span>
                         ))}

@@ -59,19 +59,20 @@ interface Abonnement {
   date_debut: string; date_fin: string | null;
 }
 interface PayLink {
-  id: string; user_id: string; title: string; amount: number;
-  devise: string; total_paid: number; total_tx: number;
-  success_url: string | null; is_active: boolean; created_at: string;
+  id: string; user_id: string; nom_produit: string; montant: number;
+  devise: string; total_collected: number; payment_count: number;
+  redirect_url: string | null; statut: string; created_at: string;
+  slug?: string; description?: string;
 }
 interface Transaction {
-  id: string; user_id: string; amount: number; frais: number;
-  devise: string; type: string; status: string;
+  id: string; user_id: string; amount: number; frais?: number;
+  devise?: string; type: string; status: string;
   created_at: string; reference?: string;
 }
 interface Withdrawal {
-  id: string; user_id: string; amount: number; frais: number;
-  devise: string; reseau?: string; telephone?: string;
-  nom_beneficiaire?: string; status: string;
+  id: string; user_id: string; montant: number; frais: number;
+  montant_net?: number; pays?: string; reseau?: string; telephone?: string;
+  nom?: string; statut: string;
   admin_note?: string; created_at: string;
 }
 interface Formation {
@@ -104,7 +105,7 @@ interface AdminNotif {
 }
 
 type AdminTab = "stats" | "users" | "boutiques" | "paylinks" | "transactions" |
-  "retraits" | "mlm" | "formations" | "trafic" | "abonnements" | "logs" | "notifs";
+  "retraits" | "formations" | "trafic" | "abonnements" | "logs" | "notifs";
 
 // ── Helpers ────────────────────────────────────────────────
 const fmtDate = (d: string | null) => d
@@ -152,7 +153,6 @@ const ALL_ADMIN_FEATURES = [
   { key: "transferts",     label: "Gestion transferts / dettes" },
   { key: "paylinks",       label: "Gérer PayLinks"              },
   { key: "formations",     label: "Gérer les Formations"        },
-  { key: "mlm",            label: "Voir MLM"                    },
   { key: "retraits",       label: "Gérer les retraits"          },
 ];
 const ADMIN_CODE = "ERIC";
@@ -262,7 +262,7 @@ export default function AdminPanelPage() {
       const [
         usersD, boutiquesD, produitsD, commandesD, abonnementsD,
         logsD, paylinksD, transactionsD, withdrawalsD,
-        mlmCommD, formationsD, formPurchasesD,
+        formationsD, formPurchasesD,
         mlmWdD, trafficD, adminNotifsD,
       ] = await Promise.all([
         safe(() => (supabase.from("nexora_users") as any).select("*").order("created_at", { ascending: false })),
@@ -271,14 +271,11 @@ export default function AdminPanelPage() {
         safe(() => (supabase.from("commandes") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("abonnements") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("nexora_logs") as any).select("*").order("created_at", { ascending: false }).limit(100)),
-        safe(() => (supabase.from("paylinks") as any).select("*").order("created_at", { ascending: false })),
-        safe(() => (supabase.from("transactions") as any).select("*").order("created_at", { ascending: false }).limit(200)),
-        safe(() => (supabase.from("withdrawals") as any).select("*").order("created_at", { ascending: false })),
-        safe(() => (supabase.from("mlm_commissions") as any).select("*").order("created_at", { ascending: false })),
-        // ✅ CORRECTION : récupération directe de formations
+        safe(() => (supabase.from("nexora_paylinks") as any).select("*").order("created_at", { ascending: false })),
+        safe(() => (supabase.from("nexora_transactions") as any).select("*").order("created_at", { ascending: false }).limit(200)),
+        safe(() => (supabase.from("nexora_paylink_withdrawals") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("formations") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("formation_purchases") as any).select("*").order("created_at", { ascending: false })),
-        // ✅ CORRECTION : retraits MLM
         safe(() => (supabase.from("mlm_withdrawals") as any).select("*").order("created_at", { ascending: false })),
         safe(() => (supabase.from("traffic_stats") as any).select("*").order("date", { ascending: false }).limit(100)),
         safe(() => (supabase.from("admin_notifications") as any).select("*").order("created_at", { ascending: false }).limit(50)),
@@ -292,7 +289,7 @@ export default function AdminPanelPage() {
       const pl  = paylinksD        as PayLink[];
       const tx  = transactionsD    as Transaction[];
       const wd  = withdrawalsD     as Withdrawal[];
-      const mc  = mlmCommD         as any[];
+      const mc: any[] = [];
       const fp  = formPurchasesD   as FormationPurchase[];
       const mw  = mlmWdD           as MlmWithdrawal[];
       const tr  = trafficD         as TrafficStat[];
@@ -316,8 +313,8 @@ export default function AdminPanelPage() {
       const today       = new Date().toDateString();
       const caComm      = c.reduce((a, x) => a + (Number(x.total) || 0), 0);
       const caAb        = ab.filter(a => a.statut === "actif" || a.statut === "paye").reduce((a, x) => a + (Number(x.montant) || 0), 0);
-      const caPaylinks  = pl.reduce((a, x) => a + (Number(x.total_paid) || 0), 0);
-      const caTx        = tx.filter(x => x.status === "success").reduce((a, x) => a + (Number(x.amount) || 0), 0);
+      const caPaylinks  = pl.reduce((a, x) => a + (Number(x.total_collected) || 0), 0);
+      const caTx        = tx.filter(x => x.status === "completed" || x.status === "success").reduce((a, x) => a + (Number(x.amount) || 0), 0);
       const caFormSales = fp.filter(x => x.status === "completed").reduce((a, x) => a + (Number(x.amount) || 0), 0);
       const totalMlm    = mc.filter(x => x.status === "credited").reduce((a, x) => a + (Number(x.amount) || 0), 0);
       const totalVis    = tr.reduce((a, x) => a + (Number(x.visits) || 0), 0);
@@ -344,9 +341,9 @@ export default function AdminPanelPage() {
         caAbonnements: caAb, totalAbonnements: ab.length,
         totalPaylinks: pl.length, caPaylinks,
         totalTransactions: tx.length, caTransactions: caTx,
-        pendingWithdrawals: wd.filter(x => x.status === "pending").length,
+        pendingWithdrawals: wd.filter(x => x.statut === "pending").length,
         totalWithdrawals: wd.length,
-        totalWithdrawalAmount: wd.filter(x => x.status === "approved").reduce((a, x) => a + (Number(x.amount) || 0), 0),
+        totalWithdrawalAmount: wd.filter(x => x.statut === "completed").reduce((a, x) => a + (Number(x.montant) || 0), 0),
         totalMlmEarnings: totalMlm,
         pendingMlmWithdrawals: mw.filter(x => x.status === "pending").length,
         totalFormationRevenue: caFormSales,
@@ -401,20 +398,20 @@ export default function AdminPanelPage() {
 
   const handleWithdrawalAction = async (w: Withdrawal, newStatus: "approved" | "rejected") => {
     try {
-      await (supabase.from("withdrawals") as any).update({
-        status: newStatus, processed_at: new Date().toISOString(),
+      await (supabase.from("nexora_paylink_withdrawals") as any).update({
+        statut: newStatus === "approved" ? "completed" : "failed",
         admin_note: actionReason || null,
       }).eq("id", w.id);
       if (getUserById(w.user_id)) {
         await sendNotification(w.user_id,
           newStatus === "approved" ? "Retrait approuvé ✅" : "Retrait refusé ❌",
           newStatus === "approved"
-            ? `Votre retrait de ${fmtMoney(w.amount, w.devise)} a été approuvé.`
+            ? `Votre retrait de ${fmtMoney(w.montant)} a été approuvé.`
             : `Votre retrait refusé.${actionReason ? " Motif : " + actionReason : ""}`,
           newStatus === "approved" ? "success" : "danger"
         );
       }
-      await logAction(w.user_id, `retrait_${newStatus}`, fmtMoney(w.amount, w.devise));
+      await logAction(w.user_id, `retrait_${newStatus}`, fmtMoney(w.montant));
       toast({ title: newStatus === "approved" ? "Retrait approuvé ✅" : "Retrait refusé" });
       setActionReason(""); loadAll();
     } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
@@ -438,7 +435,7 @@ export default function AdminPanelPage() {
         newStatus === "approved" ? "success" : "danger"
       );
       await logAction(mwd.user_id, `retrait_mlm_${newStatus}`, fmtMoney(mwd.amount, mwd.currency));
-      toast({ title: newStatus === "approved" ? "Retrait MLM approuvé ✅" : "Retrait MLM refusé" });
+      toast({ title: newStatus === "approved" ? "Retrait approuvé ✅" : "Retrait refusé" });
       setMlmWdNote(prev => ({ ...prev, [mwd.id]: "" }));
       loadAll();
     } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
@@ -485,10 +482,10 @@ export default function AdminPanelPage() {
       }
       // ── PayLink ──
       if (targetType === "paylink" && type === "toggle_paylink") {
-        const newActive = !target.is_active;
-        await (supabase.from("paylinks") as any).update({ is_active: newActive }).eq("id", target.id);
-        await logAction(target.user_id, newActive ? "paylink_activé" : "paylink_désactivé", target.title);
-        toast({ title: `PayLink ${newActive ? "activé" : "désactivé"}` });
+        const newStatut = target.statut === "actif" ? "inactif" : "actif";
+        await (supabase.from("nexora_paylinks") as any).update({ statut: newStatut }).eq("id", target.id);
+        await logAction(target.user_id, newStatut === "actif" ? "paylink_activé" : "paylink_désactivé", target.nom_produit);
+        toast({ title: `PayLink ${newStatut === "actif" ? "activé" : "désactivé"}` });
       }
       // ── Formation toggle ──
       if (targetType === "formation" && type === "toggle_formation") {
@@ -656,8 +653,9 @@ export default function AdminPanelPage() {
     try {
       const { hashPassword } = await import("@/lib/nexora-auth");
       const newHash = await hashPassword(newPassword);
+      // On ne stocke JAMAIS le mot de passe en clair — uniquement le hash
       const { error } = await (supabase.from("nexora_users") as any).update({
-        password_plain: newPassword, password_hash: newHash,
+        password_hash: newHash,
       }).eq("id", user.id);
       if (error) throw error;
       await logAction(user.id, "mot_de_passe_modifié", "par admin");
@@ -687,7 +685,7 @@ export default function AdminPanelPage() {
     (filterTxType ? t.type === filterTxType : true) &&
     (filterTxStatus ? t.status === filterTxStatus : true)
   );
-  const filteredWd = withdrawals.filter(w => filterWdStatus ? w.status === filterWdStatus : true);
+  const filteredWd = withdrawals.filter(w => filterWdStatus ? w.statut === filterWdStatus : true);
 
   // Formations filtrées
   const filteredFormations = formations.filter(f =>
@@ -705,8 +703,7 @@ export default function AdminPanelPage() {
     { id: "paylinks",     label: "PayLinks",      icon: Link2          },
     { id: "transactions", label: "Transactions",  icon: ArrowRightLeft },
     { id: "retraits",     label: "Retraits",      icon: Wallet,        badge: stats.pendingWithdrawals || undefined },
-    { id: "mlm",          label: "MLM",           icon: GitBranch      },
-    { id: "formations",   label: "Formations",    icon: BookOpen,      badge: stats.pendingMlmWithdrawals || undefined },
+    { id: "formations",   label: "Formations",    icon: BookOpen,      badge: stats.pendingMlmWithdrawals > 0 ? stats.pendingMlmWithdrawals : undefined },
     { id: "trafic",       label: "Trafic",        icon: Globe          },
     { id: "abonnements",  label: "Abonnements",   icon: Crown          },
     { id: "logs",         label: "Logs",          icon: Activity       },
@@ -811,7 +808,7 @@ export default function AdminPanelPage() {
             {[
               { label: "CA Boutiques",  value: fmtMoney(userCa),   color: "text-emerald-600", icon: Store     },
               { label: "Solde",          value: fmtMoney(u.balance), color: "text-blue-600",    icon: Wallet    },
-              { label: "Filleuls MLM",   value: userFilleuls.length, color: "text-violet-600",  icon: GitBranch },
+              { label: "Filleuls",   value: userFilleuls.length, color: "text-violet-600",  icon: GitBranch },
               { label: "Formations achetées", value: userFormBuys.length, color: "text-indigo-600", icon: BookOpen },
             ].map(s => { const Icon = s.icon; return (
               <div key={s.label} className="bg-card border border-border rounded-xl p-3 flex items-center gap-2">
@@ -1245,18 +1242,19 @@ export default function AdminPanelPage() {
             <div className="space-y-2">
               {paylinks.map(pl => {
                 const owner = getUserById(pl.user_id);
+                const isActive = pl.statut === "actif";
                 return (
                   <div key={pl.id} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm truncate">{pl.title}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${pl.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{pl.is_active ? "Actif" : "Inactif"}</span>
+                        <span className="font-bold text-sm truncate">{pl.nom_produit}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{isActive ? "Actif" : "Inactif"}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground">{owner?.nom_prenom || "?"} · {pl.total_tx} tx · {fmtMoney(pl.total_paid, pl.devise)}</div>
+                      <div className="text-xs text-muted-foreground">{owner?.nom_prenom || "?"} · {pl.payment_count} tx · {fmtMoney(pl.total_collected, pl.devise)}</div>
                     </div>
                     <button onClick={() => openActionModal("toggle_paylink", pl, "paylink")}
-                      className={`text-xs px-3 py-1.5 rounded-lg font-medium flex-shrink-0 ${pl.is_active ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
-                      {pl.is_active ? "Désact." : "Activer"}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium flex-shrink-0 ${isActive ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"}`}>
+                      {isActive ? "Désact." : "Activer"}
                     </button>
                   </div>
                 );
@@ -1283,7 +1281,6 @@ export default function AdminPanelPage() {
                 <option value="">Tous types</option>
                 <option value="product">Produit</option>
                 <option value="formation">Formation</option>
-                <option value="mlm">MLM</option>
                 <option value="paylink">PayLink</option>
                 <option value="abonnement">Abonnement</option>
               </select>
@@ -1338,8 +1335,8 @@ export default function AdminPanelPage() {
               <select value={filterWdStatus} onChange={e => setFilterWdStatus(e.target.value)} className="h-10 px-3 rounded-md border border-input bg-background text-sm">
                 <option value="">Tous statuts</option>
                 <option value="pending">En attente</option>
-                <option value="approved">Approuvé</option>
-                <option value="rejected">Refusé</option>
+                <option value="completed">Complété</option>
+                <option value="failed">Échoué</option>
               </select>
               <button onClick={() => exportCSV(filteredWd, "nexora_retraits.csv")} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-semibold">
                 <Download className="w-3.5 h-3.5" /> CSV
@@ -1348,7 +1345,12 @@ export default function AdminPanelPage() {
             <div className="space-y-2">
               {filteredWd.map(wd => {
                 const owner = getUserById(wd.user_id);
-                const cfg   = WD_STATUS[wd.status as keyof typeof WD_STATUS] || WD_STATUS.pending;
+                const wdStatusConfig: Record<string, { label: string; color: string; bg: string }> = {
+                  pending:    { label: "En attente", color: "text-yellow-700", bg: "bg-yellow-100" },
+                  completed:  { label: "Complété",   color: "text-green-700",  bg: "bg-green-100"  },
+                  failed:     { label: "Échoué",     color: "text-red-700",    bg: "bg-red-100"    },
+                };
+                const cfg = wdStatusConfig[wd.statut] || wdStatusConfig.pending;
                 return (
                   <div key={wd.id} className="bg-card border border-border rounded-2xl p-4">
                     <div className="flex items-start gap-3">
@@ -1359,66 +1361,19 @@ export default function AdminPanelPage() {
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
                         </div>
                         <div className="text-xs text-muted-foreground">{wd.reseau && `${wd.reseau} · `}{wd.telephone && `${wd.telephone} · `}{fmtDatetime(wd.created_at)}</div>
-                        {wd.nom_beneficiaire && <div className="text-xs text-muted-foreground">Bénéficiaire : {wd.nom_beneficiaire}</div>}
+                        {wd.nom && <div className="text-xs text-muted-foreground">Bénéficiaire : {wd.nom}</div>}
+                        {wd.pays && <div className="text-xs text-muted-foreground">Pays : {wd.pays}</div>}
                       </div>
-                      <div className="font-black text-lg text-red-600 flex-shrink-0">{fmtMoney(wd.amount, wd.devise)}</div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-black text-lg text-red-600">{fmtMoney(wd.montant)}</div>
+                        {wd.frais > 0 && <div className="text-xs text-muted-foreground">Frais: {fmtMoney(wd.frais)}</div>}
+                      </div>
                     </div>
-                    {wd.status === "pending" && (
-                      <div className="mt-3 flex gap-2">
-                        <textarea value={actionModal?.target?.id === wd.id ? actionReason : ""}
-                          placeholder="Note admin..."
-                          onChange={e => { setActionReason(e.target.value); setActionModal({ type: "wd_note", target: wd, targetType: "withdrawal" }); }}
-                          className="flex-1 h-8 px-3 py-1 text-xs rounded-lg border border-input bg-background resize-none outline-none" />
-                        <button onClick={() => handleWithdrawalAction(wd, "approved")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-semibold"><CheckCircle className="w-3.5 h-3.5" /> Approuver</button>
-                        <button onClick={() => handleWithdrawalAction(wd, "rejected")} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 font-semibold"><XCircle className="w-3.5 h-3.5" /> Refuser</button>
-                      </div>
-                    )}
                     {wd.admin_note && <div className="mt-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">Note : {wd.admin_note}</div>}
                   </div>
                 );
               })}
               {filteredWd.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">Aucun retrait</p>}
-            </div>
-          </div>
-        )}
-
-        {/* ── MLM ── */}
-        {tab === "mlm" && (
-          <div className="space-y-4">
-            <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
-              <div className="font-bold text-violet-700 mb-2 flex items-center gap-2"><GitBranch className="w-5 h-5" /> Réseau MLM</div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div><div className="text-xl font-black text-violet-700">{users.filter(u => u.referrer_id).length}</div><div className="text-xs text-violet-600">Filleuls</div></div>
-                <div><div className="text-xl font-black text-violet-700">{mlmCommissions.length}</div><div className="text-xs text-violet-600">Commissions</div></div>
-                <div><div className="text-sm font-black text-violet-700">{fmtMoney(stats.totalMlmEarnings)}</div><div className="text-xs text-violet-600">CA MLM</div></div>
-              </div>
-            </div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Top parrains</p>
-            <div className="space-y-2">
-              {users
-                .map(u => ({
-                  user: u,
-                  filleuls: getMlmFilleuls(u.id).length,
-                  earnings: getMlmEarningsByUser(u.id).filter(c => c.status === "credited").reduce((a, c) => a + (Number(c.amount) || 0), 0),
-                }))
-                .filter(x => x.filleuls > 0)
-                .sort((a, b) => b.filleuls - a.filleuls)
-                .slice(0, 20)
-                .map(({ user, filleuls, earnings }) => (
-                  <div key={user.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-sm flex-shrink-0">
-                      {user.nom_prenom.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{user.nom_prenom}</div>
-                      <div className="text-xs text-muted-foreground">@{user.username}</div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-black text-violet-600">{filleuls} filleuls</div>
-                      <div className="text-xs text-emerald-600 font-semibold">{fmtMoney(earnings)}</div>
-                    </div>
-                  </div>
-                ))}
             </div>
           </div>
         )}
@@ -1554,7 +1509,7 @@ export default function AdminPanelPage() {
             <div className="pt-2">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  Retraits Commissions MLM
+                  Retraits Commissions Affiliation
                   {stats.pendingMlmWithdrawals > 0 && (
                     <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">{stats.pendingMlmWithdrawals} en attente</span>
                   )}

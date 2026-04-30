@@ -117,8 +117,8 @@ export default function PinInput({
           height: 68px;
           border-radius: 12px;
           border: 2px solid transparent;
-          background: rgba(0,255,120,0.05);
-          color: #00ff78;
+          background: #f0f4ff;
+          color: #1a56db;
           font-size: 1.75rem;
           font-weight: 700;
           text-align: center;
@@ -126,22 +126,22 @@ export default function PinInput({
           caret-color: transparent;
           outline: none;
           transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
-          box-shadow: 0 0 0 1px rgba(0,255,120,0.2), inset 0 2px 8px rgba(0,0,0,0.4);
+          box-shadow: 0 0 0 1px rgba(26,86,219,0.2), inset 0 2px 4px rgba(0,0,0,0.04);
           -webkit-text-security: disc;
         }
         .pin-box:focus {
-          border-color: #00ff78;
-          box-shadow: 0 0 0 1px #00ff78, 0 0 16px rgba(0,255,120,0.4), inset 0 2px 8px rgba(0,0,0,0.4);
-          background: rgba(0,255,120,0.08);
+          border-color: #1a56db;
+          box-shadow: 0 0 0 1px #1a56db, 0 0 16px rgba(26,86,219,0.3), inset 0 2px 4px rgba(0,0,0,0.05);
+          background: rgba(26,86,219,0.08);
           transform: translateY(-2px) scale(1.05);
         }
         .pin-box.has-value {
-          border-color: rgba(0,255,120,0.5);
-          box-shadow: 0 0 0 1px rgba(0,255,120,0.3), 0 0 10px rgba(0,255,120,0.2), inset 0 2px 8px rgba(0,0,0,0.4);
+          border-color: rgba(26,86,219,0.5);
+          box-shadow: 0 0 0 1px rgba(26,86,219,0.3), 0 0 10px rgba(26,86,219,0.2), inset 0 2px 4px rgba(0,0,0,0.04);
         }
         .pin-box.error {
           border-color: #ff4444;
-          box-shadow: 0 0 0 1px #ff4444, 0 0 16px rgba(255,68,68,0.4), inset 0 2px 8px rgba(0,0,0,0.4);
+          box-shadow: 0 0 0 1px #ff4444, 0 0 16px rgba(255,68,68,0.4), inset 0 2px 4px rgba(0,0,0,0.04);
           color: #ff4444;
         }
         .pin-box:disabled {

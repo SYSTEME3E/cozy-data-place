@@ -1,49 +1,52 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrix } from "@/lib/devise-utils";
 import SectionAvis from "@/pages/boutique/SectionAvis";
 import {
   ArrowLeft, BookOpen, Video, Code2, Palette, File, Key, Zap,
-  Tag, Star, Share2, CheckCircle, ExternalLink, Phone,
-  ShoppingBag, ChevronDown, ChevronUp, Globe, Hash,
-  Wallet, AlertTriangle, Package, Copy, Check,
-  Download, Shield, Clock, Infinity as InfinityIcon
+  Tag, Star, Share2, CheckCircle, Globe, Hash,
+  Wallet, AlertTriangle, Package, Check,
+  Shield, Clock, Infinity as InfinityIcon
 } from "lucide-react";
+
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PaymentMethod { reseau: string; numero: string; nom_titulaire: string; instructions?: string; }
-interface BoutiqueInfo { id: string; nom: string; slug: string; devise: string; logo?: string; description?: string; }
+interface BoutiqueInfo { id: string; nom: string; slug: string; devise: string; logo?: string; description?: string; user_id: string; }
 interface ProduitDigital {
   id: string; boutique_id: string; nom: string; description: string | null;
   prix: number; prix_promo: number | null; type: string; type_digital: string | null;
   categorie: string | null; tags: string[] | null; photos: string[] | null;
   vedette: boolean; paiement_lien: string | null; payment_mode: string | null;
   nexora_paylink_id: string | null; nexora_paylink_url: string | null;
+  nexora_redirect_url: string | null; fichier_url: string | null;
   moyens_paiement: PaymentMethod[]; instructions_achat: string | null;
+  bouton_texte: string | null;
+  bouton_couleur: string | null;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const TYPE_CONFIG: Record<string, { icon: any; label: string; emoji: string; color: string; bgColor: string; features: string[] }> = {
   ebook: {
     icon: BookOpen, label: "Ebook / Document PDF", emoji: "📚",
-    color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200",
+    color: "text-[#305CDE]", bgColor: "bg-blue-50 border-blue-200",
     features: ["Format PDF", "Accès immédiat", "Compatible tous appareils", "Contenu exclusif"],
   },
   formation: {
     icon: Video, label: "Formation en ligne", emoji: "🎓",
-    color: "text-purple-700", bgColor: "bg-purple-50 border-purple-200",
+    color: "text-[#305CDE]", bgColor: "bg-[#305CDE]/5 border-[#305CDE]",
     features: ["Accès à vie", "Support inclus", "Mises à jour gratuites", "Certificat disponible"],
   },
   logiciel: {
     icon: Code2, label: "Logiciel / Application", emoji: "💻",
-    color: "text-green-700", bgColor: "bg-green-50 border-green-200",
+    color: "text-[#008000]", bgColor: "bg-green-50 border-green-200",
     features: ["Licence permanente", "Mises à jour incluses", "Support technique", "Installation guidée"],
   },
   template: {
     icon: Palette, label: "Template / Design", emoji: "🎨",
-    color: "text-pink-700", bgColor: "bg-pink-50 border-pink-200",
+    color: "text-[#FF1A00]", bgColor: "bg-[#FF1A00]/5 border-[#FF1A00]",
     features: ["Fichiers sources inclus", "Entièrement modifiable", "Utilisation commerciale", "Documentation"],
   },
   fichier: {
@@ -83,7 +86,6 @@ export default function DigitalProductPublicPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Force light mode
@@ -95,16 +97,25 @@ export default function DigitalProductPublicPage() {
       setLoading(true);
 
       const { data: b } = await supabase
-        .from("boutiques" as any).select("id,nom,slug,devise,logo,description")
+        .from("boutiques" as any).select("id,nom,slug,devise,logo,description,user_id")
         .eq("slug", slug).maybeSingle();
 
       if (!b) { setLoading(false); return; }
       setBoutique(b as unknown as BoutiqueInfo);
 
-      const { data: p } = await supabase
+      const baseQuery = supabase
         .from("produits" as any).select("*")
-        .eq("id", produitId).eq("boutique_id", (b as any).id)
+        .eq("boutique_id", (b as any).id);
+      const produitQuery = isUUID(produitSlug)
+        ? baseQuery.eq("id", produitSlug)
+        : baseQuery.eq("slug", produitSlug);
+      const { data: p } = await produitQuery
         .eq("type", "numerique").maybeSingle();
+      // Redirect legacy UUID → slug
+      if (p && isUUID(produitSlug) && (p as any).slug) {
+        navigate(`/shop/${slug}/digital/${(p as any).slug}`, { replace: true });
+        return;
+      }
 
       if (p) {
         setProduit({
@@ -114,11 +125,15 @@ export default function DigitalProductPublicPage() {
           photos: (p as any).photos || [],
           nexora_paylink_id: (p as any).nexora_paylink_id || null,
           nexora_paylink_url: (p as any).nexora_paylink_url || null,
+          nexora_redirect_url: (p as any).nexora_redirect_url || null,
+          fichier_url: (p as any).fichier_url || null,
+          bouton_texte: (p as any).bouton_texte || "Payer maintenant",
+          bouton_couleur: (p as any).bouton_couleur || "#7c3aed",
         });
         // Track vue
         await supabase.from("produits" as any)
           .update({ vues: ((p as any).vues || 0) + 1 })
-          .eq("id", produitId);
+          .eq("id", (p as any).id); // use internal id for update
       }
       setLoading(false);
     };
@@ -133,9 +148,9 @@ export default function DigitalProductPublicPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#305CDE] to-[#305CDE]">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-4 border-purple-500 border-t-transparent animate-spin mx-auto mb-3" />
+          <div className="w-12 h-12 rounded-full border-4 border-[#305CDE] border-t-transparent animate-spin mx-auto mb-3" />
           <p className="text-gray-500 text-sm">Chargement...</p>
         </div>
       </div>
@@ -150,7 +165,7 @@ export default function DigitalProductPublicPage() {
           <h2 className="text-xl font-bold text-gray-700">Produit introuvable</h2>
           <p className="text-gray-500 mt-2">Ce produit n'est plus disponible.</p>
           <button onClick={() => navigate(slug ? `/shop/${slug}` : "/")}
-            className="mt-4 flex items-center gap-2 text-purple-600 font-semibold mx-auto">
+            className="mt-4 flex items-center gap-2 text-[#305CDE] font-semibold mx-auto">
             <ArrowLeft className="w-4 h-4" /> Retour à la boutique
           </button>
         </div>
@@ -163,8 +178,138 @@ export default function DigitalProductPublicPage() {
   const photos = produit.photos || [];
   const prixActuel = produit.prix_promo || produit.prix;
   const pct = produit.prix_promo ? Math.round(((produit.prix - produit.prix_promo) / produit.prix) * 100) : 0;
-  const paymentUrl = produit.nexora_paylink_url || null;
-  const hasPayment = paymentUrl || (produit.moyens_paiement?.length > 0);
+  const lienFichier = produit.nexora_redirect_url || produit.fichier_url || null;
+  // Toujours KKiaPay — bouton personnalisé par le vendeur
+  const boutonTexte = produit.bouton_texte || "Payer maintenant";
+  const boutonCouleur = produit.bouton_couleur || "#7c3aed";
+
+  const [paying, setPaying]               = useState(false);
+  const [payError, setPayError]           = useState<string | null>(null);
+
+  // ── Timer expiration 10 min ──
+  const [timeLeft, setTimeLeft]           = useState<number>(600);
+  const [paymentExpired, setPaymentExpired] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const deadline = Date.now() + 10 * 60 * 1000;
+    timerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(timerRef.current!);
+        setPaymentExpired(true);
+      }
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+  const [buyerNom, setBuyerNom]           = useState("");
+  const [buyerTel, setBuyerTel]           = useState("");
+
+  // ── Paiement NEXORA (acheteur public, sans compte NEXORA requis) ──────────
+  const handleNexoraPay = async () => {
+    if (paying) return;
+    setPayError(null);
+    if (!buyerNom.trim()) { setPayError("Veuillez entrer votre nom complet."); return; }
+    if (!buyerTel.trim()) { setPayError("Veuillez entrer votre numéro de téléphone."); return; }
+
+    setPaying(true);
+    try {
+      // 1. Créer la commande (statut: en_attente)
+      const cmdNumero = `DIG-${Date.now().toString().slice(-8)}`;
+      const { data: cmd, error: cmdErr } = await supabase
+        .from("commandes" as any)
+        .insert({
+          boutique_id:      boutique.id,
+          client_nom:       buyerNom.trim(),
+          client_telephone: buyerTel.trim(),
+          numero:           cmdNumero,
+          total:            prixActuel,
+          montant:          prixActuel,
+          devise:           boutique.devise || "XOF",
+          statut:           "nouvelle",
+          statut_paiement:  "en_attente",
+          produit_id:       produit.id,
+          items: [{
+            produit_id:          produit.id,
+            nom_produit:         produit.nom,
+            prix_unitaire:       prixActuel,
+            quantite:            1,
+            montant:             prixActuel,
+            photo_url:           (produit.photos || [])[0] || null,
+            variations_choisies: {},
+            type:                "numerique",
+          }],
+        })
+        .select()
+        .single();
+
+      if (cmdErr) throw new Error(cmdErr.message);
+
+      // 2. Ouvrir le widget KKiaPay
+      const { openKkiapay, onKkiapaySuccess, onKkiapayFailed, removeKkiapayListeners } = await import("@/lib/kkiapay");
+
+      await removeKkiapayListeners();
+
+      await onKkiapaySuccess(async ({ transactionId }) => {
+        await removeKkiapayListeners();
+        // Sauvegarder le transactionId KKiaPay dans la commande
+        await supabase.from("commandes" as any)
+          .update({ kkiapay_id: transactionId })
+          .eq("id", cmd?.id);
+        // Vérifier et créditer le vendeur via Edge Function
+        await supabase.functions.invoke("kkiapay-verify", {
+          body: {
+            transactionId,
+            type:           "vente_digitale",
+            commande_id:    cmd?.id ?? "",
+            produit_id:     produit.id,
+            boutique_id:    boutique.id,
+            seller_user_id: boutique.user_id,
+            lien_produit:   lienFichier ?? "",
+          },
+        });
+        window.location.href = `/boutique/digital-callback?transactionId=${transactionId}&commande_id=${cmd?.id}`;
+      });
+
+      await onKkiapayFailed(() => {
+        removeKkiapayListeners();
+        throw new Error("Le paiement a échoué. Veuillez réessayer.");
+      });
+
+      await openKkiapay({
+        amount: prixActuel,
+        name:   buyerNom.trim(),
+        phone:  buyerTel.trim(),
+        reason: `Achat : ${produit.nom}`,
+        data:   JSON.stringify({
+          type_transaction: "vente_digitale",
+          commande_id:      cmd?.id ?? "",
+          produit_id:       produit.id,
+          boutique_id:      boutique.id,
+          boutique_slug:    boutique.slug,
+          seller_user_id:   boutique.user_id,
+        }),
+      });
+
+      // 4. Backup localStorage pour le callback
+      try {
+        localStorage.setItem("nexora_digital_callback", JSON.stringify({
+          commande_id:    cmd?.id,
+          lien_produit:   lienFichier,
+          boutique_slug:  boutique.slug,
+          seller_user_id: boutique.user_id,
+          montant:        prixActuel,
+        }));
+      } catch (_) {}
+
+      // 5. Le widget KKiaPay est maintenant ouvert (géré par les listeners ci-dessus)
+    } catch (e: any) {
+      setPayError(e.message || "Erreur lors du paiement. Réessayez.");
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -172,13 +317,13 @@ export default function DigitalProductPublicPage() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <button onClick={() => navigate(`/shop/${slug}`)}
-            className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-purple-600 transition-colors">
+            className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-[#305CDE] transition-colors">
             <ArrowLeft className="w-4 h-4" /> {boutique.nom}
           </button>
           <div className="flex items-center gap-2">
             <button onClick={copyLink}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-sm text-gray-600 transition-colors">
-              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Share2 className="w-3.5 h-3.5" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-[#008000]" /> : <Share2 className="w-3.5 h-3.5" />}
               {copied ? "Copié !" : "Partager"}
             </button>
           </div>
@@ -194,7 +339,7 @@ export default function DigitalProductPublicPage() {
             <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
               {photos.length > 0 ? (
                 <div>
-                  <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 relative overflow-hidden">
+                  <div className="aspect-video bg-gradient-to-br from-[#305CDE] to-[#305CDE] relative overflow-hidden">
                     <img src={photos[selectedImage]} alt={produit.nom} className="w-full h-full object-cover" />
                     {pct > 0 && (
                       <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow">
@@ -206,7 +351,7 @@ export default function DigitalProductPublicPage() {
                     <div className="grid grid-cols-5 gap-2 p-3">
                       {photos.map((img, i) => (
                         <button key={i} onClick={() => setSelectedImage(i)}
-                          className={`rounded-xl overflow-hidden border-2 transition-all ${selectedImage === i ? "border-purple-500 scale-95" : "border-gray-200"}`}>
+                          className={`rounded-xl overflow-hidden border-2 transition-all ${selectedImage === i ? "border-[#305CDE] scale-95" : "border-gray-200"}`}>
                           <img src={img} alt="" className="w-full aspect-square object-cover" />
                         </button>
                       ))}
@@ -214,10 +359,10 @@ export default function DigitalProductPublicPage() {
                   )}
                 </div>
               ) : (
-                <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center relative">
+                <div className="aspect-video bg-gradient-to-br from-[#305CDE] to-[#305CDE] flex items-center justify-center relative">
                   <div className="text-center">
                     <span className="text-7xl">{typeConfig.emoji}</span>
-                    <p className="text-purple-400 font-medium mt-2">{typeConfig.label}</p>
+                    <p className="text-[#305CDE] font-medium mt-2">{typeConfig.label}</p>
                   </div>
                   {pct > 0 && (
                     <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-xl shadow">
@@ -244,7 +389,7 @@ export default function DigitalProductPublicPage() {
                   .nexora-description strong { font-weight: 700; }
                 `}</style>
                 <h2 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full" />
+                  <span className="w-1 h-5 bg-gradient-to-b from-[#305CDE] to-[#305CDE] rounded-full" />
                   Description
                 </h2>
                 <div
@@ -257,20 +402,20 @@ export default function DigitalProductPublicPage() {
             {/* Ce que vous recevez */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
               <h2 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full" />
+                <span className="w-1 h-5 bg-gradient-to-b from-[#305CDE] to-[#305CDE] rounded-full" />
                 Ce que vous recevez
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {typeConfig.features.map((feat, i) => (
                   <div key={i} className="flex items-center gap-2.5 p-3 rounded-2xl bg-gray-50">
-                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#305CDE] to-[#305CDE] flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-4 h-4 text-white" />
                     </div>
                     <p className="text-sm font-medium text-gray-700">{feat}</p>
                   </div>
                 ))}
                 <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-green-50">
-                  <div className="w-7 h-7 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <div className="w-7 h-7 rounded-xl bg-[#008000] flex items-center justify-center flex-shrink-0">
                     <InfinityIcon className="w-4 h-4 text-white" />
                   </div>
                   <p className="text-sm font-medium text-gray-700">Stock illimité</p>
@@ -282,11 +427,11 @@ export default function DigitalProductPublicPage() {
             {produit.instructions_achat && (
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                 <h2 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-gradient-to-b from-green-400 to-emerald-500 rounded-full" />
+                  <span className="w-1 h-5 bg-gradient-to-b from-[#008000] to-[#305CDE] rounded-full" />
                   Après votre achat
                 </h2>
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-                  <p className="text-sm text-green-800 leading-relaxed whitespace-pre-line">{produit.instructions_achat}</p>
+                  <p className="text-sm text-[#008000] leading-relaxed whitespace-pre-line">{produit.instructions_achat}</p>
                 </div>
               </div>
             )}
@@ -294,7 +439,7 @@ export default function DigitalProductPublicPage() {
             {/* FAQ */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
               <h2 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-gradient-to-b from-blue-400 to-indigo-500 rounded-full" />
+                <span className="w-1 h-5 bg-gradient-to-b from-blue-400 to-[#305CDE] rounded-full" />
                 Questions fréquentes
               </h2>
               <div className="space-y-2">
@@ -351,19 +496,58 @@ export default function DigitalProductPublicPage() {
               {pct > 0 && (
                 <div className="flex items-center gap-2 mt-2">
                   <span className="bg-red-500 text-white text-sm font-black px-3 py-1 rounded-full">-{pct}% 🔥</span>
-                  <span className="text-sm text-green-600 font-semibold">Économisez {formatPrix(produit.prix - (produit.prix_promo || 0), boutique.devise)}</span>
+                  <span className="text-sm text-[#008000] font-semibold">Économisez {formatPrix(produit.prix - (produit.prix_promo || 0), boutique.devise)}</span>
                 </div>
               )}
             </div>
 
-            {/* Card 3 — CTA + avantages */}
+            {/* Card 3 — CTA KKiaPay unique (bouton personnalisé par le vendeur) */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-md p-5 space-y-4">
+
+              {/* ── Timer / Expiration ── */}
+              {paymentExpired ? (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-red-700 text-sm">Session expirée</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Ce paiement a expiré après 10 minutes. Rechargez la page pour recommencer.
+                    </p>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="mt-2 text-xs font-bold text-red-700 underline"
+                    >
+                      ↺ Recharger la page
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 border ${
+                  timeLeft <= 60 ? "bg-red-50 border-red-200"
+                  : timeLeft <= 180 ? "bg-amber-50 border-amber-200"
+                  : "bg-gray-50 border-gray-200"
+                }`}>
+                  <Clock className={`w-4 h-4 flex-shrink-0 ${
+                    timeLeft <= 60 ? "text-red-500" : timeLeft <= 180 ? "text-amber-500" : "text-gray-400"
+                  }`} />
+                  <p className={`text-xs font-semibold ${
+                    timeLeft <= 60 ? "text-red-600" : timeLeft <= 180 ? "text-amber-600" : "text-gray-500"
+                  }`}>
+                    Session expire dans{" "}
+                    <span className="font-black tabular-nums">
+                      {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
+                    </span>
+                    {timeLeft <= 60 && " — Dépêchez-vous !"}
+                  </p>
+                </div>
+              )}
+
               {/* Avantages rapides */}
               <div className="space-y-2">
                 {[
-                  { icon: Infinity, text: "Stock illimité — disponible maintenant", color: "text-purple-500" },
-                  { icon: Shield, text: "Paiement sécurisé Mobile Money", color: "text-green-500" },
-                  { icon: Clock, text: "Livraison rapide après paiement", color: "text-blue-500" },
+                  { icon: InfinityIcon, text: "Stock illimité — disponible maintenant", color: "text-[#305CDE]" },
+                  { icon: Shield,       text: "Paiement sécurisé via KKiaPay",          color: "text-[#008000]" },
+                  { icon: Zap,          text: "Accès immédiat après paiement réussi",   color: "text-[#305CDE]" },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-2.5">
                     <item.icon className={`w-4 h-4 ${item.color} flex-shrink-0`} />
@@ -372,86 +556,67 @@ export default function DigitalProductPublicPage() {
                 ))}
               </div>
 
-              {/* CTA principal */}
-              {hasPayment ? (
-                <div className="space-y-3">
-                  <button onClick={() => setShowPayment(!showPayment)}
-                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-lg shadow-lg shadow-purple-200 hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2">
-                    <ShoppingBag className="w-5 h-5" />
-                    Acheter maintenant
-                  </button>
-
-                  {showPayment && (
-                    <div className="space-y-3 pt-2">
-                      <p className="text-sm font-bold text-gray-700 text-center">— Choisissez votre mode de paiement —</p>
-
-                      {/* NEXORA Pay */}
-                      {paymentUrl && (
-                        <a href={paymentUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-4 rounded-2xl border-2 border-violet-200 bg-violet-50 hover:bg-violet-100 transition-colors">
-                          <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
-                            <Zap className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-violet-800">
-                              Payer via NEXORA Pay ⚡
-                            </p>
-                            <p className="text-xs text-violet-600">Redirection vers la page de paiement</p>
-                          </div>
-                        </a>
-                      )}
-
-                      {/* Mobile money */}
-                      {(produit.moyens_paiement || []).map((mp, i) => (
-                        <div key={i} className="p-4 rounded-2xl border-2 border-orange-200 bg-orange-50 space-y-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
-                              <Phone className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-orange-800">{mp.reseau}</p>
-                              <p className="text-xs text-orange-600">Paiement Mobile Money</p>
-                            </div>
-                          </div>
-                          <div className="bg-white rounded-xl p-3 space-y-1.5">
-                            <div className="flex justify-between items-center">
-                              <p className="text-xs text-gray-500">Numéro</p>
-                              <p className="text-sm font-black text-gray-800">{mp.numero}</p>
-                            </div>
-                            {mp.nom_titulaire && (
-                              <div className="flex justify-between items-center">
-                                <p className="text-xs text-gray-500">Bénéficiaire</p>
-                                <p className="text-sm font-semibold text-gray-700">{mp.nom_titulaire}</p>
-                              </div>
-                            )}
-                            <div className="flex justify-between items-center border-t border-gray-100 pt-1.5">
-                              <p className="text-xs text-gray-500">Montant</p>
-                              <p className="text-sm font-black text-green-600">{formatPrix(prixActuel, boutique.devise)}</p>
-                            </div>
-                          </div>
-                          {mp.instructions && (
-                            <p className="text-xs text-orange-700 bg-orange-100 rounded-xl p-2 leading-relaxed">
-                              💬 {mp.instructions}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Formulaire acheteur */}
+              <div className="space-y-2.5 bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Vos informations</p>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Nom complet *</label>
+                  <input
+                    type="text"
+                    value={buyerNom}
+                    onChange={e => setBuyerNom(e.target.value)}
+                    placeholder="Ex: Jean Dupont"
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
+                    style={{ ["--tw-ring-color" as any]: boutonCouleur }}
+                  />
                 </div>
-              ) : (
-                <div className="p-4 bg-gray-50 rounded-2xl text-center">
-                  <AlertTriangle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Paiement non configuré par le vendeur</p>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Téléphone (Mobile Money) *</label>
+                  <input
+                    type="tel"
+                    value={buyerTel}
+                    onChange={e => setBuyerTel(e.target.value)}
+                    placeholder="Ex: +229 97 00 00 00"
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              {/* Message d'erreur */}
+              {payError && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700 font-medium">{payError}</p>
                 </div>
               )}
+
+              {/* Bouton de paiement unique — couleur et texte définis par le vendeur */}
+              <button
+                onClick={handleNexoraPay}
+                disabled={paying || paymentExpired}
+                className="w-full h-14 rounded-2xl disabled:opacity-70 disabled:cursor-not-allowed text-white font-black text-lg shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: boutonCouleur,
+                  boxShadow: `0 8px 24px ${boutonCouleur}40`,
+                }}
+              >
+                {paying
+                  ? <><span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Redirection…</>
+                  : <><Zap className="w-5 h-5" /> {boutonTexte} — {formatPrix(prixActuel, boutique.devise)} ⚡</>}
+              </button>
+
+              {/* Badge sécurité */}
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold" style={{ color: boutonCouleur }}>
+                <Shield className="w-3.5 h-3.5" />
+                Paiement sécurisé — Powered by KKiaPay
+              </div>
             </div>
 
             {/* Vendeur */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
               <p className="text-xs text-gray-400 mb-3 font-semibold uppercase tracking-wide">Vendu par</p>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-black text-lg flex-shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#305CDE] to-[#305CDE] flex items-center justify-center text-white font-black text-lg flex-shrink-0">
                   {boutique.nom.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -460,7 +625,7 @@ export default function DigitalProductPublicPage() {
                 </div>
               </div>
               <button onClick={() => navigate(`/shop/${slug}`)}
-                className="mt-3 w-full text-center text-xs text-purple-600 font-semibold hover:text-purple-700 transition-colors">
+                className="mt-3 w-full text-center text-xs text-[#305CDE] font-semibold hover:text-[#305CDE] transition-colors">
                 Voir tous les produits →
               </button>
             </div>
@@ -483,9 +648,9 @@ export default function DigitalProductPublicPage() {
             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-5 space-y-3">
               <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Achats sécurisés</p>
               {[
-                { icon: Shield, text: "Paiements via opérateurs certifiés", color: "text-green-500" },
-                { icon: Globe, text: "Vendeur vérifié sur NEXORA", color: "text-blue-500" },
-                { icon: CheckCircle, text: "Support disponible après achat", color: "text-purple-500" },
+                { icon: Shield, text: "Paiements via KKiaPay certifié", color: "text-[#008000]" },
+                { icon: Globe, text: "Vendeur vérifié sur NEXORA", color: "text-[#305CDE]" },
+                { icon: CheckCircle, text: "Support disponible après achat", color: "text-[#305CDE]" },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <item.icon className={`w-4 h-4 ${item.color} flex-shrink-0`} />

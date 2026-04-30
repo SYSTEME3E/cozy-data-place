@@ -9,11 +9,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
-import { getNexoraUser, hasNexoraPremium } from "@/lib/nexora-auth";
+import { getNexoraUser } from "@/lib/nexora-auth";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, Trash2, ChevronDown, ChevronUp, Package,
-  Star, Edit2, ToggleLeft, ToggleRight, Crown, Share2, Search
+  Star, Edit2, ToggleLeft, ToggleRight, Crown, Share2, Search, MoreVertical, TrendingUp
 } from "lucide-react";
 import { formatPrix } from "@/lib/devise-utils";
 
@@ -38,12 +38,12 @@ function calcPct(prix: number, promo: number): number {
 export default function ProduitsPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const isPremium = hasNexoraPremium();
 
   const [boutique, setBoutique] = useState<any>(null);
   const [produitsPhysiques, setProduitsPhysiques] = useState<ProduitPhysique[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [searchQ, setSearchQ] = useState("");
 
   const load = async () => {
@@ -71,35 +71,6 @@ export default function ProduitsPage() {
 
   useEffect(() => { load(); }, []);
 
-  // ── Mur premium ──
-  if (!isPremium) {
-    return (
-      <BoutiqueLayout boutiqueName="Nexora Shop">
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center mb-6 shadow-lg">
-            <Crown className="w-10 h-10 text-white" />
-          </div>
-          <h2 className="text-2xl font-black text-gray-800 mb-2">Fonctionnalité Premium</h2>
-          <p className="text-gray-500 text-sm mb-8 max-w-xs">
-            La boutique est réservée aux membres{" "}
-            <span className="font-bold text-yellow-600">Premium</span>.
-          </p>
-          <Button
-            onClick={() => navigate("/boutique/parametres")}
-            className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-bold px-8 py-3 rounded-xl gap-2"
-          >
-            <Crown className="w-4 h-4" /> Passer à Premium
-          </Button>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            Retour au tableau de bord
-          </button>
-        </div>
-      </BoutiqueLayout>
-    );
-  }
 
   const copyLink = (produitId: string) => {
     if (!boutique?.slug) {
@@ -137,18 +108,24 @@ export default function ProduitsPage() {
       <div className="space-y-5 pb-10">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-gray-800">Produits</h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {produitsPhysiques.length} produit{produitsPhysiques.length > 1 ? "s" : ""} physique{produitsPhysiques.length > 1 ? "s" : ""}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">Produits physiques</h1>
+        </div>
+
+        {/* ── Boutons d'action ── */}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => navigate("/boutique/prix-interet")}
+            variant="outline"
+            className="flex-1 gap-1.5 rounded-xl border-green-200 text-[#008000] hover:bg-green-50 dark:border-[#008000] dark:text-[#008000] dark:hover:bg-green-950/30 h-11 font-bold"
+          >
+            <TrendingUp className="w-4 h-4" /> Prix & Intérêts
+          </Button>
           <Button
             onClick={() => navigate("/boutique/produits/nouveau")}
-            className="bg-pink-500 hover:bg-pink-600 text-white gap-1.5 rounded-xl shadow-sm shadow-pink-200"
+            className="flex-1 bg-[#FF1A00] hover:bg-[#FF1A00] text-white gap-1.5 rounded-xl shadow-sm shadow-pink-200 h-11 font-bold"
           >
-            <Plus className="w-4 h-4" /> Nouveau produit
+            <Plus className="w-4 h-4" /> Nouveau
           </Button>
         </div>
 
@@ -166,7 +143,7 @@ export default function ProduitsPage() {
         {/* ── Liste produits ── */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-[#FF1A00] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredProduits.length === 0 ? (
           <div className="text-center py-16 bg-white border border-gray-100 rounded-2xl shadow-sm">
@@ -179,7 +156,7 @@ export default function ProduitsPage() {
             {!searchQ && (
               <button
                 onClick={() => navigate("/boutique/produits/nouveau")}
-                className="mt-4 inline-flex items-center gap-2 text-sm text-pink-500 font-semibold hover:text-pink-600"
+                className="mt-4 inline-flex items-center gap-2 text-sm text-[#FF1A00] font-semibold hover:text-[#FF1A00]"
               >
                 <Plus className="w-4 h-4" /> Ajouter votre premier produit
               </button>
@@ -195,7 +172,7 @@ export default function ProduitsPage() {
               return (
                 <div
                   key={produit.id}
-                  className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="p-4">
                     <div className="flex gap-3 items-start">
@@ -224,7 +201,7 @@ export default function ProduitsPage() {
                           )}
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             produit.actif
-                              ? "bg-green-100 text-green-700"
+                              ? "bg-green-100 text-[#008000]"
                               : "bg-gray-100 text-gray-400"
                           }`}>
                             {produit.actif ? "Actif" : "Inactif"}
@@ -238,7 +215,7 @@ export default function ProduitsPage() {
                         <div className="flex items-center gap-2 mt-1">
                           {produit.prix_promo ? (
                             <>
-                              <span className="font-black text-rose-500 text-sm">
+                              <span className="font-black text-[#FF1A00] text-sm">
                                 {formatPrix(produit.prix_promo, boutique?.devise)}
                               </span>
                               <span className="text-xs text-red-400 line-through font-bold">
@@ -246,7 +223,7 @@ export default function ProduitsPage() {
                               </span>
                             </>
                           ) : (
-                            <span className="font-black text-rose-500 text-sm">
+                            <span className="font-black text-[#FF1A00] text-sm">
                               {formatPrix(produit.prix, boutique?.devise)}
                             </span>
                           )}
@@ -258,48 +235,52 @@ export default function ProduitsPage() {
                         </p>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex flex-col gap-1 flex-shrink-0">
+                      {/* Actions — menu 3 points */}
+                      <div className="relative flex-shrink-0">
                         <button
-                          onClick={() => copyLink(produit.id)}
-                          className="p-2 rounded-xl hover:bg-blue-50 text-blue-400 transition-colors"
-                          title="Copier le lien"
+                          onClick={() => setOpenMenuId(openMenuId === produit.id ? null : produit.id)}
+                          className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"
                         >
-                          <Share2 className="w-4 h-4" />
+                          <MoreVertical className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => navigate(`/boutique/produits/modifier/${produit.id}`)}
-                          className="p-2 rounded-xl hover:bg-pink-50 text-pink-500 transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : produit.id)}
-                          className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(produit.id)}
-                          className="p-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {openMenuId === produit.id && (
+                          <>
+                            <div className="fixed inset-0 z-[40]" onClick={() => setOpenMenuId(null)} />
+                            <div className="absolute right-0 top-10 z-[50] w-44 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden py-1">
+                              <button onClick={() => { copyLink(produit.id); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-[#305CDE] hover:bg-blue-50 transition-colors">
+                                <Share2 className="w-4 h-4" /> Copier le lien
+                              </button>
+                              <button onClick={() => { navigate(`/boutique/produits/modifier/${produit.id}`); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-[#FF1A00] hover:bg-[#FF1A00] transition-colors">
+                                <Edit2 className="w-4 h-4" /> Modifier
+                              </button>
+                              <button onClick={() => { setExpandedId(isExpanded ? null : produit.id); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                {isExpanded ? "Réduire" : "Voir détails"}
+                              </button>
+                              <div className="h-px bg-gray-100 dark:bg-gray-700 mx-3 my-1" />
+                              <button onClick={() => { handleDelete(produit.id); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Section expandée */}
                   {isExpanded && (
-                    <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-3">
+                    <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-3 rounded-b-2xl">
                       <div className="flex gap-2 flex-wrap">
                         <button
                           onClick={() => toggleField(produit.id, "actif", !produit.actif)}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
                             produit.actif
-                              ? "bg-green-100 text-green-700 hover:bg-green-200"
+                              ? "bg-green-100 text-[#008000] hover:bg-green-200"
                               : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                           }`}
                         >
@@ -326,7 +307,7 @@ export default function ProduitsPage() {
                       {produit.tags && produit.tags.length > 0 && (
                         <div className="flex gap-1.5 flex-wrap">
                           {produit.tags.map((tag, i) => (
-                            <span key={i} className="text-xs bg-pink-50 text-pink-600 px-2.5 py-1 rounded-full border border-pink-100">
+                            <span key={i} className="text-xs bg-[#FF1A00]/5 text-[#FF1A00] px-2.5 py-1 rounded-full border border-[#FF1A00]">
                               #{tag}
                             </span>
                           ))}
@@ -358,12 +339,12 @@ export default function ProduitsPage() {
                         <p className="text-xs font-bold text-gray-500 mb-1.5">Paiements acceptés</p>
                         <div className="flex gap-1.5 flex-wrap">
                           {produit.paiement_reception && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-lg font-medium">
+                            <span className="text-xs bg-green-100 text-[#008000] px-2.5 py-1 rounded-lg font-medium">
                               À la réception
                             </span>
                           )}
                           {produit.paiement_lien && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg font-medium">
+                            <span className="text-xs bg-blue-100 text-[#305CDE] px-2.5 py-1 rounded-lg font-medium">
                               Lien de paiement
                             </span>
                           )}

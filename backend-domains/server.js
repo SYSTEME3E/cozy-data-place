@@ -404,6 +404,109 @@ app.get("/resolve/:domain", async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════
+// FACEBOOK CONVERSIONS API (CAPI) — Tracking serveur
+// POST /capi/event
+// Body: { boutique_slug, event_name, event_id?, user_data?, custom_data? }
+// L'endpoint récupère pixel_id + token depuis Supabase (boutiques table)
+// et relaie vers graph.facebook.com/v19.0/{pixel_id}/events
+// ════════════════════════════════════════════════════════════
+
+app.post("/capi/event", async (req, res) => {
+  const {
+    boutique_slug,
+    event_name,
+    event_id,
+    user_data = {},
+    custom_data = {},
+    event_source_url,
+  } = req.body;
+
+  if (!boutique_slug || !event_name) {
+    return res.status(400).json({ error: "boutique_slug et event_name sont requis" });
+  }
+
+  // ── 1. Récupérer config pixel depuis Supabase
+  const { data: boutique, error: dbErr } = await supabase
+    .from("boutiques")
+    .select("pixel_facebook_id, pixel_actif, api_conversion_token, api_conversion_actif")
+    .eq("slug", boutique_slug)
+    .maybeSingle();
+
+  if (dbErr || !boutique) {
+    return res.status(404).json({ error: "Boutique introuvable" });
+  }
+
+  if (!boutique.api_conversion_actif || !boutique.api_conversion_token || !boutique.pixel_facebook_id) {
+    return res.status(200).json({ skipped: true, reason: "CAPI non activée pour cette boutique" });
+  }
+
+  // ── 2. Hacher les données utilisateur (PII) — exigé par Meta
+  const sha256 = (val) => val
+    ? crypto.createHash("sha256").update(val.trim().toLowerCase()).digest("hex")
+    : undefined;
+
+  const hashedUserData = {};
+  if (user_data.email)   hashedUserData.em  = [sha256(user_data.email)];
+  if (user_data.phone)   hashedUserData.ph  = [sha256(user_data.phone.replace(/\D/g, ""))];
+  if (user_data.name)    hashedUserData.fn  = [sha256(user_data.name)];
+  if (user_data.city)    hashedUserData.ct  = [sha256(user_data.city)];
+  if (user_data.country) hashedUserData.country = [sha256(user_data.country)];
+
+  // IP et User-Agent récupérés côté serveur (plus fiables)
+  const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress;
+  const userAgent = req.headers["user-agent"] || "";
+
+  // ── 3. Construire le payload Meta
+  const payload = {
+    data: [
+      {
+        event_name,
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: event_id || `${event_name}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        event_source_url: event_source_url || "",
+        action_source: "website",
+        user_data: {
+          ...hashedUserData,
+          client_ip_address: clientIp,
+          client_user_agent: userAgent,
+        },
+        custom_data,
+      },
+    ],
+  };
+
+  // ── 4. Envoyer à l'API Meta Conversions
+  try {
+    const fbRes = await fetch(
+      `https://graph.facebook.com/v19.0/${boutique.pixel_facebook_id}/events?access_token=${boutique.api_conversion_token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const fbData = await fbRes.json();
+
+    if (!fbRes.ok || fbData.error) {
+      console.error(`[CAPI] ❌ Erreur Facebook pour ${boutique_slug}/${event_name}:`, fbData.error);
+      return res.status(502).json({ error: "Erreur API Facebook", detail: fbData.error });
+    }
+
+    console.log(`[CAPI] ✅ ${event_name} → boutique "${boutique_slug}" | events_received: ${fbData.events_received}`);
+    return res.json({
+      success: true,
+      events_received: fbData.events_received,
+      fbtrace_id: fbData.fbtrace_id,
+    });
+
+  } catch (err) {
+    console.error("[CAPI] Exception réseau:", err.message);
+    return res.status(500).json({ error: "Erreur réseau vers Facebook" });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
 // HELPERS MÉTIER
 // ════════════════════════════════════════════════════════════
 

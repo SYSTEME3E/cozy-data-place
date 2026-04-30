@@ -139,7 +139,7 @@ export default function PhoneInputComponent({
   return (
     <div className={`space-y-1 ${className}`}>
       <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 block">
-        {label} {required && <span className="text-pink-500">*</span>}
+        {label} {required && <span className="text-[#FF1A00]">*</span>}
       </label>
       <div className="flex gap-2 relative" ref={dropdownRef}>
         {/* Sélecteur pays */}
@@ -148,8 +148,8 @@ export default function PhoneInputComponent({
           onClick={() => setOpen(o => !o)}
           className={`flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium transition-all flex-shrink-0 ${
             open
-              ? "border-pink-400 bg-pink-50 dark:bg-pink-950/30"
-              : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-pink-300"
+              ? "border-[#FF1A00] bg-[#FF1A00]/5 dark:bg-[#FF1A00]/20"
+              : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-[#FF1A00]"
           } text-gray-700 dark:text-gray-200`}
           style={{ minWidth: "110px" }}
         >
@@ -169,7 +169,7 @@ export default function PhoneInputComponent({
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Rechercher un pays..."
-                  className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none focus:border-pink-400 text-gray-800 dark:text-gray-200"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none focus:border-[#FF1A00] text-gray-800 dark:text-gray-200"
                 />
               </div>
             </div>
@@ -183,14 +183,14 @@ export default function PhoneInputComponent({
                     type="button"
                     onClick={() => handleSelectCountry(country)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                      selectedCountry.code === country.code ? "bg-pink-50 dark:bg-pink-950/30" : ""
+                      selectedCountry.code === country.code ? "bg-[#FF1A00]/5 dark:bg-[#FF1A00]/20" : ""
                     }`}
                   >
                     <span className="text-base">{country.flag}</span>
                     <span className="text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">{country.name}</span>
                     <span className="text-xs font-mono text-gray-400">{country.dialCode}</span>
                     {selectedCountry.code === country.code && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#FF1A00] flex-shrink-0" />
                     )}
                   </button>
                 ))
@@ -210,7 +210,7 @@ export default function PhoneInputComponent({
             className={`w-full pl-9 pr-4 py-3 rounded-xl border text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600 outline-none transition-colors bg-gray-50 dark:bg-gray-800 ${
               error
                 ? "border-red-400 focus:border-red-400"
-                : "border-gray-200 dark:border-gray-700 focus:border-pink-400"
+                : "border-gray-200 dark:border-gray-700 focus:border-[#FF1A00]"
             }`}
           />
         </div>

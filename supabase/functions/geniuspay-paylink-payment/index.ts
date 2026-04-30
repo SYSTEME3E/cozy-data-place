@@ -1,17 +1,17 @@
-// supabase/functions/geniuspay-paylink-payment/index.ts
+// supabase/functions/kkiapay-paylink-payment/index.ts
 // ─────────────────────────────────────────────────────────────────
-// Edge Function dédiée aux paiements Nexora PayLink via GeniusPay
+// Edge Function : vérifie un paiement PayLink via KKiaPay
+// Le widget KKiaPay s'ouvre côté client → frontend récupère transactionId
+// → appelle cette fonction pour vérifier et créditer le vendeur
 // ─────────────────────────────────────────────────────────────────
+
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const GENIUSPAY_API_URL = "https://pay.genius.ci/api/v1/merchant";
-const GENIUSPAY_PUBLIC  = Deno.env.get("GENIUSPAY_PUBLIC_KEY")  ?? "";
-const GENIUSPAY_SECRET  = Deno.env.get("GENIUSPAY_SECRET_KEY")  ?? "";
+const KKIAPAY_PRIVATE_KEY = Deno.env.get("KKIAPAY_PRIVATE_KEY") ?? "";
+const KKIAPAY_API_URL     = "https://api.kkiapay.me/api/v1/transactions";
 
-console.log("🔑 PAYLINK — GENIUSPAY_PUBLIC_KEY présent :", !!GENIUSPAY_PUBLIC);
-console.log("🔑 PAYLINK — GENIUSPAY_SECRET_KEY présent :", !!GENIUSPAY_SECRET);
-
+console.log("🔑 PAYLINK — KKIAPAY_PRIVATE_KEY présent :", !!KKIAPAY_PRIVATE_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // ── 1. Parse du body ─────────────────────────────────────────
+    // ── 1. Parse du body ──────────────────────────────────────────
     let body: any;
     try {
       body = await req.json();
@@ -38,23 +38,22 @@ Deno.serve(async (req: Request) => {
     console.log("📦 PayLink — Body reçu :", JSON.stringify(body));
 
     const {
+      transaction_id,   // transactionId retourné par le widget KKiaPay
       paylink_id,
       amount,
       currency = "XOF",
       description,
       reference,
       customer,
-      payment_method,
-      pays,
       metadata = {},
     } = body;
 
     // ── 2. Validation ─────────────────────────────────────────────
-    if (!paylink_id || !amount || !reference) {
+    if (!transaction_id || !paylink_id || !reference) {
       const missing = [
-        !paylink_id && "paylink_id",
-        !amount     && "amount",
-        !reference  && "reference",
+        !transaction_id && "transaction_id",
+        !paylink_id     && "paylink_id",
+        !reference      && "reference",
       ].filter(Boolean);
       return new Response(
         JSON.stringify({ success: false, error: `Paramètres manquants : ${missing.join(", ")}` }),
@@ -62,128 +61,107 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── 3. Vérification des clés API ──────────────────────────────
-    if (!GENIUSPAY_PUBLIC || !GENIUSPAY_SECRET) {
-      console.error("❌ Clés GeniusPay non configurées dans les secrets Supabase !");
+    // ── 3. Vérification de la Private Key ─────────────────────────
+    if (!KKIAPAY_PRIVATE_KEY) {
+      console.error("❌ KKIAPAY_PRIVATE_KEY non configurée !");
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Clés API GeniusPay manquantes. Configurez GENIUSPAY_PUBLIC_KEY et GENIUSPAY_SECRET_KEY dans Supabase Secrets.",
+          error: "Clé privée KKiaPay manquante. Configurez KKIAPAY_PRIVATE_KEY dans Supabase Secrets.",
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── 4. URLs de callback — on lit le domaine depuis la requête ──
-    // Comme ça, peu importe le domaine de la plateforme, ça s'adapte automatiquement
-    const requestOrigin = req.headers.get("origin") ?? req.headers.get("referer")?.replace(/\/[^/]*$/, "") ?? "";
-    const APP_URL = requestOrigin || Deno.env.get("APP_URL") || "";
+    // ── 4. Vérification avec retry (jusqu'à 5 tentatives, délai croissant)
+    console.log("🔍 Vérification transaction KKiaPay PayLink :", transaction_id);
+    const MAX_RETRIES  = 5;
+    const RETRY_DELAYS = [1500, 2500, 3500, 4000, 5000]; // ms
+    let kkiaData: any = null;
+    let txStatus       = "";
+    let isSuccess      = false;
+    let lastRawText    = "";
 
-    if (!APP_URL) {
-      console.error("❌ Impossible de déterminer l'URL de la plateforme (origin/referer absents)");
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS[attempt - 1]));
+      }
+
+      const verifyResponse = await fetch(`${KKIAPAY_API_URL}/${transaction_id}/status`, {
+        method: "GET",
+        headers: {
+          "x-private-key": KKIAPAY_PRIVATE_KEY,
+          "Content-Type":  "application/json",
+        },
+      });
+
+      lastRawText = await verifyResponse.text();
+      console.log(`📥 Tentative ${attempt + 1}/${MAX_RETRIES} — HTTP ${verifyResponse.status} — ${lastRawText.slice(0, 300)}`);
+
+      try {
+        kkiaData = JSON.parse(lastRawText);
+      } catch {
+        console.warn(`⚠️ Réponse non-JSON (tentative ${attempt + 1})`);
+        continue;
+      }
+
+      txStatus  = kkiaData.status ?? kkiaData.transactionStatus ?? "";
+      isSuccess = txStatus === "SUCCESS" || txStatus === "COMPLETE" ||
+                  txStatus === "TRANSACTION_APPROVED" || txStatus === "APPROVED";
+
+      if (isSuccess) {
+        console.log(`✅ Transaction confirmée au bout de ${attempt + 1} tentative(s)`);
+        break;
+      }
+
+      console.log(`⏳ Statut "${txStatus}" — non final, on retente...`);
     }
 
-    const success_url = `${APP_URL}/pay/${metadata.slug ?? paylink_id}?status=success&ref=${reference}`;
-    const error_url   = `${APP_URL}/pay/${metadata.slug ?? paylink_id}?status=failed&ref=${reference}`;
-
-    console.log("✅ success_url :", success_url);
-    console.log("✅ error_url   :", error_url);
-
-    // ── 5. Payload GeniusPay ──────────────────────────────────────
-    const geniusPayload: any = {
-      amount,
-      currency,
-      description: description ?? "Paiement Nexora PayLink",
-      customer: {
-        name:  customer?.name  ?? undefined,
-        phone: customer?.phone ?? undefined,
-        email: customer?.email ?? undefined,
-      },
-      success_url,
-      error_url,
-      metadata: {
-        ...metadata,
-        paylink_id,
-        reference,
-        source: "nexora_paylink",
-      },
-    };
-
-    // Si Mobile Money : on ajoute le réseau et le pays
-    if (payment_method) {
-      geniusPayload.payment_method = payment_method;
-    }
-    if (pays) {
-      geniusPayload.country = pays;
-    }
-
-    console.log("📤 Payload GeniusPay :", JSON.stringify(geniusPayload));
-
-    // ── 6. Appel API GeniusPay ────────────────────────────────────
-    const geniusResponse = await fetch(`${GENIUSPAY_API_URL}/payments`, {
-      method:  "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key":    GENIUSPAY_PUBLIC,
-        "X-API-Secret": GENIUSPAY_SECRET,
-        "Accept":       "application/json",
-      },
-      body: JSON.stringify(geniusPayload),
-    });
-
-    const rawText = await geniusResponse.text();
-    console.log("📥 GeniusPay HTTP status :", geniusResponse.status);
-    console.log("📥 GeniusPay réponse brute :", rawText);
-
-    let geniusData: any;
-    try {
-      geniusData = JSON.parse(rawText);
-    } catch {
-      console.error("❌ Réponse GeniusPay non-JSON :", rawText);
+    if (!kkiaData) {
       return new Response(
-        JSON.stringify({ success: false, error: `GeniusPay réponse invalide : ${rawText.slice(0, 200)}` }),
+        JSON.stringify({ success: false, error: `KKiaPay réponse invalide : ${lastRawText.slice(0, 200)}` }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const txData      = geniusData.data ?? geniusData;
-    const checkoutUrl = txData.checkout_url ?? txData.payment_url ?? null;
-    const geniusRef   = txData.reference    ?? txData.id          ?? null;
-
-    if (!geniusResponse.ok || !checkoutUrl) {
-      console.error("❌ GeniusPay a refusé la requête :", JSON.stringify(geniusData));
+    // ── 5. Vérifier le statut final ───────────────────────────────
+    if (!isSuccess) {
+      console.error("❌ Transaction KKiaPay invalide :", JSON.stringify(kkiaData));
       return new Response(
         JSON.stringify({
-          success:          false,
-          error:            geniusData.message ?? geniusData.error ?? `Erreur GeniusPay HTTP ${geniusResponse.status}`,
-          geniuspay_detail: geniusData,
+          success: false,
+          error:   kkiaData.message ?? `Transaction invalide (statut: ${txStatus})`,
+          kkiapay_detail: kkiaData,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("✅ checkout_url obtenu :", checkoutUrl);
+    console.log("✅ Transaction KKiaPay PayLink vérifiée :", transaction_id);
 
-    // ── 7. Mise à jour de la transaction en base ──────────────────
+    // ── 6. Mise à jour en base ─────────────────────────────────────
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Met à jour le paiement avec l'ID GeniusPay
     await supabase
       .from("nexora_paylink_payments")
       .update({
-        geniuspay_payment_id: String(geniusRef),
-        checkout_url:         checkoutUrl,
+        geniuspay_payment_id: transaction_id,  // colonne existante, on y met le transactionId KKiaPay
+        checkout_url:         null,             // plus de checkout_url avec KKiaPay widget
+        statut:               "paye",
+        paid_at:              new Date().toISOString(),
       })
       .eq("reference", reference);
 
+    console.log("✅ PayLink payment mis à jour :", reference);
+
     return new Response(
       JSON.stringify({
-        success:      true,
-        checkout_url: checkoutUrl,
-        payment_id:   String(geniusRef),
+        success:    true,
+        payment_id: transaction_id,
+        reference,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

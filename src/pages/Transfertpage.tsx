@@ -10,7 +10,7 @@ import {
   CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown,
   Wallet, MoreHorizontal
 } from "lucide-react";
-import { initPayment, initPayout } from "@/lib/Moneroo";
+import { initPayout } from "@/lib/Moneroo";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import { supabase } from "@/integrations/supabase/client";
 import PinTransferModal from "@/components/PinTransferModal";
@@ -184,7 +184,6 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const [email, setEmail] = useState(getNexoraUser()?.email ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   const montantLocalNum = parseFloat(montant) || 0;
   const montantFcfa = isXof ? montantLocalNum : Math.round(montantLocalNum * tauxXofParLoc);
@@ -197,12 +196,57 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     if (!valid) return;
     setError(null); setLoading(true);
     try {
-      const result = await initPayment({ type: "recharge_transfert", amount: montantFcfa, metadata: { email } });
-      if (!result.success || !result.payment_url) { setError(result.error ?? "Erreur lors de l'initialisation."); setLoading(false); return; }
-      savePendingRecharge({ payment_url: result.payment_url, montant: montantFcfa, total: totalPaye, email, timestamp: Date.now() });
-      const opened = window.open(result.payment_url, "_blank", "noopener,noreferrer");
-      if (!opened) { setPaymentUrl(result.payment_url); } else { onSuccess(); onClose(); }
-    } catch (err: any) { setError(err.message ?? "Erreur réseau."); setLoading(false); }
+      const user = getNexoraUser();
+      const { openKkiapay, onKkiapaySuccess, onKkiapayFailed, removeKkiapayListeners } = await import("@/lib/kkiapay");
+
+      await onKkiapaySuccess(async ({ transactionId }) => {
+        removeKkiapayListeners();
+        // ⏳ Attendre 2s pour laisser KKiaPay finaliser la transaction côté API
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const { data, error: invokeErr } = await supabase.functions.invoke("kkiapay-payment", {
+          body: {
+            transaction_id: transactionId,
+            type:           "recharge_transfert",
+            amount:         totalPaye,
+            amount_net:     montantFcfa,
+            currency:       "XOF",
+            user_id:        user?.id ?? "",
+            user_email:     email,
+            user_name:      user?.nom_prenom ?? "Client NEXORA",
+            metadata:       { email },
+          },
+        });
+        if (invokeErr || !data?.success) {
+          setError(data?.error ?? "Erreur lors de la vérification du paiement.");
+          setLoading(false);
+          return;
+        }
+        onSuccess();
+        onClose();
+      });
+
+      await onKkiapayFailed(() => {
+        removeKkiapayListeners();
+        setError("Paiement annulé ou échoué. Veuillez réessayer.");
+        setLoading(false);
+      });
+
+      await openKkiapay({
+        amount: totalPaye,
+        email,
+        name:   user?.nom_prenom ?? "Client NEXORA",
+        reason: "Recharge Transfert NEXORA",
+        data:   JSON.stringify({
+          type:       "recharge_transfert",
+          user_id:    user?.id ?? "",
+          amount_net: montantFcfa,
+        }),
+      });
+
+    } catch (err: any) {
+      setError(err.message ?? "Erreur réseau.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -285,13 +329,6 @@ function ModalRecharge({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-xl">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" /><p>{error}</p>
             </div>
-          )}
-
-          {paymentUrl && (
-            <a href={paymentUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3.5 bg-amber-400 text-black font-black rounded-xl hover:bg-amber-300 transition-colors">
-              Ouvrir la page de paiement
-            </a>
           )}
 
           <button onClick={handleSubmit} disabled={!valid || loading}
@@ -839,6 +876,33 @@ export default function TransfertPage() {
 
   useEffect(() => { fetchFromSupabase(); }, [fetchFromSupabase]);
 
+  // ── Realtime : mise à jour automatique du solde quand l'admin crédite ──────
+  useEffect(() => {
+    const user = getNexoraUser();
+    if (!user?.id) return;
+
+    const channel = (supabase as any)
+      .channel("transfert-solde-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "nexora_transfert_comptes",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          const nouveauSolde = payload.new?.solde;
+          if (nouveauSolde !== undefined) {
+            setBalance(nouveauSolde);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { (supabase as any).removeChannel(channel); };
+  }, []);
+
   useEffect(() => {
     if (!pollingRecharge) return;
     let attempts = 0;
@@ -1085,11 +1149,28 @@ export default function TransfertPage() {
               <p className="text-sm text-muted-foreground">Chargement...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center py-12 space-y-3 text-center px-6">
-              <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-                <History className="w-6 h-6 text-muted-foreground" />
+            <div className="flex flex-col items-center py-10 space-y-3 text-center px-6">
+              {/* Empty box illustration */}
+              <div className="w-28 h-28 flex items-center justify-center">
+                <svg viewBox="0 0 120 110" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                  {/* Box bottom */}
+                  <polygon points="20,50 60,70 100,50 60,30" fill="#C8D8F0" />
+                  {/* Box left face */}
+                  <polygon points="20,50 60,70 60,100 20,80" fill="#A0B8DC" />
+                  {/* Box right face */}
+                  <polygon points="100,50 60,70 60,100 100,80" fill="#B8CCEC" />
+                  {/* Box left flap */}
+                  <polygon points="20,50 60,30 60,10 20,30" fill="#C8D8F0" opacity="0.85" />
+                  {/* Box right flap */}
+                  <polygon points="100,50 60,30 60,10 100,30" fill="#B8CCEC" opacity="0.85" />
+                  {/* Dashed arrow path */}
+                  <path d="M60 18 Q75 5 90 10" stroke="#5B9BF0" strokeWidth="2.5" fill="none"
+                    strokeDasharray="4,3" strokeLinecap="round"/>
+                  {/* Arrow head */}
+                  <polygon points="90,10 84,6 86,14" fill="#5B9BF0" />
+                </svg>
               </div>
-              <p className="font-bold text-foreground text-sm">Aucune transaction</p>
+              <p className="font-bold text-foreground text-sm">Aucune transaction à afficher.</p>
               <p className="text-xs text-muted-foreground">Commencez par recharger votre compte</p>
               <button onClick={() => setShowRecharge(true)}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-colors flex items-center gap-2">
@@ -1106,15 +1187,9 @@ export default function TransfertPage() {
                   {tx.type === "depot" && tx.status === "pending" && (
                     <div className="px-5 pb-2">
                       <button
-                        onClick={() => {
-                          const url = tx.checkout_url ?? loadPendingRecharge()?.payment_url;
-                          if (!url) { showErrorMsg("URL introuvable. Créez une nouvelle recharge."); return; }
-                          window.open(url, "_blank", "noopener,noreferrer");
-                          balanceBeforeRecharge.current = balance;
-                          setPollingRecharge(true);
-                        }}
+                        onClick={() => { setShowRecharge(true); }}
                         className="w-full py-2 text-xs font-bold rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-300/30 transition-colors flex items-center justify-center gap-1.5">
-                        <ArrowDownLeft className="w-3.5 h-3.5" /> Poursuivre le paiement
+                        <ArrowDownLeft className="w-3.5 h-3.5" /> Nouvelle recharge
                       </button>
                     </div>
                   )}

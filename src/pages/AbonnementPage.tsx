@@ -1,39 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
-import { getNexoraUser } from "@/lib/nexora-auth";
-import { initPayment } from "@/lib/Moneroo";
+import { getNexoraUser, refreshNexoraSession, NEXORA_USER_KEY, NEXORA_SESSION_KEY } from "@/lib/nexora-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { openKkiapay, onKkiapaySuccess, onKkiapayFailed, removeKkiapayListeners } from "@/lib/kkiapay";
 import {
   Crown, Check, X, Zap, Star, Sparkles,
-  TrendingUp, Store, ArrowLeftRight,
-  BadgeCheck, ChevronDown, ChevronUp, Wallet
+  TrendingUp, Store,
+  BadgeCheck, ChevronDown, ChevronUp, RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAUX DE CHANGE FIXES (ne changent jamais)
-// 1 mois = 7 000 XOF = 10,76 USD = 9,88 EUR = 10,64 GBP
+// TAUX DE CHANGE FIXES
 // ─────────────────────────────────────────────────────────────────────────────
 const TAUX_FIXES: Record<string, number> = {
-  XOF: 1,
-  XAF: 1,
-  USD: 0.001537,   // 7000 XOF → 10.76 USD
-  EUR: 0.001411,   // 7000 XOF → 9.88 EUR
-  GBP: 0.001520,   // 7000 XOF → 10.64 GBP
-  GNF: 14.8,
-  GHS: 0.024,
-  NGN: 2.55,
-  KES: 0.21,
-  TZS: 4.32,
-  UGX: 6.12,
-  RWF: 1.92,
-  MAD: 0.016,
-  GMD: 0.109,
-  SLL: 22.5,
-  ZMW: 0.044,
-  CDF: 4.6,
-  MZN: 0.104,
+  XOF: 1, XAF: 1,
+  USD: 0.001538, EUR: 0.001415, GBP: 0.001231,
+  GNF: 14.8, GHS: 0.024, NGN: 2.55, KES: 0.21, TZS: 4.32,
+  UGX: 6.12, RWF: 1.92, MAD: 0.016, GMD: 0.109, SLL: 22.5,
+  ZMW: 0.044, CDF: 4.6, MZN: 0.104,
 };
-
 const SYMBOLES: Record<string, string> = {
   XOF: "FCFA", XAF: "FCFA", USD: "$", EUR: "€", GBP: "£",
   GNF: "GNF", GHS: "₵", NGN: "₦", KES: "KSh", TZS: "TSh",
@@ -41,15 +27,11 @@ const SYMBOLES: Record<string, string> = {
   ZMW: "ZMW", CDF: "FC", MZN: "MT",
 };
 
-/** Convertit un montant XOF → devise cible avec taux FIXES */
 function convertirXofVers(montantXOF: number, devise: string): number {
   const taux = TAUX_FIXES[devise] ?? 1;
-  if (devise === "USD" || devise === "EUR" || devise === "GBP") {
-    return Math.round(montantXOF * taux * 100) / 100;
-  }
+  if (["USD", "EUR", "GBP"].includes(devise)) return Math.round(montantXOF * taux * 100) / 100;
   return Math.round(montantXOF * taux);
 }
-
 function formaterMontant(montant: number, devise: string): string {
   const symbole = SYMBOLES[devise] ?? devise;
   const isDecimal = ["USD", "EUR", "GBP"].includes(devise);
@@ -64,49 +46,38 @@ function formaterMontant(montant: number, devise: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // DONNÉES
 // ─────────────────────────────────────────────────────────────────────────────
-
 const FEATURES_COMPARE = [
   {
-    categorie: "Finance personnelle",
+    categorie: "Fonctionnalités gratuites",
     icon: TrendingUp,
     items: [
-      { label: "Entrées & Dépenses",   gratuit: "10 / mois",        premium: "Illimité" },
-      { label: "Factures",             gratuit: "10 factures",      premium: "Illimité" },
-      { label: "Contacts WhatsApp",    gratuit: "0 fichier",        premium: "Illimité" },
+      { label: "Tableau de bord",        gratuit: true,  premium: true },
+      { label: "Nexora Transfert",       gratuit: true,  premium: true },
+      { label: "Historique transactions",gratuit: true,  premium: true },
+      { label: "Produits digitaux",      gratuit: true,  premium: true },
+      { label: "Nexora Academy",         gratuit: true,  premium: true },
+      { label: "Entrées & Dépenses",     gratuit: true,  premium: true },
+      { label: "Contacts WhatsApp",      gratuit: true,  premium: true },
     ],
   },
   {
-    categorie: "Nexora Shop",
+    categorie: "Fonctionnalités Premium uniquement",
     icon: Store,
     items: [
-      { label: "Accès boutique",       gratuit: false,  premium: true },
-      { label: "Produits physiques",   gratuit: false,  premium: "Illimité" },
-      { label: "Produits digitaux",    gratuit: false,  premium: true },
-      { label: "Gestion commandes",    gratuit: false,  premium: true },
-      { label: "Facebook Pixel",       gratuit: false,  premium: true },
-      { label: "Domaine personnalisé", gratuit: false,  premium: true },
-    ],
-  },
-  {
-    categorie: "Nexora Transfert",
-    icon: ArrowLeftRight,
-    items: [
-      { label: "Transfert inter-pays",        gratuit: true, premium: true },
-      { label: "24 pays africains",            gratuit: true, premium: true },
-      { label: "Tous réseaux Mobile Money",    gratuit: true, premium: true },
-      { label: "Factures PDF",                 gratuit: true, premium: true },
+      { label: "Marché Immobilier (publication)", gratuit: false, premium: true },
+      { label: "Boutique — Produits physiques",   gratuit: false, premium: true },
+      { label: "Factures",                        gratuit: false, premium: true },
     ],
   },
 ];
 
-const PRIX_MENSUEL_XOF = 7000;
-
+const PRIX_MENSUEL_XOF = 3250;
 const PLANS_DUREE = [
-  { mois: 1,  label: "1 mois", badge: null,       remise: 0 },
-  { mois: 3,  label: "3 mois", badge: "-5%",      remise: 5 },
-  { mois: 6,  label: "6 mois", badge: "-10%",     remise: 10 },
-  { mois: 12, label: "1 an",   badge: "-15% 🔥",  remise: 15 },
-  { mois: 24, label: "2 ans",  badge: "-20% 💎",  remise: 20 },
+  { mois: 1,  label: "1 mois", badge: null,      remise: 0  },
+  { mois: 3,  label: "3 mois", badge: "-5%",     remise: 5  },
+  { mois: 6,  label: "6 mois", badge: "-10%",    remise: 10 },
+  { mois: 12, label: "1 an",   badge: "-15% 🔥", remise: 15 },
+  { mois: 24, label: "2 ans",  badge: "-20% 💎", remise: 20 },
 ];
 
 function calcMontantXOF(mois: number, remise: number): number {
@@ -116,7 +87,6 @@ function calcMontantXOF(mois: number, remise: number): number {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPOSANTS
 // ─────────────────────────────────────────────────────────────────────────────
-
 function FeatureValue({ value }: { value: boolean | string }) {
   if (value === true)  return <Check className="w-5 h-5 text-emerald-500 mx-auto" />;
   if (value === false) return <X className="w-4 h-4 text-muted-foreground/40 mx-auto" />;
@@ -146,60 +116,154 @@ function FAQItem({ question, reponse }: { question: string; reponse: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE PRINCIPALE
 // ─────────────────────────────────────────────────────────────────────────────
-
 export default function AbonnementPage() {
-  const navigate    = useNavigate();
-  const user        = getNexoraUser();
-  const currentPlan = user?.plan || "gratuit";
-  const isPremium   = currentPlan !== "gratuit";
+  const navigate = useNavigate();
 
-  // Lire la devise choisie dans le dashboard (localStorage)
+  // ✅ FIX 1 : plan chargé depuis la DB — pas uniquement depuis le localStorage
+  const [planReel, setPlanReel]         = useState<string | null>(null); // null = chargement en cours
+  const [abonnementInfo, setAbonnementInfo] = useState<{
+    date_fin: string | null;
+    duree_mois: number | null;
+  } | null>(null);
+  const [checkingPlan, setCheckingPlan] = useState(true);
+
+  const [openCat, setOpenCat]   = useState<string | null>("Finance personnelle");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [dureeIdx, setDureeIdx] = useState(0);
+
   const deviseLocale = (() => {
     try { return localStorage.getItem("nexora-devise") || "XOF"; } catch { return "XOF"; }
   })();
 
-  const [openCat, setOpenCat]       = useState<string | null>("Finance personnelle");
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [dureeIdx, setDureeIdx]     = useState(0);
+  // ✅ FIX 2 : Au montage, on lit le plan DEPUIS LA BASE DE DONNÉES
+  // Le localStorage peut être désynchronisé — la DB est la source de vérité
+  useEffect(() => {
+    async function chargerPlanReel() {
+      setCheckingPlan(true);
+      try {
+        // D'abord rafraîchir la session (met à jour le localStorage depuis la DB)
+        await refreshNexoraSession();
 
-  const planChoisi   = PLANS_DUREE[dureeIdx];
-  const montantXOF   = calcMontantXOF(planChoisi.mois, planChoisi.remise);
-  const montantLocal = convertirXofVers(montantXOF, deviseLocale);
-  const symboleLocal = SYMBOLES[deviseLocale] ?? deviseLocale;
+        const user = getNexoraUser();
+        if (!user) {
+          setPlanReel("gratuit");
+          setCheckingPlan(false);
+          return;
+        }
 
-  // Prix unitaire mensuel en devise locale (pour l'affichage "soit X/mois")
-  const prixMensuelXOF   = calcMontantXOF(1, 0); // 7 000 XOF
-  const prixMensuelLocal = convertirXofVers(Math.round(montantXOF / planChoisi.mois), deviseLocale);
+        // Lire le plan directement en DB pour être sûr
+        const { data: userData } = await supabase
+          .from("nexora_users" as any)
+          .select("plan, badge_premium")
+          .eq("id", user.id)
+          .maybeSingle();
 
-  // Économie en devise locale
-  const prixSansRemise      = PRIX_MENSUEL_XOF * planChoisi.mois;
-  const economieXOF         = prixSansRemise - montantXOF;
-  const economieLocal       = convertirXofVers(economieXOF, deviseLocale);
+        const planDB = (userData as any)?.plan ?? "gratuit";
+        setPlanReel(planDB);
+
+        // ✅ FIX 3 : Mettre à jour le localStorage avec le vrai plan DB
+        const storage = localStorage.getItem(NEXORA_SESSION_KEY) ? localStorage : sessionStorage;
+        const rawUser = storage.getItem(NEXORA_USER_KEY);
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          parsed.plan = planDB;
+          parsed.badge_premium = (userData as any)?.badge_premium ?? false;
+          storage.setItem(NEXORA_USER_KEY, JSON.stringify(parsed));
+        }
+
+        // Charger les infos de l'abonnement actif si premium
+        if (planDB !== "gratuit") {
+          const { data: abo } = await supabase
+            .from("nexora_abonnements" as any)
+            .select("date_fin, duree_mois")
+            .eq("user_id", user.id)
+            .eq("statut", "actif")
+            .order("date_fin", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (abo) {
+            setAbonnementInfo({
+              date_fin: (abo as any).date_fin,
+              duree_mois: (abo as any).duree_mois,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Erreur chargement plan:", e);
+        // Fallback sur le localStorage en cas d'erreur réseau
+        const user = getNexoraUser();
+        setPlanReel(user?.plan ?? "gratuit");
+      } finally {
+        setCheckingPlan(false);
+      }
+    }
+
+    chargerPlanReel();
+  }, []);
+
+  // ✅ isPremium basé sur le plan DB — pas le plan localStorage figé
+  const isPremium = planReel !== null && planReel !== "gratuit";
+
+  const planChoisi    = PLANS_DUREE[dureeIdx];
+  const montantXOF    = calcMontantXOF(planChoisi.mois, planChoisi.remise);
+  const montantLocal  = convertirXofVers(montantXOF, deviseLocale);
+  const prixSansRemise = PRIX_MENSUEL_XOF * planChoisi.mois;
+  const economieXOF   = prixSansRemise - montantXOF;
+  const economieLocal = convertirXofVers(economieXOF, deviseLocale);
 
   const handleUpgrade = async () => {
+    const user = getNexoraUser();
     if (!user?.id) { setError("Vous devez être connecté pour souscrire."); return; }
     setLoading(true);
     setError(null);
+
     try {
-      // L'API accepte toujours en XOF
-      const result = await initPayment({
-        type: "abonnement_premium",
-        amount: montantXOF,
-        metadata: {
-          user_id: user.id,
-          type: "abonnement_premium",
-          duree_mois: String(planChoisi.mois),
-        },
+      await removeKkiapayListeners();
+
+      await onKkiapaySuccess(async ({ transactionId }) => {
+        await removeKkiapayListeners();
+        // ⏳ Attendre 2s pour laisser KKiaPay finaliser la transaction côté API
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // ✅ FIX 4 : Appel vers la fonction edge qui enregistre l'abonnement en DB
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke("kkiapay-verify", {
+          body: {
+            transactionId,
+            type:       "abonnement_premium",
+            user_id:    user.id,
+            duree_mois: planChoisi.mois,
+            montant_xof: montantXOF,
+          },
+        });
+
+        if (verifyError || !verifyData?.success) {
+          setError("Paiement reçu mais activation échouée. Contactez le support avec votre référence : " + transactionId);
+          setLoading(false);
+          return;
+        }
+
+        // ✅ FIX 5 : Rafraîchir la session depuis la DB avant la redirection
+        // → le localStorage aura le bon plan "boss" ou "roi"
+        await refreshNexoraSession();
+
+        window.location.href = "/dashboard?abonnement=success";
       });
-      if (!result.success || !result.payment_url) {
-        setError(result.error ?? "Impossible d'initialiser le paiement.");
+
+      await onKkiapayFailed(() => {
+        removeKkiapayListeners();
+        setError("Le paiement a échoué. Veuillez réessayer.");
         setLoading(false);
-        return;
-      }
-      const opened = window.open(result.payment_url, "_blank", "noopener,noreferrer");
-      if (!opened) setPaymentUrl(result.payment_url);
+      });
+
+      await openKkiapay({
+        amount: montantXOF,
+        name:   user.nom_prenom ?? "Client NEXORA",
+        email:  user.email ?? "",
+        reason: `Abonnement NEXORA Premium — ${planChoisi.mois} mois`,
+        data:   JSON.stringify({ type: "abonnement_premium", user_id: user.id, duree_mois: planChoisi.mois }),
+      });
     } catch (err: any) {
       setError(err.message ?? "Impossible d'initialiser le paiement. Réessayez.");
     } finally {
@@ -220,15 +284,13 @@ export default function AbonnementPage() {
             </div>
             <h1 className="text-4xl font-black mb-3">Passez à la vitesse supérieure</h1>
             <p className="text-white/60 text-sm max-w-sm mx-auto">
-              Un seul abonnement pour débloquer l'immobilier, le transfert et la boutique illimitée.
+              Un seul abonnement pour vendre des <span className="text-yellow-300 font-bold">produits physiques</span>. Les produits digitaux sont accessibles gratuitement.
             </p>
-
-            {/* Badge taux fixe */}
             <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
               <Check className="w-3 h-3" />
-              Taux fixes · 1 mois = {formaterMontant(prixMensuelXOF, "XOF")}
+              5$ / mois · {formaterMontant(PRIX_MENSUEL_XOF, "XOF")}
               {deviseLocale !== "XOF" && deviseLocale !== "XAF" && (
-                <> = {formaterMontant(convertirXofVers(prixMensuelXOF, deviseLocale), deviseLocale)}</>
+                <> = {formaterMontant(convertirXofVers(PRIX_MENSUEL_XOF, deviseLocale), deviseLocale)}</>
               )}
             </div>
           </div>
@@ -241,26 +303,31 @@ export default function AbonnementPage() {
           </div>
         )}
 
-        {/* LIEN PAIEMENT POPUP BLOQUÉ */}
-        {paymentUrl && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl px-5 py-4 space-y-3">
-            <p className="text-sm text-yellow-300 font-semibold">
-              🔒 Le paiement a été créé. Cliquez ci-dessous pour accéder à la page de paiement GeniusPay.
-            </p>
-            <a
-              href={paymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 bg-yellow-400 text-black font-black rounded-xl hover:bg-yellow-300 transition-colors text-sm"
-            >
-              <Zap className="w-4 h-4" /> Ouvrir le paiement
-            </a>
-            <button
-              onClick={() => setPaymentUrl(null)}
-              className="text-xs text-muted-foreground hover:text-foreground w-full text-center"
-            >
-              Annuler
-            </button>
+        {/* ✅ BANNER PLAN ACTIF — affiché seulement si vraiment premium en DB */}
+        {!checkingPlan && isPremium && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-5 py-4 flex items-start gap-4">
+            <BadgeCheck className="w-6 h-6 text-emerald-400 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-black text-emerald-400 uppercase">Abonnement actif ✅</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Votre plan <span className="font-bold capitalize">{planReel}</span> est actif.
+                {abonnementInfo?.date_fin && (
+                  <> Expire le{" "}
+                    <span className="font-bold">
+                      {new Date(abonnementInfo.date_fin).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                    </span>.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Indicateur de chargement du plan */}
+        {checkingPlan && (
+          <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            Vérification de votre abonnement...
           </div>
         )}
 
@@ -276,13 +343,13 @@ export default function AbonnementPage() {
               <span className="text-sm text-muted-foreground ml-1">FCFA / mois</span>
             </div>
             <button disabled className="w-full py-3 bg-muted text-muted-foreground font-bold rounded-xl text-sm">
-              {currentPlan === "gratuit" ? "Plan actuel" : "Inclus par défaut"}
+              {!isPremium ? "Plan actuel" : "Inclus par défaut"}
             </button>
           </div>
 
           {/* Premium */}
           <div className="relative bg-gradient-to-br from-slate-900 to-indigo-950 rounded-3xl p-6 flex flex-col shadow-xl border-2 border-indigo-500/30">
-            {planChoisi.badge && (
+            {planChoisi.badge && !isPremium && (
               <div className="absolute top-4 right-4 bg-yellow-400 text-black text-[10px] font-black px-2 py-1 rounded-md">
                 {planChoisi.badge}
               </div>
@@ -290,77 +357,77 @@ export default function AbonnementPage() {
             <h3 className="text-lg font-black text-white mb-1">Premium</h3>
             <p className="text-xs text-white/50 mb-3">Puissance & Liberté</p>
 
-            {/* Sélecteur durée */}
-            <div className="grid grid-cols-5 gap-1 mb-4">
-              {PLANS_DUREE.map((p, i) => (
-                <button
-                  key={p.mois}
-                  onClick={() => setDureeIdx(i)}
-                  className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                    dureeIdx === i
-                      ? "bg-yellow-400 text-black"
-                      : "bg-white/10 text-white/60 hover:bg-white/20"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            {/* Sélecteur durée — masqué si déjà premium */}
+            {!isPremium && (
+              <div className="grid grid-cols-5 gap-1 mb-4">
+                {PLANS_DUREE.map((p, i) => (
+                  <button
+                    key={p.mois}
+                    onClick={() => setDureeIdx(i)}
+                    className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                      dureeIdx === i
+                        ? "bg-yellow-400 text-black"
+                        : "bg-white/10 text-white/60 hover:bg-white/20"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* Prix en FCFA (toujours affiché) */}
+            {/* Prix */}
             <div className="mb-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-black text-white">
                   {new Intl.NumberFormat("fr-FR").format(montantXOF)} FCFA
                 </span>
               </div>
-
-              {/* Prix en devise locale si différent de XOF/XAF */}
               {deviseLocale !== "XOF" && deviseLocale !== "XAF" && (
                 <p className="text-sm text-yellow-300 font-bold mt-1">
                   ≈ {formaterMontant(montantLocal, deviseLocale)}
                   <span className="text-[10px] text-white/40 ml-1 font-normal">(taux fixe)</span>
                 </p>
               )}
-
               <p className="text-[10px] text-white/40 mt-0.5">
                 {planChoisi.mois === 1
                   ? "Paiement mensuel"
                   : `Soit ${new Intl.NumberFormat("fr-FR").format(Math.round(montantXOF / planChoisi.mois))} FCFA/mois · ${planChoisi.label}`}
               </p>
-
-              {planChoisi.remise > 0 && (
+              {planChoisi.remise > 0 && !isPremium && (
                 <p className="text-[10px] text-yellow-400 font-bold mt-0.5">
                   Économie : {new Intl.NumberFormat("fr-FR").format(economieXOF)} FCFA
                   {deviseLocale !== "XOF" && deviseLocale !== "XAF" && economieLocal > 0 && (
-                    <span className="text-white/50 ml-1">
-                      ≈ {formaterMontant(economieLocal, deviseLocale)}
-                    </span>
+                    <span className="text-white/50 ml-1">≈ {formaterMontant(economieLocal, deviseLocale)}</span>
                   )}
                 </p>
               )}
             </div>
 
+            {/* ✅ BOUTON — état basé sur planReel (DB), pas localStorage */}
             <button
               onClick={handleUpgrade}
-              disabled={isPremium || loading}
+              disabled={isPremium || loading || checkingPlan}
               className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 mt-3 ${
-                isPremium
-                  ? "bg-white/10 text-white/40 cursor-default"
-                  : loading
-                    ? "bg-white/20 text-white/60 cursor-wait"
-                    : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
+                checkingPlan
+                  ? "bg-white/10 text-white/40 cursor-wait"
+                  : isPremium
+                    ? "bg-emerald-500/20 text-emerald-300 cursor-default border border-emerald-500/30"
+                    : loading
+                      ? "bg-white/20 text-white/60 cursor-wait"
+                      : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
               }`}
             >
-              {isPremium
-                ? <><BadgeCheck className="w-4 h-4" /> Plan Actif</>
-                : loading
-                  ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Redirection...</>
-                  : <><Zap className="w-4 h-4" /> Souscrire — {planChoisi.label}</>
+              {checkingPlan
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Vérification...</>
+                : isPremium
+                  ? <><BadgeCheck className="w-4 h-4" /> Abonnement Actif</>
+                  : loading
+                    ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Paiement en cours...</>
+                    : <><Zap className="w-4 h-4" /> Souscrire — {planChoisi.label}</>
               }
             </button>
 
-            {/* Rappel taux fixe */}
             <p className="text-[10px] text-white/30 text-center mt-2">
               Paiement en FCFA · Taux de conversion indicatifs et fixes
             </p>
@@ -416,7 +483,7 @@ export default function AbonnementPage() {
           />
           <FAQItem
             question="Quel est le prix en devise locale ?"
-            reponse="1 mois = 7 000 FCFA ≈ 10,76 USD ≈ 9,88 EUR. Ces taux sont fixes et indicatifs. Le paiement se fait toujours en FCFA via Mobile Money."
+            reponse="1 mois = 3 250 FCFA ≈ 5,00 USD ≈ 4,60 EUR. Ces taux sont fixes et indicatifs. Le paiement se fait toujours en FCFA via Mobile Money."
           />
           <FAQItem
             question="Puis-je annuler mon abonnement ?"
@@ -425,6 +492,10 @@ export default function AbonnementPage() {
           <FAQItem
             question="Que se passe-t-il si je ferme la page après le paiement ?"
             reponse="Votre paiement est enregistré côté serveur. Si votre compte n'est pas activé, contactez le support avec votre référence de paiement."
+          />
+          <FAQItem
+            question="Pourquoi le bouton affiche encore 'Souscrire' après paiement ?"
+            reponse="La page vérifie votre statut directement en base de données à chaque ouverture. Si vous venez de payer, patientez quelques secondes et rechargez la page."
           />
         </div>
 

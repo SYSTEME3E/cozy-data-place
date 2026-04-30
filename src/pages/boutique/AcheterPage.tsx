@@ -6,17 +6,21 @@
  * - Animation fluide entre états
  */
 
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { isUUID } from "@/lib/slugUtils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, CheckCircle2, CreditCard, ExternalLink,
   MessageCircle, Package, Truck, Mail, MapPin, User, Zap,
   StickyNote, MessageSquare, Phone, Building2, Navigation,
-  Sparkles, Info
+  Sparkles, Info, Shield, Clock, AlertTriangle
 } from "lucide-react";
+import { openKkiapay, onKkiapaySuccess, onKkiapayFailed, removeKkiapayListeners } from "@/lib/kkiapay";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrix } from "@/lib/devise-utils";
+import { useCampagneTracker, trackConversion } from "@/lib/campagneTracker";
 import PhoneInputComponent, { COUNTRIES, CountryOption, getCountryByCode } from "@/components/PhoneInputComponent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,6 +29,11 @@ interface ProduitInfo {
   photos: string[]; paiement_lien: string | null; paiement_reception: boolean;
   moyens_paiement: Array<{ reseau: string; numero: string; nom_titulaire: string; instructions?: string }>;
   type: string;
+  payment_mode: string | null;
+  bouton_texte: string | null;
+  bouton_couleur: string | null;
+  boutique_id: string | null;
+  instructions_achat: string | null;
 }
 interface BoutiqueInfo {
   id: string; nom: string; slug: string; devise: string;
@@ -69,7 +78,7 @@ function AnimatedField({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function AcheterPage() {
-  const { slug, produitId } = useParams<{ slug: string; produitId: string }>();
+  const { slug, produitSlug } = useParams<{ slug: string; produitSlug: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -77,13 +86,24 @@ export default function AcheterPage() {
   const qte = parseInt(searchParams.get("qte") || "1", 10);
 
   const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null);
+
+  // ── Tracking campagne (visite automatique si ?campagne_id=xxx dans l'URL) ──
+  useCampagneTracker(boutique?.id || null);
   const [produit, setProduit] = useState<ProduitInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [etape, setEtape] = useState<Etape>("formulaire");
   const [commande, setCommande] = useState<CommandeCreee | null>(null);
   const [enregistrement, setEnregistrement] = useState(false);
   const [selectedReseau, setSelectedReseau] = useState<number | null>(null);
+  const [kkiapayPaying, setKkiapayPaying] = useState(false);
+  const [kkiapayError, setKkiapayError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ── Timer expiration paiement (10 min) ──
+  const [paymentDeadline, setPaymentDeadline] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(600); // secondes
+  const [paymentExpired, setPaymentExpired] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Champs formulaire ──
   const [nom, setNom] = useState("");
@@ -106,10 +126,32 @@ export default function AcheterPage() {
   // ── Désactiver dark mode ──
   useEffect(() => { document.documentElement.classList.remove("dark"); }, []);
 
+  // ── Timer : démarrer quand on arrive sur l'étape paiement ──
+  useEffect(() => {
+    if (etape === "paiement" && !paymentExpired) {
+      const deadline = Date.now() + 10 * 60 * 1000;
+      setPaymentDeadline(deadline);
+      setTimeLeft(600);
+      setPaymentExpired(false);
+
+      timerRef.current = setInterval(() => {
+        const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining === 0) {
+          clearInterval(timerRef.current!);
+          setPaymentExpired(true);
+        }
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [etape]);
+
   // ── Chargement produit ──
   useEffect(() => {
     const load = async () => {
-      if (!slug || !produitId) return;
+      if (!slug || !produitSlug) return;
       setLoading(true);
       const { data: b } = await supabase
         .from("boutiques" as any).select("id,nom,slug,devise,whatsapp,telephone,vendor_id")
@@ -117,15 +159,24 @@ export default function AcheterPage() {
       if (!b) { setLoading(false); return; }
       setBoutique(b as unknown as BoutiqueInfo);
 
+
       // Chercher le produit sans filtrer sur actif (actif peut être false ou null)
-      const { data: p } = await supabase.from("produits" as any)
-        .select("id,nom,prix,prix_promo,photos,paiement_lien,paiement_reception,moyens_paiement,type,actif")
-        .eq("id", produitId).eq("boutique_id", (b as any).id).maybeSingle();
+      const baseQuery = supabase.from("produits" as any)
+        .select("id,nom,slug,prix,prix_promo,photos,paiement_lien,paiement_reception,moyens_paiement,type,actif,payment_mode,bouton_texte,bouton_couleur,boutique_id,instructions_achat")
+        .eq("boutique_id", (b as any).id);
+      const produitQuery = isUUID(produitSlug)
+        ? baseQuery.eq("id", produitSlug)
+        : baseQuery.eq("slug", produitSlug);
+      const { data: p } = await produitQuery.maybeSingle();
+      if (p && isUUID(produitSlug) && (p as any).slug) {
+        navigate(`/shop/${slug}/acheter/${(p as any).slug}`, { replace: true });
+        return;
+      }
       if (p) setProduit({ ...(p as any), photos: (p as any).photos || [], moyens_paiement: (p as any).moyens_paiement || [] });
       setLoading(false);
     };
     load();
-  }, [slug, produitId]);
+  }, [slug, produitSlug]);
 
   // ── Auto-remplissage depuis localStorage ──
   useEffect(() => {
@@ -232,14 +283,115 @@ export default function AcheterPage() {
 
     clearDraft();
     setCommande({ id: (data as any).id, numero: (data as any).numero || ref, trackingUrl: `${window.location.origin}/commande/${(data as any).id}` });
+
+    // ── Conversion campagne ──
+    try {
+      await trackConversion({
+        commandeId: (data as any).id,
+        clientNom: nom,
+        clientTel: whatsappFull || phoneFull || "",
+        montant: total,
+        devise: boutique.devise || "XOF",
+        boutiqueId: boutique.id,
+      });
+    } catch (_) {}
+
     setEtape("confirmation");
     setEnregistrement(false);
+  };
+
+  // ── Paiement KKiaPay pour les digitaux ──────────────────────────────────
+  const handleKkiapayDigital = async () => {
+    if (!produit || !boutique || kkiapayPaying) return;
+    setKkiapayError(null);
+    setKkiapayPaying(true);
+
+    try {
+      const prixActuel = produit.prix_promo ?? produit.prix;
+      const cmdNumero = `DIG-${Date.now().toString().slice(-8)}`;
+
+      // 1. Créer la commande en attente
+      const { data: cmd, error: cmdErr } = await (supabase as any).from("commandes").insert({
+        boutique_id:      boutique.id,
+        produit_id:       produit.id,
+        client_nom:       nom || "Client",
+        client_tel:       whatsappFull || null,
+        client_email:     email || null,
+        numero:           cmdNumero,
+        total:            prixActuel,
+        montant:          prixActuel,
+        devise:           boutique.devise || "XOF",
+        statut:           "nouvelle",
+        statut_paiement:  "en_attente",
+        product_type:     "numerique",
+        items: [{
+          produit_id:          produit.id,
+          nom_produit:         produit.nom,
+          prix_unitaire:       prixActuel,
+          quantite:            1,
+          montant:             prixActuel,
+          photo_url:           produit.photos?.[0] || null,
+          variations_choisies: {},
+          type:                "numerique",
+        }],
+      }).select().maybeSingle();
+
+      if (cmdErr || !cmd) throw new Error(cmdErr?.message || "Erreur commande");
+
+      // 2. Listeners KKiaPay
+      await removeKkiapayListeners();
+
+      await onKkiapaySuccess(async ({ transactionId }) => {
+        await removeKkiapayListeners();
+        // Sauvegarder transactionId
+        await (supabase as any).from("commandes").update({ kkiapay_id: transactionId }).eq("id", cmd.id);
+        // Créditer le vendeur via edge function
+        await supabase.functions.invoke("kkiapay-verify", {
+          body: {
+            transactionId,
+            type:           "vente_digitale",
+            commande_id:    cmd.id,
+            produit_id:     produit.id,
+            boutique_id:    boutique.id,
+            seller_user_id: boutique.vendor_id || boutique.id,
+            lien_produit:   "",
+          },
+        });
+        clearDraft();
+        setCommande({ id: cmd.id, numero: cmd.numero || cmdNumero, trackingUrl: `${window.location.origin}/commande/${cmd.id}` });
+        setEtape("confirmation");
+        setKkiapayPaying(false);
+      });
+
+      await onKkiapayFailed(() => {
+        removeKkiapayListeners();
+        setKkiapayError("Le paiement a échoué. Veuillez réessayer.");
+        setKkiapayPaying(false);
+      });
+
+      // 3. Ouvrir le widget KKiaPay
+      await openKkiapay({
+        amount: prixActuel,
+        name:   nom || "Client",
+        phone:  whatsappFull || "",
+        reason: `Achat : ${produit.nom}`,
+        data:   JSON.stringify({
+          type_transaction: "vente_digitale",
+          commande_id:      cmd.id,
+          produit_id:       produit.id,
+          boutique_id:      boutique.id,
+        }),
+      });
+    } catch (e: any) {
+      setKkiapayError(e.message || "Erreur lors du paiement. Réessayez.");
+      setKkiapayPaying(false);
+    }
   };
 
   // ─── États de chargement et 404 ───────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-10 h-10 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
+      <div className="w-10 h-10 rounded-full border-4 border-[#FF1A00] border-t-transparent animate-spin" />
     </div>
   );
 
@@ -248,7 +400,7 @@ export default function AcheterPage() {
       <div className="text-center">
         <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-700">Produit introuvable</h2>
-        <button onClick={() => navigate(slug ? `/shop/${slug}` : "/")} className="mt-4 flex items-center gap-2 text-pink-600 font-semibold mx-auto">
+        <button onClick={() => navigate(slug ? `/shop/${slug}` : "/")} className="mt-4 flex items-center gap-2 text-[#FF1A00] font-semibold mx-auto">
           <ArrowLeft className="w-4 h-4" /> Retour
         </button>
       </div>
@@ -266,9 +418,9 @@ export default function AcheterPage() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => etape === "formulaire"
-              ? navigate(isDigital ? `/shop/${slug}/digital/${produitId}` : `/shop/${slug}/produit/${produitId}`)
+              ? navigate(isDigital ? `/shop/${slug}/digital/${(produit as any)?.slug ?? produitSlug}` : `/shop/${slug}/produit/${(produit as any)?.slug ?? produitSlug}`)
               : setEtape(etape === "paiement" ? "formulaire" : "paiement")}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 shadow-sm hover:border-pink-300 transition-all"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 shadow-sm hover:border-[#FF1A00] transition-all"
           >
             <ArrowLeft className="w-4 h-4 text-gray-600" />
           </button>
@@ -287,22 +439,22 @@ export default function AcheterPage() {
               <div className="flex flex-col items-center gap-1">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
                   etape === e
-                    ? "bg-pink-500 text-white shadow-lg shadow-pink-200 scale-110"
+                    ? "bg-[#FF1A00] text-white shadow-lg shadow-pink-200 scale-110"
                     : i < etapes.indexOf(etape)
-                    ? "bg-green-500 text-white"
+                    ? "bg-[#008000] text-white"
                     : "bg-gray-200 text-gray-400"
                 }`}>
                   {i < etapes.indexOf(etape) ? "✓" : i + 1}
                 </div>
                 <span className={`text-[10px] font-semibold whitespace-nowrap ${
-                  etape === e ? "text-pink-600" : "text-gray-400"
+                  etape === e ? "text-[#FF1A00]" : "text-gray-400"
                 }`}>
                   {etapeLabels[i]}
                 </span>
               </div>
               {i < 2 && (
                 <div className={`flex-1 h-0.5 mb-4 mx-1 rounded transition-colors duration-300 ${
-                  i < etapes.indexOf(etape) ? "bg-green-400" : "bg-gray-200"
+                  i < etapes.indexOf(etape) ? "bg-[#008000]" : "bg-gray-200"
                 }`} />
               )}
             </div>
@@ -315,7 +467,7 @@ export default function AcheterPage() {
             <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
               {produit.photos[0]
                 ? <img src={produit.photos[0]} alt={produit.nom} className="w-full h-full object-cover" />
-                : isDigital ? <Zap className="w-6 h-6 text-purple-400" /> : <Package className="w-6 h-6 text-gray-300" />
+                : isDigital ? <Zap className="w-6 h-6 text-[#305CDE]" /> : <Package className="w-6 h-6 text-gray-300" />
               }
             </div>
             <div className="flex-1 min-w-0">
@@ -324,13 +476,13 @@ export default function AcheterPage() {
                 {isDigital ? "Produit digital" : `Quantité : ${qte}`}
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-base font-black text-pink-600">{formatPrix(prixUnit, boutique.devise)}</span>
+                <span className="text-base font-black text-[#FF1A00]">{formatPrix(prixUnit, boutique.devise)}</span>
                 {produit.prix_promo && <span className="text-xs text-gray-400 line-through">{formatPrix(produit.prix, boutique.devise)}</span>}
               </div>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-xs text-gray-400">Total</p>
-              <p className="font-black text-rose-600 text-sm">{formatPrix(total, boutique.devise)}</p>
+              <p className="font-black text-[#FF1A00] text-sm">{formatPrix(total, boutique.devise)}</p>
             </div>
           </div>
         </div>
@@ -345,11 +497,11 @@ export default function AcheterPage() {
               {/* ── Titre dynamique selon type ── */}
               <div className="flex items-center gap-2.5 pb-1">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  isDigital ? "bg-purple-100" : "bg-rose-100"
+                  isDigital ? "bg-[#305CDE]" : "bg-[#FF1A00]"
                 }`}>
                   {isDigital
-                    ? <Zap className="w-4 h-4 text-purple-600" />
-                    : <Truck className="w-4 h-4 text-rose-600" />
+                    ? <Zap className="w-4 h-4 text-[#305CDE]" />
+                    : <Truck className="w-4 h-4 text-[#FF1A00]" />
                   }
                 </div>
                 <div>
@@ -368,7 +520,7 @@ export default function AcheterPage() {
               {/* ── Bannière info type ── */}
               <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-xs font-medium ${
                 isDigital
-                  ? "bg-purple-50 border border-purple-100 text-purple-700"
+                  ? "bg-[#305CDE]/5 border border-[#305CDE] text-[#305CDE]"
                   : "bg-amber-50 border border-amber-100 text-amber-700"
               }`}>
                 <Info className="w-3.5 h-3.5 flex-shrink-0" />
@@ -381,7 +533,7 @@ export default function AcheterPage() {
               {/* ══ NOM — toujours visible ══ */}
               <div>
                 <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                  Nom complet <span className="text-pink-500">*</span>
+                  Nom complet <span className="text-[#FF1A00]">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -390,7 +542,7 @@ export default function AcheterPage() {
                     onChange={e => { setNom(e.target.value); clearError("nom"); }}
                     placeholder="Votre nom complet"
                     className={`w-full pl-9 pr-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 transition-all ${
-                      errors.nom ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-pink-200 focus:border-pink-400"
+                      errors.nom ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-[#FF1A00] focus:border-[#FF1A00]"
                     }`}
                   />
                 </div>
@@ -402,7 +554,7 @@ export default function AcheterPage() {
                 <label className="text-xs font-bold text-gray-600 mb-1.5 block">
                   Email
                   {isDigital
-                    ? <span className="text-pink-500 ml-1">*</span>
+                    ? <span className="text-[#FF1A00] ml-1">*</span>
                     : <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
                   }
                 </label>
@@ -414,7 +566,7 @@ export default function AcheterPage() {
                     onChange={e => { setEmail(e.target.value); clearError("email"); }}
                     placeholder="votre@email.com"
                     className={`w-full pl-9 pr-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 transition-all ${
-                      errors.email ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-pink-200 focus:border-pink-400"
+                      errors.email ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-[#FF1A00] focus:border-[#FF1A00]"
                     }`}
                   />
                 </div>
@@ -424,7 +576,7 @@ export default function AcheterPage() {
               {/* ══ PAYS — toujours visible ══ */}
               <div>
                 <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                  Pays <span className="text-pink-500">*</span>
+                  Pays <span className="text-[#FF1A00]">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -434,7 +586,7 @@ export default function AcheterPage() {
                       setSelectedCountry(c);
                       setWaCountry(c);
                     }}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 transition-all appearance-none cursor-pointer"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#FF1A00] focus:border-[#FF1A00] transition-all appearance-none cursor-pointer"
                   >
                     {COUNTRIES.map(c => (
                       <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.dialCode})</option>
@@ -482,7 +634,7 @@ export default function AcheterPage() {
               <AnimatedField visible={!isDigital}>
                 <div className="pb-0.5">
                   <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                    Ville <span className="text-pink-500">*</span>
+                    Ville <span className="text-[#FF1A00]">*</span>
                   </label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -492,7 +644,7 @@ export default function AcheterPage() {
                       placeholder="Ex : Cotonou"
                       tabIndex={isDigital ? -1 : 0}
                       className={`w-full pl-9 pr-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 transition-all ${
-                        errors.ville ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-pink-200 focus:border-pink-400"
+                        errors.ville ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-[#FF1A00] focus:border-[#FF1A00]"
                       }`}
                     />
                   </div>
@@ -504,7 +656,7 @@ export default function AcheterPage() {
               <AnimatedField visible={!isDigital}>
                 <div className="pb-0.5">
                   <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                    Adresse de livraison <span className="text-pink-500">*</span>
+                    Adresse de livraison <span className="text-[#FF1A00]">*</span>
                   </label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
@@ -515,7 +667,7 @@ export default function AcheterPage() {
                       rows={2}
                       tabIndex={isDigital ? -1 : 0}
                       className={`w-full pl-9 pr-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 transition-all resize-none ${
-                        errors.adresse ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-pink-200 focus:border-pink-400"
+                        errors.adresse ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 bg-gray-50 focus:ring-[#FF1A00] focus:border-[#FF1A00]"
                       }`}
                     />
                   </div>
@@ -537,7 +689,7 @@ export default function AcheterPage() {
                       onChange={e => setQuartier(e.target.value)}
                       placeholder="Ex : Akpakpa, Fidjrossè..."
                       tabIndex={isDigital ? -1 : 0}
-                      className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 transition-all"
+                      className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#FF1A00] focus:border-[#FF1A00] transition-all"
                     />
                   </div>
                 </div>
@@ -558,7 +710,7 @@ export default function AcheterPage() {
                       placeholder="Ex : Appeler avant d'arriver, maison rouge au fond..."
                       rows={2}
                       tabIndex={isDigital ? -1 : 0}
-                      className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 transition-all resize-none"
+                      className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#FF1A00] focus:border-[#FF1A00] transition-all resize-none"
                     />
                   </div>
                 </div>
@@ -577,7 +729,7 @@ export default function AcheterPage() {
                     onChange={e => setNotes(e.target.value)}
                     placeholder="Précision sur votre commande..."
                     rows={2}
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 transition-all resize-none"
+                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#FF1A00] focus:border-[#FF1A00] transition-all resize-none"
                   />
                 </div>
               </div>
@@ -585,7 +737,7 @@ export default function AcheterPage() {
 
             <button
               onClick={() => { if (validate()) setEtape("paiement"); }}
-              className="w-full h-14 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white font-black text-base transition-all hover:shadow-lg hover:shadow-pink-300/30 active:scale-95 flex items-center justify-center gap-2"
+              className="w-full h-14 rounded-2xl bg-[#FF1A00] hover:bg-[#FF1A00] text-white font-black text-base transition-all hover:shadow-lg hover:shadow-pink-300/30 active:scale-95 flex items-center justify-center gap-2"
             >
               <CreditCard className="w-5 h-5" /> Continuer vers le paiement
             </button>
@@ -597,79 +749,171 @@ export default function AcheterPage() {
         ════════════════════════════════════════ */}
         {etape === "paiement" && (
           <div className="space-y-4">
+
+            {/* ── Timer expiration ── */}
+            {paymentExpired ? (
+              <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-red-700 text-sm">Session expirée</p>
+                  <p className="text-xs text-red-600 mt-0.5">
+                    Ce paiement a expiré après 10 minutes d'inactivité. Il a été annulé automatiquement.
+                  </p>
+                  <button
+                    onClick={() => { setPaymentExpired(false); setEtape("formulaire"); }}
+                    className="mt-2 text-xs font-bold text-red-700 underline"
+                  >
+                    ← Recommencer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 border ${
+                timeLeft <= 60
+                  ? "bg-red-50 border-red-200"
+                  : timeLeft <= 180
+                  ? "bg-amber-50 border-amber-200"
+                  : "bg-gray-50 border-gray-200"
+              }`}>
+                <Clock className={`w-4 h-4 flex-shrink-0 ${
+                  timeLeft <= 60 ? "text-red-500" : timeLeft <= 180 ? "text-amber-500" : "text-gray-400"
+                }`} />
+                <p className={`text-xs font-semibold ${
+                  timeLeft <= 60 ? "text-red-600" : timeLeft <= 180 ? "text-amber-600" : "text-gray-500"
+                }`}>
+                  Session expire dans{" "}
+                  <span className="font-black tabular-nums">
+                    {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
+                  </span>
+                  {timeLeft <= 60 && " — Dépêchez-vous !"}
+                </p>
+              </div>
+            )}
+
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4">
               <p className="font-black text-gray-900">
-                À payer : <span className="text-pink-600">{formatPrix(total, boutique.devise)}</span>
+                À payer : <span className="text-[#FF1A00]">{formatPrix(total, boutique.devise)}</span>
               </p>
 
-              {produit.paiement_lien && (
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-gray-700">Payer via le lien sécurisé :</p>
-                  <a
-                    href={produit.paiement_lien} target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-bold text-sm transition-all active:scale-95"
-                  >
-                    <ExternalLink className="w-4 h-4" /> Procéder au paiement en ligne
-                  </a>
-                  <p className="text-xs text-gray-400 text-center">Après avoir payé, revenez ici et cliquez sur « J'ai payé »</p>
-                </div>
-              )}
-
-              {produit.moyens_paiement.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-gray-700">Mobile Money :</p>
-                  {produit.moyens_paiement.map((mp, i) => (
-                    <button key={i} type="button" onClick={() => setSelectedReseau(selectedReseau === i ? null : i)}
-                      className={`w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-                        selectedReseau === i ? "border-orange-400 bg-orange-50" : "border-gray-200 bg-gray-50 hover:border-orange-200"
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedReseau === i ? "bg-orange-500" : "bg-gray-200"}`}>
-                        <MessageSquare className={`w-5 h-5 ${selectedReseau === i ? "text-white" : "text-gray-500"}`} />
+              {/* ── DIGITAL : bouton KKiaPay unique avec couleur/texte vendeur ── */}
+              {isDigital ? (
+                <div className="space-y-4">
+                  {/* Avantages */}
+                  <div className="space-y-2">
+                    {[
+                      { text: "Paiement sécurisé via KKiaPay", color: "text-[#008000]" },
+                      { text: "Accès immédiat après paiement réussi", color: "text-[#305CDE]" },
+                      { text: "Portefeuille vendeur crédité après succès", color: "text-[#305CDE]" },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 flex-shrink-0" style={{ color: i === 0 ? "#16a34a" : i === 1 ? "#7c3aed" : "#2563eb" }} />
+                        <p className="text-xs text-gray-600">{item.text}</p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-black text-sm text-gray-900">{mp.reseau}</p>
-                        <p className="text-sm text-gray-600 font-mono mt-0.5">{mp.numero}</p>
-                        <p className="text-xs text-gray-400">Au nom de : {mp.nom_titulaire}</p>
-                        {selectedReseau === i && (
-                          <div className="mt-2 pt-2 border-t border-orange-200">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-500">Montant</span>
-                              <span className="font-black text-orange-600">{formatPrix(total, boutique.devise)}</span>
-                            </div>
-                            {mp.instructions && (
-                              <p className="text-xs text-orange-700 bg-orange-100 rounded-xl p-2 mt-2">💬 {mp.instructions}</p>
+                    ))}
+                  </div>
+
+                  {/* Erreur */}
+                  {kkiapayError && (
+                    <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                      <span className="text-red-500 text-sm">⚠️</span>
+                      <p className="text-xs text-red-700 font-medium">{kkiapayError}</p>
+                    </div>
+                  )}
+
+                  {/* Bouton KKiaPay — couleur + texte définis par le vendeur */}
+                  <button
+                    onClick={handleKkiapayDigital}
+                    disabled={kkiapayPaying || paymentExpired}
+                    className="w-full h-14 rounded-2xl font-black text-lg text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: produit.bouton_couleur || "#7c3aed",
+                      boxShadow: `0 6px 20px ${produit.bouton_couleur || "#7c3aed"}50`,
+                    }}
+                  >
+                    {kkiapayPaying
+                      ? <><span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Ouverture du paiement…</>
+                      : <><Zap className="w-5 h-5" />{produit.bouton_texte || "Payer maintenant"} ⚡</>
+                    }
+                  </button>
+
+                  <p className="text-xs text-gray-400 text-center">
+                    Paiement sécurisé — Mobile Money / Carte — Powered by KKiaPay
+                  </p>
+                </div>
+              ) : (
+                /* ── PHYSIQUE : Mobile Money + Lien externe + J'ai payé ── */
+                <>
+                  {produit.paiement_lien && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-700">Payer via le lien sécurisé :</p>
+                      <a
+                        href={produit.paiement_lien} target="_blank" rel="noopener noreferrer"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-[#305CDE] to-[#008000] hover:opacity-90 text-white font-bold text-sm transition-all active:scale-95"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Procéder au paiement en ligne
+                      </a>
+                      <p className="text-xs text-gray-400 text-center">Après avoir payé, revenez ici et cliquez sur « J'ai payé »</p>
+                    </div>
+                  )}
+
+                  {produit.moyens_paiement.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-700">Mobile Money :</p>
+                      {produit.moyens_paiement.map((mp, i) => (
+                        <button key={i} type="button" onClick={() => setSelectedReseau(selectedReseau === i ? null : i)}
+                          className={`w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
+                            selectedReseau === i ? "border-orange-400 bg-orange-50" : "border-gray-200 bg-gray-50 hover:border-orange-200"
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedReseau === i ? "bg-orange-500" : "bg-gray-200"}`}>
+                            <MessageSquare className={`w-5 h-5 ${selectedReseau === i ? "text-white" : "text-gray-500"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-black text-sm text-gray-900">{mp.reseau}</p>
+                            <p className="text-sm text-gray-600 font-mono mt-0.5">{mp.numero}</p>
+                            <p className="text-xs text-gray-400">Au nom de : {mp.nom_titulaire}</p>
+                            {selectedReseau === i && (
+                              <div className="mt-2 pt-2 border-t border-orange-200">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-500">Montant</span>
+                                  <span className="font-black text-orange-600">{formatPrix(total, boutique.devise)}</span>
+                                </div>
+                                {mp.instructions && (
+                                  <p className="text-xs text-orange-700 bg-orange-100 rounded-xl p-2 mt-2">💬 {mp.instructions}</p>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                      {selectedReseau === i && <CheckCircle2 className="w-4 h-4 text-orange-500 flex-shrink-0 mt-1" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+                          {selectedReseau === i && <CheckCircle2 className="w-4 h-4 text-orange-500 flex-shrink-0 mt-1" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-              {produit.paiement_reception && (
-                <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-                  <Truck className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-sm text-emerald-700">Paiement à la livraison</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">Vous payez à la réception de votre commande.</p>
-                  </div>
-                </div>
+                  {produit.paiement_reception && (
+                    <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                      <Truck className="w-5 h-5 text-[#008000] mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-sm text-[#008000]">Paiement à la livraison</p>
+                        <p className="text-xs text-[#008000] mt-0.5">Vous payez à la réception de votre commande.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleConfirmer}
+                    disabled={enregistrement}
+                    className="w-full h-14 rounded-2xl bg-[#008000] hover:bg-[#008000] disabled:opacity-60 text-white font-black text-base transition-all hover:shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {enregistrement
+                      ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <><CheckCircle2 className="w-5 h-5" /> J'ai payé — Confirmer</>
+                    }
+                  </button>
+                </>
               )}
             </div>
 
-            <button
-              onClick={handleConfirmer}
-              disabled={enregistrement}
-              className="w-full h-14 rounded-2xl bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-black text-base transition-all hover:shadow-lg active:scale-95 flex items-center justify-center gap-2"
-            >
-              {enregistrement
-                ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : <><CheckCircle2 className="w-5 h-5" /> J'ai payé — Confirmer</>
-              }
-            </button>
             <button onClick={() => setEtape("formulaire")} className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors">
               ← Retour aux informations
             </button>
@@ -682,8 +926,8 @@ export default function AcheterPage() {
         {etape === "confirmation" && commande && (
           <div className="space-y-4">
             <div className="bg-white rounded-3xl border border-green-200 shadow-sm p-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-9 h-9 text-green-600" />
+              <div className="w-16 h-16 rounded-full bg-[#008000] flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-9 h-9 text-[#008000]" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-gray-900">Commande enregistrée !</h2>
@@ -693,14 +937,14 @@ export default function AcheterPage() {
               </div>
               <p className="text-sm text-gray-600 leading-relaxed">
                 {isDigital
-                  ? "Le vendeur va vous contacter pour vous livrer votre produit digital."
+                  ? "Paiement reçu ! Le vendeur va vous contacter pour vous livrer votre produit digital."
                   : "Votre commande a été transmise au vendeur. Vous serez contacté pour la livraison."
                 }
               </p>
             </div>
 
             
-            <a href={commande.trackingUrl} className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all">
+            <a href={commande.trackingUrl} className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-[#305CDE] text-white font-bold text-sm hover:bg-[#305CDE] transition-all">
               <Truck className="w-4 h-4" /> Suivre ma commande
             </a>
             {boutique.whatsapp && (
@@ -713,7 +957,7 @@ export default function AcheterPage() {
                 <MessageCircle className="w-4 h-4" /> Contacter le vendeur sur WhatsApp
               </a>
             )}
-            <button onClick={() => navigate(`/shop/${slug}`)} className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl border border-gray-200 text-gray-600 font-semibold text-sm hover:border-pink-300 transition-all">
+            <button onClick={() => navigate(`/shop/${slug}`)} className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl border border-gray-200 text-gray-600 font-semibold text-sm hover:border-[#FF1A00] transition-all">
               <ArrowLeft className="w-4 h-4" /> Retour à la boutique
             </button>
           </div>

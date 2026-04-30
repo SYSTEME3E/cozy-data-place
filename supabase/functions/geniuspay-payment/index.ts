@@ -101,6 +101,7 @@ Deno.serve(async (req: Request) => {
 
     // ── 4. Construction des URLs de callback ─────────────────────
     const isRecharge   = type === "recharge_transfert";
+    const isVenteDigitale = metadata?.type_transaction === "vente_digitale";
 
     let success_url: string;
     let error_url: string;
@@ -111,6 +112,15 @@ Deno.serve(async (req: Request) => {
       const paylinkSlug = metadata.slug ?? paylink_id;
       success_url = `${origin}/pay/${paylinkSlug}?status=success&ref=${reference}`;
       error_url   = `${origin}/pay/${paylinkSlug}?status=failed&ref=${reference}`;
+    } else if (isVenteDigitale) {
+      // Produit digital public → callback public dédié avec toutes les metadata
+      const commande_id    = metadata?.commande_id    ?? "";
+      const lien_produit   = encodeURIComponent(metadata?.lien_produit   ?? "");
+      const seller_user_id = encodeURIComponent(metadata?.seller_user_id ?? "");
+      const boutique_slug  = encodeURIComponent(metadata?.boutique_slug  ?? "");
+      const callbackBase   = `${APP_URL}/payment/digital-callback`;
+      success_url = `${callbackBase}?status=success&type_transaction=vente_digitale&commande_id=${commande_id}&lien_produit=${lien_produit}&seller_user_id=${seller_user_id}&boutique_slug=${boutique_slug}&amount=${amount_net ?? amount}`;
+      error_url   = `${callbackBase}?status=failed&type_transaction=vente_digitale&commande_id=${commande_id}&boutique_slug=${boutique_slug}`;
     } else {
       const callbackBase = isRecharge
         ? `${APP_URL}/transfert`

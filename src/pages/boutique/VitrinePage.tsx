@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import { useThemeVitrine } from "@/hooks/useThemeVitrine";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getNexoraUser } from "@/lib/nexora-auth";
 import { readCart, saveCart, type ShopCartItem } from "@/lib/shop-cart";
 import {
   ShoppingCart, Plus, Minus, X, Phone, MessageCircle,
@@ -21,8 +23,16 @@ interface Boutique {
   pays: string;
   ville: string;
   devise: string;
+  slug?: string;
   pixel_facebook_id: string;
   pixel_actif: boolean;
+  api_conversion_actif?: boolean;
+  api_conversion_token?: string;
+  theme_couleur_principale?: string;
+  theme_couleur_secondaire?: string;
+  theme_style?: string;
+  theme_fond?: string;
+  theme_police?: string;
 }
 
 interface PaiementProduit {
@@ -70,6 +80,42 @@ function fbTrack(boutique: Boutique | null, event: string, params?: any) {
   }
 }
 
+// ── CAPI : appel serveur pour les événements clés (évite les bloqueurs iOS/AdBlock)
+// Dédupliqué avec le Pixel via event_id partagé
+async function fbCapi(
+  boutique: Boutique | null,
+  event_name: string,
+  opts: {
+    event_id?: string;
+    custom_data?: Record<string, unknown>;
+    user_data?: Record<string, unknown>;
+    event_source_url?: string;
+  } = {}
+) {
+  if (!boutique?.api_conversion_actif || !boutique?.slug) return;
+  const CAPI_URL = import.meta.env.VITE_CAPI_URL || "";
+  if (!CAPI_URL) return;
+  try {
+    await fetch(`${CAPI_URL}/capi/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        boutique_slug: boutique.slug,
+        event_name,
+        event_source_url: typeof window !== "undefined" ? window.location.href : "",
+        ...opts,
+      }),
+    });
+  } catch {
+    // Silencieux — le Pixel navigateur reste le fallback
+  }
+}
+
+// ── Génère un event_id partagé entre Pixel et CAPI (déduplication Meta)
+function genEventId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // ─── Composant principal ──────────────────────────────────
 export default function VitrinePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -78,6 +124,7 @@ export default function VitrinePage() {
   const { toast } = useToast();
 
   const [boutique, setBoutique] = useState<Boutique | null>(null);
+  useThemeVitrine(boutique);
   const [produits, setProduits] = useState<Produit[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -109,11 +156,15 @@ export default function VitrinePage() {
     document.documentElement.classList.remove("dark");
     const load = async () => {
       setLoading(true);
-      const { data: b, error: boutiqueError } = await supabase
-        .from("boutiques" as any)
-        .select("*")
-        .eq("slug", slug)
-        .maybeSingle();
+      let boutiqueQuery = supabase.from("boutiques" as any).select("*");
+      if (slug) {
+        boutiqueQuery = boutiqueQuery.eq("slug", slug);
+      } else {
+        const user = getNexoraUser();
+        if (!user) { setNotFound(true); setLoading(false); return; }
+        boutiqueQuery = boutiqueQuery.eq("user_id", user.id);
+      }
+      const { data: b, error: boutiqueError } = await boutiqueQuery.maybeSingle();
 
       if (!b || boutiqueError || b.actif === false) { setNotFound(true); setLoading(false); return; }
       setBoutique(b as any);
@@ -153,18 +204,20 @@ export default function VitrinePage() {
 
       setLoading(false);
     };
-    if (slug) load();
+    load();
   }, [slug]);
 
   useEffect(() => {
-    if (!slug) return;
-    setPanier(readCart(slug));
-  }, [slug]);
+    const cartKey = slug || boutique?.slug;
+    if (!cartKey) return;
+    setPanier(readCart(cartKey));
+  }, [slug, boutique?.slug]);
 
   useEffect(() => {
-    if (!slug) return;
-    saveCart(slug, panier);
-  }, [slug, panier]);
+    const cartKey = slug || boutique?.slug;
+    if (!cartKey) return;
+    saveCart(cartKey, panier);
+  }, [slug, boutique?.slug, panier]);
 
   useEffect(() => {
     const open = searchParams.get("open");
@@ -217,8 +270,14 @@ export default function VitrinePage() {
     }
 
     setSubmitting(true);
+    const checkoutEventId = genEventId("InitiateCheckout");
     fbTrack(boutique, "InitiateCheckout", {
       value: totalPhysique, currency: boutique.devise, num_items: panierPhysique.length,
+    });
+    fbCapi(boutique, "InitiateCheckout", {
+      event_id: checkoutEventId,
+      custom_data: { value: totalPhysique, currency: boutique.devise, num_items: panierPhysique.length },
+      user_data: { phone: checkoutForm.telephone, email: checkoutForm.email },
     });
 
     const numero = genNumeroCommande();
@@ -264,6 +323,11 @@ export default function VitrinePage() {
       fbTrack(boutique, "Purchase", {
         value: totalPhysique, currency: boutique.devise, num_items: panierPhysique.length,
       });
+      fbCapi(boutique, "Purchase", {
+        event_id: genEventId("Purchase"),
+        custom_data: { value: totalPhysique, currency: boutique.devise, num_items: panierPhysique.length, order_id: createdCmd.id },
+        user_data: { phone: checkoutForm.telephone, email: checkoutForm.email },
+      });
 
       // Retirer uniquement les produits physiques du panier
       setPanier(prev => prev.filter(i => i.produit.type !== "physique"));
@@ -286,8 +350,14 @@ export default function VitrinePage() {
     }
 
     setSubmitting(true);
+    const checkoutDigitalEventId = genEventId("InitiateCheckout");
     fbTrack(boutique, "InitiateCheckout", {
       value: totalDigital, currency: boutique.devise, num_items: panierDigital.length,
+    });
+    fbCapi(boutique, "InitiateCheckout", {
+      event_id: checkoutDigitalEventId,
+      custom_data: { value: totalDigital, currency: boutique.devise, num_items: panierDigital.length },
+      user_data: { email: checkoutFormDigital.email },
     });
 
     const numero = genNumeroCommande();
@@ -325,6 +395,11 @@ export default function VitrinePage() {
       fbTrack(boutique, "Purchase", {
         value: totalDigital, currency: boutique.devise, num_items: panierDigital.length,
       });
+      fbCapi(boutique, "Purchase", {
+        event_id: genEventId("Purchase"),
+        custom_data: { value: totalDigital, currency: boutique.devise, num_items: panierDigital.length, order_id: createdCmd.id },
+        user_data: { email: checkoutFormDigital.email },
+      });
 
       // Retirer uniquement les produits digitaux du panier
       setPanier(prev => prev.filter(i => i.produit.type !== "numerique"));
@@ -347,7 +422,7 @@ export default function VitrinePage() {
 
   // ── Page non trouvée
   if (notFound) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--shop-bg, #f9fafb)", fontFamily: "var(--shop-font)" }}>
       <div className="text-center px-4">
         <p className="text-6xl mb-4">🏪</p>
         <h1 className="text-2xl font-bold text-gray-800">Boutique introuvable</h1>
@@ -357,19 +432,19 @@ export default function VitrinePage() {
   );
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--shop-bg, #f9fafb)", fontFamily: "var(--shop-font)" }}>
+      <div className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--shop-principale)", borderTopColor: "transparent" }} />
     </div>
   );
 
   // ── Commande réussie
   if (commandeSuccess) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--shop-bg, #f9fafb)", fontFamily: "var(--shop-font)" }}>
       <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-2xl font-black text-gray-800">Commande envoyée !</h2>
         <p className="text-gray-500 mt-2">
-          Votre commande <strong className="text-pink-600">{commandeNumero}</strong> a été reçue.
+          Votre commande <strong className="" style={{ color: "var(--shop-principale)" }}>{commandeNumero}</strong> a été reçue.
         </p>
         <p className="text-gray-400 text-sm mt-1">Le vendeur vous contactera bientôt.</p>
         {boutique?.whatsapp && (
@@ -392,10 +467,10 @@ export default function VitrinePage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", fontFamily: "var(--shop-font)" }}>
 
       {/* ── Header boutique ── */}
-      <div className="bg-white border-b border-gray-100">
+      <div className="border-b border-gray-100" style={{ background: "var(--shop-bg)" }}>
         {boutique?.banniere_url && (
           <div className="w-full h-32 overflow-hidden">
             <img src={boutique.banniere_url} alt="" className="w-full h-full object-cover" />
@@ -406,20 +481,20 @@ export default function VitrinePage() {
             {boutique?.logo_url ? (
               <img
                 src={boutique.logo_url} alt={boutique?.nom}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-pink-100 shadow-sm flex-shrink-0"
+                className="w-16 h-16 rounded-2xl object-cover shadow-sm flex-shrink-0" style={{ border: "2px solid rgba(var(--shop-principale-rgb), 0.2)" }}
               />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-pink-100 flex items-center justify-center flex-shrink-0">
-                <span className="text-pink-500 text-2xl font-black">{boutique?.nom?.[0]}</span>
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(var(--shop-principale-rgb), 0.15)" }}>
+                <span className="text-2xl font-black" style={{ color: "var(--shop-principale)" }}>{boutique?.nom?.[0]}</span>
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-black text-gray-800 truncate">{boutique?.nom}</h1>
+              <h1 className="text-xl font-black truncate" style={{ color: "var(--shop-text)" }}>{boutique?.nom}</h1>
               {boutique?.description && (
-                <p className="text-gray-400 text-sm mt-0.5 line-clamp-2">{boutique.description}</p>
+                <p className="text-sm mt-0.5 line-clamp-2 opacity-60" dangerouslySetInnerHTML={{ __html: boutique.description }} />
               )}
               {(boutique?.ville || boutique?.pays) && (
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs mt-0.5 opacity-50">
                   📍 {boutique?.ville}{boutique?.ville && boutique?.pays ? ", " : ""}{boutique?.pays}
                 </p>
               )}
@@ -438,21 +513,21 @@ export default function VitrinePage() {
       </div>
 
       {/* ── Barre sticky recherche + panier ── */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
+      <div className="border-b shadow-sm" style={{ background: "var(--shop-bg)", borderColor: "rgba(var(--shop-principale-rgb), 0.15)" }}>
         <div className="max-w-2xl mx-auto px-4 py-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" />
               <input
                 value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
                 placeholder="Rechercher un produit..."
-                className="w-full pl-9 pr-4 h-10 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-pink-300 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-4 h-10 rounded-xl border text-sm focus:outline-none transition-colors" style={{ background: "rgba(var(--shop-principale-rgb), 0.07)", borderColor: "rgba(var(--shop-principale-rgb), 0.2)", color: "var(--shop-text)" }}
               />
             </div>
             <button
               onClick={() => setShowPanier(true)}
-              className="relative w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center text-white flex-shrink-0 shadow-sm"
+              className="relative w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-sm" style={{ background: "var(--shop-principale)", borderRadius: "var(--shop-radius)" }}
             >
               <ShoppingCart className="w-5 h-5" />
               {nbArticles > 0 && (
@@ -467,29 +542,33 @@ export default function VitrinePage() {
           <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
             <button
               onClick={() => { setFilterCateg(""); setFilterType(""); }}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                !filterCateg && !filterType ? "bg-pink-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={!filterCateg && !filterType
+                ? { background: "var(--shop-principale)", color: "white" }
+                : { background: "rgba(var(--shop-principale-rgb), 0.08)", color: "var(--shop-text)" }}
             >Tout</button>
             <button
               onClick={() => setFilterType(filterType === "physique" ? "" : "physique")}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filterType === "physique" ? "bg-pink-500 text-white" : "bg-gray-100 text-gray-600"
-              }`}
+              className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={filterType === "physique"
+                ? { background: "var(--shop-principale)", color: "white" }
+                : { background: "rgba(var(--shop-principale-rgb), 0.08)", color: "var(--shop-text)" }}
             >📦 Physique</button>
             <button
               onClick={() => setFilterType(filterType === "numerique" ? "" : "numerique")}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filterType === "numerique" ? "bg-pink-500 text-white" : "bg-gray-100 text-gray-600"
-              }`}
+              className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={filterType === "numerique"
+                ? { background: "var(--shop-principale)", color: "white" }
+                : { background: "rgba(var(--shop-principale-rgb), 0.08)", color: "var(--shop-text)" }}
             >💻 Numérique</button>
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setFilterCateg(filterCateg === cat ? "" : cat)}
-                className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  filterCateg === cat ? "bg-pink-500 text-white" : "bg-gray-100 text-gray-600"
-                }`}
+                className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={filterCateg === cat
+                ? { background: "var(--shop-principale)", color: "white" }
+                : { background: "rgba(var(--shop-principale-rgb), 0.08)", color: "var(--shop-text)" }}
               >{cat} ({categoryCounts[cat] || 0})</button>
             ))}
           </div>
@@ -501,7 +580,7 @@ export default function VitrinePage() {
         {filteredProduits.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-4xl mb-3">🛍️</p>
-            <p className="text-gray-500 font-medium">Aucun produit disponible</p>
+            <p className="font-medium opacity-50">Aucun produit disponible</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
@@ -514,12 +593,12 @@ export default function VitrinePage() {
               return (
                 <div
                   key={produit.id}
-                  onClick={() => !enRupture && navigate(`/shop/${slug}/produit/${produit.id}`)}
-                  className={`bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm transition-transform ${
+                  onClick={() => !enRupture && navigate(`/shop/${slug}/produit/${produit.slug}`)}
+                  style={{ background: "var(--shop-bg)", borderRadius: "var(--shop-radius)", border: "1px solid rgba(0,0,0,0.08)" }} className={`overflow-hidden shadow-sm transition-transform ${
                     enRupture ? "opacity-60" : "cursor-pointer active:scale-95"
                   }`}
                 >
-                  <div className="relative w-full h-40 bg-gray-100">
+                  <div className="relative w-full h-40" style={{ background: "rgba(var(--shop-principale-rgb), 0.08)" }}>
                     {photo ? (
                       <img src={photo} alt={produit.nom} className="w-full h-full object-cover" />
                     ) : (
@@ -538,7 +617,7 @@ export default function VitrinePage() {
                       </div>
                     )}
                     <div className={`absolute bottom-2 left-2 text-xs font-medium px-2 py-0.5 rounded-full ${
-                      produit.type === "numerique" ? "bg-blue-500 text-white" : "bg-gray-800/70 text-white"
+                      produit.type === "numerique" ? "bg-[#305CDE] text-white" : "bg-gray-800/70 text-white"
                     }`}>
                       {produit.type === "numerique" ? "💻 Digital" : "📦 Physique"}
                     </div>
@@ -550,15 +629,15 @@ export default function VitrinePage() {
                   </div>
 
                   <div className="p-3">
-                    <p className="font-semibold text-gray-800 text-sm line-clamp-2">{produit.nom}</p>
+                    <p className="font-semibold text-sm line-clamp-2" style={{ color: "var(--shop-text)" }}>{produit.nom}</p>
                     {produit.categorie && (
                       <div className="flex items-center gap-1 mt-0.5">
-                        <Tag className="w-3 h-3 text-gray-400" />
-                        <span className="text-xs text-gray-400">{produit.categorie}</span>
+                        <Tag className="w-3 h-3 opacity-40" />
+                        <span className="text-xs opacity-50">{produit.categorie}</span>
                       </div>
                     )}
                     <div className="mt-1">
-                      <span className="font-black text-pink-600 text-sm">{formatPrix(prix, boutique?.devise)}</span>
+                      <span className="font-black text-sm" style={{ color: "var(--shop-principale)" }}>{formatPrix(prix, boutique?.devise)}</span>
                       {produit.prix_promo && (
                         <span className="text-xs text-red-400 line-through font-bold ml-1">{formatPrix(produit.prix, boutique?.devise)}</span>
                       )}
@@ -568,14 +647,34 @@ export default function VitrinePage() {
                     <div className="mt-2">
                       {enRupture ? null : produit.type === "numerique" ? (
                         <button
-                          onClick={e => { e.stopPropagation(); navigate(`/shop/${slug}/produit/${produit.id}`); }}
-                          className="w-full py-2 rounded-xl bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1 active:bg-blue-600"
+                          onClick={e => {
+                            e.stopPropagation();
+                            fbTrack(boutique, "ViewContent", {
+                              content_name: produit.nom,
+                              content_ids: [produit.id],
+                              content_type: "product",
+                              value: prix,
+                              currency: boutique?.devise,
+                            });
+                            navigate(`/shop/${slug}/produit/${produit.slug}`);
+                          }}
+                          className="w-full py-2 rounded-xl bg-[#305CDE] text-white text-xs font-bold flex items-center justify-center gap-1 active:bg-[#305CDE]"
                         >
                           En savoir plus
                         </button>
                       ) : (
                         <button
-                          onClick={e => { e.stopPropagation(); navigate(`/shop/${slug}/produit/${produit.id}`); }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            fbTrack(boutique, "ViewContent", {
+                              content_name: produit.nom,
+                              content_ids: [produit.id],
+                              content_type: "product",
+                              value: prix,
+                              currency: boutique?.devise,
+                            });
+                            navigate(`/shop/${slug}/produit/${produit.slug}`);
+                          }}
                           className="w-full py-2 rounded-xl bg-gray-800 text-white text-xs font-bold flex items-center justify-center gap-1 active:bg-gray-900"
                         >
                           En savoir plus
@@ -593,12 +692,12 @@ export default function VitrinePage() {
       {/* ── Modal Panier ── */}
       {showPanier && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl max-h-[85vh] flex flex-col">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="font-black text-lg text-gray-800">Mon panier ({nbArticles})</h2>
+          <div className="w-full max-w-lg rounded-t-3xl max-h-[85vh] flex flex-col" style={{ background: "var(--shop-bg)", color: "var(--shop-text)" }}>
+            <div className="p-4 border-b flex justify-between items-center" style={{ borderColor: "rgba(var(--shop-principale-rgb), 0.15)" }}>
+              <h2 className="font-black text-lg" style={{ color: "var(--shop-text)" }}>Mon panier ({nbArticles})</h2>
               <button
                 onClick={() => { setShowPanier(false); setSearchParams({}); }}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+                className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(var(--shop-principale-rgb), 0.1)" }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -608,33 +707,33 @@ export default function VitrinePage() {
               {panier.length === 0 ? (
                 <div className="text-center py-10">
                   <ShoppingCart className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                  <p className="text-gray-400">Votre panier est vide</p>
+                  <p className="opacity-50">Votre panier est vide</p>
                 </div>
               ) : (
                 <>
                   {/* ── Section Produits physiques ── */}
                   {panierPhysique.length > 0 && (
                     <div className="rounded-2xl border border-gray-200 overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-2 flex items-center gap-2">
-                        <Package className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Produits physiques</span>
+                      <div className="px-4 py-2 flex items-center gap-2" style={{ background: "rgba(var(--shop-principale-rgb), 0.06)" }}>
+                        <Package className="w-4 h-4 opacity-40" />
+                        <span className="text-xs font-bold opacity-50 uppercase tracking-wide">Produits physiques</span>
                       </div>
                       <div className="p-3 space-y-3">
                         {panierPhysique.map((item) => {
                           const globalIdx = panier.indexOf(item);
                           return (
-                            <div key={globalIdx} className="flex gap-3 items-center bg-gray-50 rounded-xl p-3">
+                            <div key={globalIdx} className="flex gap-3 items-center rounded-xl p-3" style={{ background: "rgba(var(--shop-principale-rgb), 0.05)" }}>
                               {item.produit.photos?.[0] && (
                                 <img src={item.produit.photos[0]} alt="" className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-gray-800 truncate">{item.produit.nom}</p>
+                                <p className="font-semibold text-sm truncate" style={{ color: "var(--shop-text)" }}>{item.produit.nom}</p>
                                 {Object.keys(item.variations_choisies).length > 0 && (
                                   <p className="text-xs text-gray-400">
                                     {Object.entries(item.variations_choisies).map(([k, v]) => `${k}: ${v}`).join(", ")}
                                   </p>
                                 )}
-                                <p className="text-sm font-black text-pink-600 mt-0.5">
+                                <p className="text-sm font-black text-[#FF1A00] mt-0.5">
                                   {formatPrix((item.produit.prix_promo || item.produit.prix) * item.quantite, boutique?.devise)}
                                 </p>
                               </div>
@@ -657,7 +756,7 @@ export default function VitrinePage() {
                       <div className="px-4 pb-4 space-y-2">
                         <div className="flex justify-between text-sm font-black border-t border-gray-100 pt-2">
                           <span className="text-gray-700">Sous-total livraison</span>
-                          <span className="text-pink-600">{formatPrix(totalPhysique, boutique?.devise)}</span>
+                          <span className="" style={{ color: "var(--shop-principale)" }}>{formatPrix(totalPhysique, boutique?.devise)}</span>
                         </div>
                         <button
                           onClick={() => {
@@ -678,8 +777,8 @@ export default function VitrinePage() {
                   {panierDigital.length > 0 && (
                     <div className="rounded-2xl border border-blue-200 overflow-hidden">
                       <div className="bg-blue-50 px-4 py-2 flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs font-bold text-blue-500 uppercase tracking-wide">Produits digitaux</span>
+                        <Zap className="w-4 h-4 text-[#305CDE]" />
+                        <span className="text-xs font-bold text-[#305CDE] uppercase tracking-wide">Produits digitaux</span>
                       </div>
                       <div className="p-3 space-y-3">
                         {panierDigital.map((item) => {
@@ -690,8 +789,8 @@ export default function VitrinePage() {
                                 <img src={item.produit.photos[0]} alt="" className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-gray-800 truncate">{item.produit.nom}</p>
-                                <p className="text-sm font-black text-blue-600 mt-0.5">
+                                <p className="font-semibold text-sm truncate" style={{ color: "var(--shop-text)" }}>{item.produit.nom}</p>
+                                <p className="text-sm font-black text-[#305CDE] mt-0.5">
                                   {formatPrix((item.produit.prix_promo || item.produit.prix) * item.quantite, boutique?.devise)}
                                 </p>
                               </div>
@@ -705,7 +804,7 @@ export default function VitrinePage() {
                       <div className="px-4 pb-4 space-y-2">
                         <div className="flex justify-between text-sm font-black border-t border-blue-100 pt-2">
                           <span className="text-gray-700">Sous-total digital</span>
-                          <span className="text-blue-600">{formatPrix(totalDigital, boutique?.devise)}</span>
+                          <span className="text-[#305CDE]">{formatPrix(totalDigital, boutique?.devise)}</span>
                         </div>
                         <button
                           onClick={() => {
@@ -731,28 +830,28 @@ export default function VitrinePage() {
       {/* ── Modal Checkout Physique ── */}
       {showCheckout === "physique" && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+          <div className="w-full max-w-lg rounded-t-3xl max-h-[90vh] overflow-y-auto" style={{ background: "var(--shop-bg)", color: "var(--shop-text)" }}>
+            <div className="p-4 border-b flex justify-between items-center" style={{ borderColor: "rgba(var(--shop-principale-rgb), 0.15)" }}>
               <div>
-                <h2 className="font-black text-lg text-gray-800">Livraison</h2>
+                <h2 className="font-black text-lg" style={{ color: "var(--shop-text)" }}>Livraison</h2>
                 <p className="text-xs text-gray-400">Produits physiques · {formatPrix(totalPhysique, boutique?.devise)}</p>
               </div>
               <button
                 onClick={() => { setShowCheckout(null); setSearchParams({}); }}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+                className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(var(--shop-principale-rgb), 0.1)" }}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <form onSubmit={handleCheckout} className="p-4 space-y-4">
-              <p className="font-semibold text-sm text-pink-600">Vos informations de livraison</p>
+              <p className="font-semibold text-sm text-[#FF1A00]">Vos informations de livraison</p>
               <div>
                 <label className="text-sm font-medium text-gray-700">Nom complet *</label>
                 <input
                   value={checkoutForm.nom}
                   onChange={e => setCheckoutForm({ ...checkoutForm, nom: e.target.value })}
                   placeholder="Votre nom" required
-                  className="mt-1 w-full h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-pink-300"
+                  className="mt-1 w-full h-10 px-3 rounded-xl border text-sm focus:outline-none" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", borderColor: "rgba(var(--shop-principale-rgb), 0.25)" }}
                 />
               </div>
               <div>
@@ -761,7 +860,7 @@ export default function VitrinePage() {
                   value={checkoutForm.telephone}
                   onChange={e => setCheckoutForm({ ...checkoutForm, telephone: e.target.value })}
                   placeholder="+229..." required
-                  className="mt-1 w-full h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-pink-300"
+                  className="mt-1 w-full h-10 px-3 rounded-xl border text-sm focus:outline-none" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", borderColor: "rgba(var(--shop-principale-rgb), 0.25)" }}
                 />
               </div>
               <div>
@@ -770,7 +869,7 @@ export default function VitrinePage() {
                   type="email" value={checkoutForm.email}
                   onChange={e => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
                   placeholder="email@exemple.com"
-                  className="mt-1 w-full h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-pink-300"
+                  className="mt-1 w-full h-10 px-3 rounded-xl border text-sm focus:outline-none" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", borderColor: "rgba(var(--shop-principale-rgb), 0.25)" }}
                 />
               </div>
               <div>
@@ -779,7 +878,7 @@ export default function VitrinePage() {
                   value={checkoutForm.adresse}
                   onChange={e => setCheckoutForm({ ...checkoutForm, adresse: e.target.value })}
                   placeholder="Adresse complète" required
-                  className="mt-1 w-full h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-pink-300"
+                  className="mt-1 w-full h-10 px-3 rounded-xl border text-sm focus:outline-none" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", borderColor: "rgba(var(--shop-principale-rgb), 0.25)" }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -789,7 +888,7 @@ export default function VitrinePage() {
                     value={checkoutForm.ville}
                     onChange={e => setCheckoutForm({ ...checkoutForm, ville: e.target.value })}
                     placeholder="Cotonou" required
-                    className="mt-1 w-full h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-pink-300"
+                    className="mt-1 w-full h-10 px-3 rounded-xl border text-sm focus:outline-none" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", borderColor: "rgba(var(--shop-principale-rgb), 0.25)" }}
                   />
                 </div>
                 <div>
@@ -797,7 +896,7 @@ export default function VitrinePage() {
                   <input
                     value={checkoutForm.pays}
                     onChange={e => setCheckoutForm({ ...checkoutForm, pays: e.target.value })}
-                    className="mt-1 w-full h-10 px-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-pink-300"
+                    className="mt-1 w-full h-10 px-3 rounded-xl border text-sm focus:outline-none" style={{ background: "var(--shop-bg)", color: "var(--shop-text)", borderColor: "rgba(var(--shop-principale-rgb), 0.25)" }}
                   />
                 </div>
               </div>
@@ -807,7 +906,7 @@ export default function VitrinePage() {
                   value={checkoutForm.note}
                   onChange={e => setCheckoutForm({ ...checkoutForm, note: e.target.value })}
                   placeholder="Instructions spéciales..."
-                  className="mt-1 w-full h-20 px-3 py-2 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:border-pink-300"
+                  className="mt-1 w-full h-20 px-3 py-2 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:border-[#FF1A00]"
                 />
               </div>
               <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-sm">
@@ -817,13 +916,13 @@ export default function VitrinePage() {
                 </div>
                 <div className="flex justify-between font-black text-base border-t border-gray-200 pt-1">
                   <span className="text-gray-800">Total</span>
-                  <span className="text-pink-600">{formatPrix(totalPhysique, boutique?.devise)}</span>
+                  <span className="" style={{ color: "var(--shop-principale)" }}>{formatPrix(totalPhysique, boutique?.devise)}</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">💡 Le vendeur vous contactera pour confirmer le mode de paiement</p>
               </div>
               <button
                 type="submit" disabled={submitting}
-                className="w-full py-4 rounded-2xl bg-pink-500 text-white font-black text-base active:bg-pink-600 disabled:opacity-50"
+                className="w-full py-4 rounded-2xl bg-[#FF1A00] text-white font-black text-base active:bg-[#FF1A00] disabled:opacity-50"
               >
                 {submitting ? "Envoi en cours..." : "Confirmer la commande"}
               </button>
@@ -835,22 +934,22 @@ export default function VitrinePage() {
       {/* ── Modal Checkout Digital ── */}
       {showCheckout === "numerique" && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-t-3xl max-h-[90vh] overflow-y-auto" style={{ background: "var(--shop-bg)", color: "var(--shop-text)" }}>
             <div className="p-4 border-b border-blue-50 flex justify-between items-center">
               <div>
-                <h2 className="font-black text-lg text-gray-800">Accès digital</h2>
-                <p className="text-xs text-blue-400">Produits numériques · {formatPrix(totalDigital, boutique?.devise)}</p>
+                <h2 className="font-black text-lg" style={{ color: "var(--shop-text)" }}>Accès digital</h2>
+                <p className="text-xs text-[#305CDE]">Produits numériques · {formatPrix(totalDigital, boutique?.devise)}</p>
               </div>
               <button
                 onClick={() => { setShowCheckout(null); setSearchParams({}); }}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+                className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(var(--shop-principale-rgb), 0.1)" }}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <form onSubmit={handleCheckoutDigital} className="p-4 space-y-4">
-              <p className="font-semibold text-sm text-blue-600">Vos informations de réception</p>
-              <div className="bg-blue-50 rounded-xl p-3 text-sm text-blue-700">
+              <p className="font-semibold text-sm text-[#305CDE]">Vos informations de réception</p>
+              <div className="bg-blue-50 rounded-xl p-3 text-sm text-[#305CDE]">
                 <p>📧 Vos produits vous seront envoyés après confirmation du paiement.</p>
               </div>
               <div>
@@ -863,7 +962,7 @@ export default function VitrinePage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Email * <span className="text-blue-500">(pour recevoir l'accès)</span></label>
+                <label className="text-sm font-medium text-gray-700">Email * <span className="text-[#305CDE]">(pour recevoir l'accès)</span></label>
                 <input
                   type="email" value={checkoutFormDigital.email}
                   onChange={e => setCheckoutFormDigital({ ...checkoutFormDigital, email: e.target.value })}
@@ -887,7 +986,7 @@ export default function VitrinePage() {
                 </div>
                 <div className="flex justify-between font-black text-base border-t border-gray-200 pt-1">
                   <span className="text-gray-800">Total</span>
-                  <span className="text-blue-600">{formatPrix(totalDigital, boutique?.devise)}</span>
+                  <span className="text-[#305CDE]">{formatPrix(totalDigital, boutique?.devise)}</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">💡 Le vendeur vous enverra un lien d'accès après paiement</p>
               </div>
@@ -911,7 +1010,7 @@ export default function VitrinePage() {
           </a>
         )}
         <p className="text-xs text-gray-400">
-          Boutique créée avec <span className="text-pink-500 font-semibold">NEXORA SHOP</span>
+          Boutique créée avec <span className="text-[#FF1A00] font-semibold">NEXORA SHOP</span>
         </p>
       </div>
 

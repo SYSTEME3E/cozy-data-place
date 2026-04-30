@@ -5,12 +5,11 @@ import { getNexoraUser } from "@/lib/nexora-auth";
 import {
   MapPin, Phone, MessageCircle, Heart,
   ArrowLeft, BadgeCheck, Crown, Home,
-  Share2, Copy, CheckCircle2
-} from "lucide-react";
+  Copy, CheckCircle2} from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────
 type TypeBien = "maison" | "terrain" | "appartement" | "boutique";
-type Statut = "disponible" | "vendu" | "loue";
+type Statut = "vendre" | "louer" | "disponible" | "vendu" | "loue";
 
 interface Annonce {
   id: string;
@@ -19,6 +18,7 @@ interface Annonce {
   titre: string;
   description: string;
   prix: number;
+  devise?: string;
   type: TypeBien;
   ville: string;
   quartier: string;
@@ -28,6 +28,9 @@ interface Annonce {
   statut: Statut;
   favoris: string[];
   created_at: string;
+  superficie?: string;
+  nb_chambres?: string;
+  nb_salles_bain?: string;
 }
 
 interface VendeurInfo {
@@ -36,6 +39,7 @@ interface VendeurInfo {
   plan: string;
   is_admin: boolean;
   badge_premium: boolean;
+  avatar_url?: string | null;
 }
 
 const TYPES: Record<TypeBien, { label: string; emoji: string; color: string }> = {
@@ -45,14 +49,20 @@ const TYPES: Record<TypeBien, { label: string; emoji: string; color: string }> =
   boutique: { label: "Boutique", emoji: "🏪", color: "bg-purple-100 text-purple-700 border-purple-200" },
 };
 
-const STATUTS: Record<Statut, { label: string; color: string }> = {
+const STATUTS: Record<string, { label: string; color: string }> = {
+  vendre:     { label: "À vendre", color: "bg-green-500" },
+  louer:      { label: "À louer",  color: "bg-orange-500" },
+  // anciens statuts (rétrocompatibilité)
   disponible: { label: "Disponible", color: "bg-green-500" },
-  vendu: { label: "Vendu", color: "bg-red-500" },
-  loue: { label: "Loué", color: "bg-yellow-500" },
+  vendu:      { label: "Vendu",      color: "bg-red-500"   },
+  loue:       { label: "Loué",       color: "bg-yellow-500"},
 };
 
-function formatPrix(prix: number): string {
-  return prix.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " $";
+function formatPrix(prix: number, devise?: string): string {
+  const formatted = prix.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  if (devise === "USD") return `$${formatted}`;
+  if (devise === "EUR") return `${formatted} €`;
+  return `${formatted} ${devise || "FCFA"}`;
 }
 
 const PLATFORM_LOGO = "https://i.postimg.cc/c1QgbZsG/ei_1773937801458_removebg_preview.png";
@@ -79,7 +89,7 @@ export default function ProfilVendeurPage() {
       // Charger infos vendeur
       const { data: vendeurData } = await supabase
         .from("nexora_users" as any)
-        .select("id, nom_prenom, plan, is_admin, badge_premium")
+        .select("id, nom_prenom, plan, is_admin, badge_premium, avatar_url")
         .eq("id", userId)
         .maybeSingle();
 
@@ -157,11 +167,7 @@ export default function ProfilVendeurPage() {
           <span className="font-bold text-gray-800 flex-1 truncate">
             Boutique de {vendeur.nom_prenom}
           </span>
-          <button onClick={handleCopyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100 transition-colors">
-            {copied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copié !" : "Copier le lien"}
-          </button>
+
         </div>
       </div>
 
@@ -174,7 +180,10 @@ export default function ProfilVendeurPage() {
             {/* Avatar avec badge */}
             <div className="relative flex-shrink-0">
               <div className="w-20 h-20 rounded-full bg-white border-4 border-violet-200 shadow-md flex items-center justify-center overflow-hidden">
-                <img src={PLATFORM_LOGO} alt="Logo" className="w-14 h-14 object-contain" />
+                {vendeur.avatar_url
+                  ? <img src={vendeur.avatar_url} alt={vendeur.nom_prenom} className="w-full h-full object-cover" />
+                  : <img src={PLATFORM_LOGO} alt="Logo" className="w-14 h-14 object-contain" />
+                }
               </div>
               {isPremium && (
                 <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-md">
@@ -187,11 +196,6 @@ export default function ProfilVendeurPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="font-black text-xl text-gray-900">{vendeur.nom_prenom}</h1>
-                {isPremium && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 rounded-full flex-shrink-0">
-                    <BadgeCheck className="w-3 h-3 text-white" />
-                  </span>
-                )}
                 {vendeur.is_admin && (
                   <span className="text-xs bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
                     <Crown className="w-3 h-3" /> Admin
@@ -204,19 +208,13 @@ export default function ProfilVendeurPage() {
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-full flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  {annonces.filter(a => a.statut === "disponible").length} disponible{annonces.filter(a => a.statut === "disponible").length > 1 ? "s" : ""}
+                  {annonces.filter(a => a.statut === "vendre" || a.statut === "disponible").length} à vendre
                 </span>
-                <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-1 rounded-full">
-                  Membre Nexora
+                <span className="text-xs bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded-full">
+                  {annonces.filter(a => a.statut === "louer" || a.statut === "loue").length} à louer
                 </span>
               </div>
             </div>
-
-            {/* Bouton partager */}
-            <button onClick={handleCopyLink}
-              className="flex-shrink-0 w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center hover:bg-violet-100 transition-colors">
-              <Share2 className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Lien profil copiable */}
@@ -267,18 +265,20 @@ export default function ProfilVendeurPage() {
               className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
                 !filterStatut ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-500 border-gray-200"
               }`}>
-              Tous statuts
+              Tous
             </button>
-            {(Object.entries(STATUTS) as [Statut, typeof STATUTS[Statut]][]).map(([key, val]) => (
-              <button key={key} onClick={() => setFilterStatut(filterStatut === key ? "" : key)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                  filterStatut === key
-                    ? `${val.color} text-white border-transparent`
-                    : "bg-white text-gray-500 border-gray-200"
-                }`}>
-                {val.label}
-              </button>
-            ))}
+            <button onClick={() => setFilterStatut(filterStatut === "vendre" ? "" : "vendre")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                filterStatut === "vendre" ? "bg-green-500 text-white border-transparent" : "bg-white text-gray-500 border-gray-200"
+              }`}>
+              🏷️ À vendre
+            </button>
+            <button onClick={() => setFilterStatut(filterStatut === "louer" ? "" : "louer")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                filterStatut === "louer" ? "bg-orange-500 text-white border-transparent" : "bg-white text-gray-500 border-gray-200"
+              }`}>
+              🔑 À louer
+            </button>
           </div>
         </div>
 
@@ -303,11 +303,10 @@ export default function ProfilVendeurPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map(annonce => {
-                const typeInfo = TYPES[annonce.type];
-                const statutInfo = STATUTS[annonce.statut];
+                const typeInfo = TYPES[annonce.type] || TYPES["maison"];
+                const statutInfo = STATUTS[annonce.statut] || { label: annonce.statut, color: "bg-gray-400" };
                 const isFavori = annonce.favoris?.includes(currentUserId);
                 const photo = annonce.images?.[0];
-                const annonceUrl = `${window.location.origin}/immobilier/annonce/${annonce.id}`;
 
                 return (
                   <div key={annonce.id}
@@ -351,21 +350,28 @@ export default function ProfilVendeurPage() {
                         </span>
                       </div>
 
-                      <p className="text-violet-600 font-black text-lg mt-2">{formatPrix(annonce.prix)}</p>
+                      <p className="text-violet-600 font-black text-lg mt-2">{formatPrix(annonce.prix, annonce.devise)}</p>
 
-                      {/* Lien direct annonce */}
-                      <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-2">
-                        <p className="text-xs text-gray-400 truncate flex-1 font-mono">
-                          {annonceUrl.replace("https://", "").substring(0, 35)}...
-                        </p>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(annonceUrl);
-                          }}
-                          className="flex-shrink-0 w-6 h-6 rounded-md bg-violet-100 text-violet-600 flex items-center justify-center hover:bg-violet-200">
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      </div>
+                      {/* Détails superficie / chambres */}
+                      {(annonce.superficie || annonce.nb_chambres || annonce.nb_salles_bain) && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {annonce.superficie && (
+                            <span className="text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg px-2 py-0.5 font-semibold">
+                              📐 {annonce.superficie} m²
+                            </span>
+                          )}
+                          {annonce.nb_chambres && (
+                            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-2 py-0.5 font-semibold">
+                              🛏️ {annonce.nb_chambres} ch.
+                            </span>
+                          )}
+                          {annonce.nb_salles_bain && (
+                            <span className="text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg px-2 py-0.5 font-semibold">
+                              🚿 {annonce.nb_salles_bain} SDB
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Actions contact */}
                       <div className="flex gap-2 mt-3">

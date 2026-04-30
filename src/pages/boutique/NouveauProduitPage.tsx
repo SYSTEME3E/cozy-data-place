@@ -3,12 +3,14 @@
  * Accès : /boutique/produits/nouveau (création) ou /boutique/produits/modifier/:id (édition)
  */
 
+
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
+import AIDescriptionHelper from "@/components/AIDescriptionHelper";
 import { getNexoraUser, hasNexoraPremium } from "@/lib/nexora-auth";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -17,6 +19,8 @@ import {
   ArrowLeft, Save, CheckCircle2, ChevronRight
 } from "lucide-react";
 import { formatPrix } from "@/lib/devise-utils";
+import { generateSlug } from "@/lib/slugUtils";
+import { CountdownEditor, CountdownConfig } from "@/components/ProductCountdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Variation { nom: string; valeurs: string[]; }
@@ -25,6 +29,67 @@ interface ReseauxSociaux {
   instagram: string; tiktok: string; facebook: string;
   youtube: string; whatsapp: string; site_web: string;
 }
+
+// ─── SVG Icons des réseaux sociaux ────────────────────────────────────────────
+const InstagramIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="ig-grad1" cx="30%" cy="107%" r="150%">
+        <stop offset="0%" stopColor="#fdf497"/>
+        <stop offset="5%" stopColor="#fdf497"/>
+        <stop offset="45%" stopColor="#fd5949"/>
+        <stop offset="60%" stopColor="#d6249f"/>
+        <stop offset="90%" stopColor="#285AEB"/>
+      </radialGradient>
+    </defs>
+    <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#ig-grad1)"/>
+    <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
+    <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+  </svg>
+);
+
+const TikTokIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5.5" fill="#010101"/>
+    <path d="M17.5 7.5C16.3 7.1 15.4 6.1 15.1 4.8H13V15.6C13 16.7 12.1 17.6 11 17.6C9.9 17.6 9 16.7 9 15.6C9 14.5 9.9 13.6 11 13.6V11.5C8.8 11.5 7 13.3 7 15.6C7 17.9 8.8 19.6 11 19.6C13.2 19.6 15 17.8 15 15.6V10.1C15.9 10.8 17 11.2 18.2 11.2V9.2C17.9 9.2 17.7 9.1 17.5 7.5Z" fill="white"/>
+    <path d="M17.5 7.5C16.3 7.1 15.4 6.1 15.1 4.8H13V15.6C13 16.7 12.1 17.6 11 17.6C9.9 17.6 9 16.7 9 15.6C9 14.5 9.9 13.6 11 13.6V11.5C8.8 11.5 7 13.3 7 15.6C7 17.9 8.8 19.6 11 19.6C13.2 19.6 15 17.8 15 15.6V10.1C15.9 10.8 17 11.2 18.2 11.2V9.2C17.9 9.2 17.7 9.1 17.5 7.5Z" fill="#69C9D0" fillOpacity="0.5"/>
+  </svg>
+);
+
+const FacebookIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5.5" fill="#1877F2"/>
+    <path d="M13.2 19.8V13.2H15.3L15.6 10.8H13.2V9.3C13.2 8.6 13.4 8.1 14.4 8.1H15.7V5.9C15.5 5.9 14.7 5.8 13.8 5.8C11.9 5.8 10.6 6.9 10.6 9.1V10.8H8.5V13.2H10.6V19.8H13.2Z" fill="white"/>
+  </svg>
+);
+
+const YouTubeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5.5" fill="#FF0000"/>
+    <path d="M19.6 8.2C19.4 7.4 18.8 6.8 18 6.6C16.6 6.2 12 6.2 12 6.2C12 6.2 7.4 6.2 6 6.6C5.2 6.8 4.6 7.4 4.4 8.2C4 9.6 4 12 4 12C4 12 4 14.4 4.4 15.8C4.6 16.6 5.2 17.2 6 17.4C7.4 17.8 12 17.8 12 17.8C12 17.8 16.6 17.8 18 17.4C18.8 17.2 19.4 16.6 19.6 15.8C20 14.4 20 12 20 12C20 12 20 9.6 19.6 8.2Z" fill="white"/>
+    <path d="M10.2 14.4L14.4 12L10.2 9.6V14.4Z" fill="#FF0000"/>
+  </svg>
+);
+
+const WhatsAppIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5.5" fill="#25D366"/>
+    <path d="M12 4.5C7.9 4.5 4.5 7.9 4.5 12C4.5 13.4 4.9 14.7 5.6 15.8L4.5 19.5L8.3 18.4C9.4 19 10.7 19.4 12 19.4C16.1 19.4 19.5 16 19.5 12C19.5 7.9 16.1 4.5 12 4.5Z" fill="white"/>
+    <path d="M9.1 8.5C8.9 8.5 8.6 8.6 8.4 8.8C8.2 9 7.6 9.6 7.6 10.8C7.6 12 8.5 13.2 8.6 13.4C8.7 13.6 10.4 16.2 13 17.2C15.1 18 15.5 17.8 16 17.8C16.5 17.7 17.5 17.1 17.7 16.5C17.9 15.9 17.9 15.4 17.8 15.3C17.7 15.2 17.5 15.1 17.2 15C16.9 14.9 15.7 14.3 15.5 14.2C15.3 14.1 15.1 14.1 14.9 14.3C14.7 14.5 14.2 15.1 14.1 15.3C14 15.5 13.8 15.5 13.6 15.4C13.4 15.3 12.7 15.1 11.8 14.3C11.1 13.6 10.6 12.8 10.5 12.6C10.4 12.4 10.5 12.2 10.6 12.1L11 11.6C11.1 11.5 11.2 11.3 11.3 11.1C11.4 11 11.3 10.8 11.3 10.7C11.2 10.6 10.7 9.4 10.5 8.9C10.3 8.6 10.1 8.5 9.9 8.5H9.1Z" fill="#25D366"/>
+  </svg>
+);
+
+const WebsiteIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5.5" fill="#6366F1"/>
+    <circle cx="12" cy="12" r="7" stroke="white" strokeWidth="1.5" fill="none"/>
+    <path d="M12 5C12 5 9.5 8 9.5 12C9.5 16 12 19 12 19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M12 5C12 5 14.5 8 14.5 12C14.5 16 12 19 12 19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M5 12H19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M5.8 8.5H18.2" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+    <path d="M5.8 15.5H18.2" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+  </svg>
+);
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const CATEGORIES_PHYSIQUE = [
@@ -42,15 +107,16 @@ const SECTIONS = [
   { id: "reseaux",    label: "Réseaux",    icon: "🌐" },
   { id: "politiques", label: "Politiques", icon: "📜" },
   { id: "seo",        label: "SEO",        icon: "🔍" },
+  { id: "countdown",  label: "Compte à rebours", icon: "⏱️" },
 ];
 
 const RESEAUX_LINKS = [
-  { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/...",  icon: "📸" },
-  { key: "tiktok",    label: "TikTok",    placeholder: "https://tiktok.com/@...",    icon: "🎵" },
-  { key: "facebook",  label: "Facebook",  placeholder: "https://facebook.com/...",   icon: "👥" },
-  { key: "youtube",   label: "YouTube",   placeholder: "https://youtube.com/@...",   icon: "▶️" },
-  { key: "whatsapp",  label: "WhatsApp",  placeholder: "+229 XX XX XX XX",           icon: "💬" },
-  { key: "site_web",  label: "Site web",  placeholder: "https://votre-site.com",     icon: "🌐" },
+  { key: "instagram", label: "Instagram",  placeholder: "https://instagram.com/...",  Icon: InstagramIcon, color: "#E1306C" },
+  { key: "tiktok",    label: "TikTok",     placeholder: "https://tiktok.com/@...",    Icon: TikTokIcon,    color: "#010101" },
+  { key: "facebook",  label: "Facebook",   placeholder: "https://facebook.com/...",   Icon: FacebookIcon,  color: "#1877F2" },
+  { key: "youtube",   label: "YouTube",    placeholder: "https://youtube.com/@...",   Icon: YouTubeIcon,   color: "#FF0000" },
+  { key: "whatsapp",  label: "WhatsApp",   placeholder: "+229 97 00 00 00 (indicatif obligatoire)",  Icon: WhatsAppIcon,  color: "#25D366" },
+  { key: "site_web",  label: "Site web",   placeholder: "https://votre-site.com",     Icon: WebsiteIcon,   color: "#6366F1" },
 ];
 
 const EMPTY_RESEAUX: ReseauxSociaux = {
@@ -75,8 +141,21 @@ export default function NouveauProduitPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [slugManuel, setSlugManuel] = useState<string>("");
+  const [slugEdite, setSlugEdite] = useState(false);
   const [activeSection, setActiveSection] = useState("general");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const DEFAULT_COUNTDOWN: CountdownConfig = {
+    countdown_actif: false,
+    countdown_fin: null,
+    countdown_titre: null,
+    countdown_bg_couleur: "#ef4444",
+    countdown_texte_couleur: "#ffffff",
+    countdown_style: "banner",
+    countdown_message_fin: null,
+  };
+  const [countdown, setCountdown] = useState<CountdownConfig>(DEFAULT_COUNTDOWN);
 
   const [variations, setVariations] = useState<Variation[]>([]);
   const [newVarNom, setNewVarNom] = useState("");
@@ -87,7 +166,7 @@ export default function NouveauProduitPage() {
   });
 
   const emptyForm = {
-    nom: "", description: "", prix: "", prix_promo: "",
+    nom: "", description: "", prix: "", prix_promo: "", prix_achat: "",
     categorie: "", tags: [] as string[],
     stock: "0", stock_illimite: false,
     photos: [] as string[], photo_url: "",
@@ -101,11 +180,17 @@ export default function NouveauProduitPage() {
   };
 
   const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    if (!slugEdite && form.nom) {
+      setSlugManuel(generateSlug(form.nom));
+    }
+  }, [form.nom, slugEdite]);
+
   const pct = form.prix && form.prix_promo
     ? calcPct(parseFloat(form.prix), parseFloat(form.prix_promo))
     : 0;
 
-  // ── État pour la modale de confirmation de redimensionnement ──
   const [resizeModal, setResizeModal] = useState<{
     file: File;
     originalW: number;
@@ -114,7 +199,6 @@ export default function NouveauProduitPage() {
     inputRef: React.RefObject<HTMLInputElement>;
   } | null>(null);
 
-  // ── Chargement initial ──
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -125,7 +209,6 @@ export default function NouveauProduitPage() {
         .from("boutiques" as any).select("*").eq("user_id", userId).limit(1).maybeSingle();
       if (b) setBoutique(b);
 
-      // Mode édition : charger les données du produit
       if (editingId && b) {
         const { data: p } = await supabase
           .from("produits" as any).select("*, variations_produit(*)")
@@ -136,6 +219,7 @@ export default function NouveauProduitPage() {
             description: (p as any).description || "",
             prix: String((p as any).prix || ""),
             prix_promo: String((p as any).prix_promo || ""),
+            prix_achat: String((p as any).prix_achat || ""),
             categorie: (p as any).categorie || "",
             tags: (p as any).tags || [],
             stock: String((p as any).stock || "0"),
@@ -157,6 +241,20 @@ export default function NouveauProduitPage() {
             seo_description: (p as any).seo_description || "",
           });
           setVariations((p as any).variations_produit || []);
+          if ((p as any).slug) {
+            setSlugManuel((p as any).slug);
+            setSlugEdite(true);
+          }
+          // Charger le compte à rebours
+          setCountdown({
+            countdown_actif: (p as any).countdown_actif === true,
+            countdown_fin: (p as any).countdown_fin ?? null,
+            countdown_titre: (p as any).countdown_titre ?? null,
+            countdown_bg_couleur: (p as any).countdown_bg_couleur ?? "#ef4444",
+            countdown_texte_couleur: (p as any).countdown_texte_couleur ?? "#ffffff",
+            countdown_style: (p as any).countdown_style ?? "banner",
+            countdown_message_fin: (p as any).countdown_message_fin ?? null,
+          });
         }
       }
       setLoading(false);
@@ -164,7 +262,6 @@ export default function NouveauProduitPage() {
     init();
   }, [editingId]);
 
-  // ── Mur premium ──
   if (!isPremium) {
     return (
       <BoutiqueLayout boutiqueName="Nexora Shop">
@@ -173,8 +270,11 @@ export default function NouveauProduitPage() {
             <Crown className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-2xl font-black text-gray-800 mb-2">Fonctionnalité Premium</h2>
-          <p className="text-gray-500 text-sm mb-8 max-w-xs">
-            La boutique est réservée aux membres <span className="font-bold text-yellow-600">Premium</span>.
+          <p className="text-gray-500 text-sm mb-4 max-w-xs">
+            La vente de <span className="font-bold text-gray-800">produits physiques</span> nécessite un abonnement actif.
+          </p>
+          <p className="text-xs text-gray-400 mb-8 max-w-xs">
+            Pour vendre des produits digitaux (ebooks, formations, fichiers...), aucun abonnement n'est requis.
           </p>
           <Button
             onClick={() => navigate("/boutique/parametres")}
@@ -187,11 +287,9 @@ export default function NouveauProduitPage() {
     );
   }
 
-  // ── Constantes dimensions autorisées ──
   const ALLOWED_SIZES = [600, 800, 1080] as const;
   type AllowedSize = typeof ALLOWED_SIZES[number];
 
-  // ── Obtenir les dimensions via FileReader (plus robuste que createObjectURL) ──
   const getImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -207,7 +305,6 @@ export default function NouveauProduitPage() {
       reader.readAsDataURL(file);
     });
 
-  // ── Redimensionner une image vers une taille carré cible via canvas ──
   const resizeImage = (file: File, targetSize: AllowedSize): Promise<Blob> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -237,35 +334,28 @@ export default function NouveauProduitPage() {
       reader.readAsDataURL(file);
     });
 
-  // ── Trouver la taille cible la plus proche (inférieure ou égale) ──
   const findBestTargetSize = (w: number, h: number): AllowedSize | null => {
     const maxDim = Math.max(w, h);
-    // Taille valide si carré + dimension autorisée
     if (w === h && (ALLOWED_SIZES as readonly number[]).includes(w)) return w as AllowedSize;
-    // Sinon on prend la taille autorisée la plus proche inférieure
     const sorted = [...ALLOWED_SIZES].sort((a, b) => b - a);
     return sorted.find((s) => s <= maxDim) ?? ALLOWED_SIZES[0];
   };
 
-  // ── Upload photo — avec validation + redimensionnement intelligent ──
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. Type MIME
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!allowedTypes.includes(file.type)) {
       toast({ title: "Format non supporté", description: "JPG, PNG, WEBP ou GIF uniquement.", variant: "destructive" });
       e.target.value = ""; return;
     }
 
-    // 2. Taille fichier
     if (file.size > 5 * 1024 * 1024) {
       toast({ title: "Fichier trop lourd", description: "Maximum 5 MB par image.", variant: "destructive" });
       e.target.value = ""; return;
     }
 
-    // 3. Lire les dimensions
     let dims: { width: number; height: number };
     try {
       dims = await getImageDimensions(file);
@@ -278,20 +368,17 @@ export default function NouveauProduitPage() {
     const isSquare = width === height;
     const isAllowedSize = isSquare && (ALLOWED_SIZES as readonly number[]).includes(width);
 
-    // 4a. ✅ Image parfaite — upload direct
     if (isAllowedSize) {
       await doUpload(file);
       e.target.value = "";
       return;
     }
 
-    // 4b. ❌ Non conforme — trouver la meilleure taille cible et afficher la modale
     const targetSize = findBestTargetSize(width, height) ?? 800;
     setResizeModal({ file, originalW: width, originalH: height, targetSize, inputRef: fileInputRef });
     e.target.value = "";
   };
 
-  // ── Upload effectif (fichier déjà validé ou redimensionné) ──
   const doUpload = async (fileOrBlob: File | Blob, forceJpeg = false) => {
     setUploadingPhoto(true);
     try {
@@ -313,7 +400,6 @@ export default function NouveauProduitPage() {
     }
   };
 
-  // ── Handler : l'utilisateur choisit de redimensionner ──
   const handleConfirmResize = async () => {
     if (!resizeModal) return;
     setResizeModal(null);
@@ -325,10 +411,8 @@ export default function NouveauProduitPage() {
     }
   };
 
-  // ── Handler : l'utilisateur préfère choisir une autre image ──
   const handleCancelResize = () => {
     setResizeModal(null);
-    // Ré-ouvrir le sélecteur de fichiers
     setTimeout(() => fileInputRef.current?.click(), 100);
   };
 
@@ -354,13 +438,16 @@ export default function NouveauProduitPage() {
     setNewPaiement({ reseau: "", numero: "", nom_titulaire: "" });
   };
 
-  // ── Soumission ──
   const handleSubmit = async () => {
     if (!boutique) {
       toast({ title: "Boutique introuvable", description: "Configurez d'abord votre boutique.", variant: "destructive" }); return;
     }
     if (!form.nom || !form.prix) {
       toast({ title: "Champs obligatoires", description: "Le nom et le prix sont requis.", variant: "destructive" }); return;
+    }
+    const finalSlug = slugManuel.trim() || generateSlug(form.nom);
+    if (!finalSlug) {
+      toast({ title: "Slug invalide", description: "Le slug URL ne peut pas être vide.", variant: "destructive" }); return;
     }
     setSaving(true);
     const payload = {
@@ -369,6 +456,7 @@ export default function NouveauProduitPage() {
       description: form.description || null,
       prix: parseFloat(form.prix),
       prix_promo: form.prix_promo ? parseFloat(form.prix_promo) : null,
+      prix_achat: form.prix_achat ? parseFloat(form.prix_achat) : null,
       categorie: form.categorie || null,
       tags: form.tags,
       stock: form.stock_illimite ? 0 : parseInt(form.stock) || 0,
@@ -387,6 +475,15 @@ export default function NouveauProduitPage() {
       sku: form.sku || null,
       seo_titre: (form as any).seo_titre || null,
       seo_description: (form as any).seo_description || null,
+      slug: slugManuel.trim() || generateSlug(form.nom),
+      // Compte à rebours
+      countdown_actif: countdown.countdown_actif,
+      countdown_fin: countdown.countdown_fin,
+      countdown_titre: countdown.countdown_titre || null,
+      countdown_bg_couleur: countdown.countdown_bg_couleur,
+      countdown_texte_couleur: countdown.countdown_texte_couleur,
+      countdown_style: countdown.countdown_style,
+      countdown_message_fin: countdown.countdown_message_fin || null,
     };
 
     let produitId = editingId;
@@ -425,7 +522,7 @@ export default function NouveauProduitPage() {
     return (
       <BoutiqueLayout boutiqueName="">
         <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-[#FF1A00] border-t-transparent rounded-full animate-spin" />
         </div>
       </BoutiqueLayout>
     );
@@ -439,7 +536,7 @@ export default function NouveauProduitPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/boutique/produits")}
-            className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0"
+            className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-[#1D4ED8] flex items-center justify-center transition-colors flex-shrink-0 group"
           >
             <ArrowLeft className="w-4 h-4 text-gray-600" />
           </button>
@@ -464,7 +561,7 @@ export default function NouveauProduitPage() {
               onClick={() => setActiveSection(s.id)}
               className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeSection === s.id
-                  ? "bg-pink-500 text-white shadow-sm shadow-pink-200"
+                  ? "bg-[#1D4ED8] text-white shadow-sm shadow-blue-200"
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
               }`}
             >
@@ -494,12 +591,51 @@ export default function NouveauProduitPage() {
               </div>
 
               <div>
+                <label className="text-sm font-semibold text-gray-700">Slug URL (SEO)</label>
+                <div className="text-xs text-gray-400 mb-1.5 mt-0.5">
+                  🌐 votre-boutique.com/produit/
+                  <span className="text-[#FF1A00] font-semibold font-mono">
+                    {slugManuel || "…"}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={slugManuel}
+                    onChange={(e) => {
+                      setSlugEdite(true);
+                      setSlugManuel(generateSlug(e.target.value) || e.target.value.toLowerCase());
+                    }}
+                    placeholder="chaussure-nike-air-max"
+                    className="h-10 rounded-xl font-mono text-sm"
+                  />
+                  {slugEdite && (
+                    <button
+                      type="button"
+                      onClick={() => { setSlugEdite(false); setSlugManuel(generateSlug(form.nom)); }}
+                      className="px-3 py-2 rounded-xl border border-gray-200 text-xs text-gray-500 hover:text-[#1D4ED8] transition whitespace-nowrap"
+                    >
+                      ↺ Reset
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Généré automatiquement. Modifiable pour personnaliser l&apos;URL.
+                </p>
+              </div>
+
+              <div>
                 <label className="text-sm font-semibold text-gray-700">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Décrivez votre produit en détail : matière, utilisation, avantages..."
-                  className="mt-1.5 w-full h-36 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300 transition"
+                  className="mt-1.5 w-full h-36 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] focus:border-[#1D4ED8] transition"
+                />
+                <AIDescriptionHelper
+                  nomProduit={form.nom}
+                  categorie={form.categorie}
+                  prix={form.prix}
+                  onDescriptionGenerated={(desc) => setForm({ ...form, description: desc })}
                 />
               </div>
 
@@ -508,7 +644,7 @@ export default function NouveauProduitPage() {
                 <select
                   value={form.categorie}
                   onChange={(e) => setForm({ ...form, categorie: e.target.value })}
-                  className="mt-1.5 w-full h-11 px-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300 transition"
+                  className="mt-1.5 w-full h-11 px-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] focus:border-[#1D4ED8] transition"
                 >
                   <option value="">-- Sélectionner une catégorie --</option>
                   {CATEGORIES_PHYSIQUE.map((c) => (
@@ -540,14 +676,14 @@ export default function NouveauProduitPage() {
                     {form.tags.map((tag, i) => (
                       <span
                         key={i}
-                        className="flex items-center gap-1.5 bg-pink-50 text-pink-600 text-xs px-3 py-1.5 rounded-full border border-pink-100"
+                        className="flex items-center gap-1.5 bg-[#1D4ED8]/5 text-[#1D4ED8] text-xs px-3 py-1.5 rounded-full border border-[#1D4ED8]"
                       >
                         <Tag className="w-3 h-3" /> {tag}
                         <button
                           onClick={() =>
                             setForm((prev) => ({ ...prev, tags: prev.tags.filter((_, j) => j !== i) }))
                           }
-                          className="ml-0.5 text-pink-400 hover:text-pink-600"
+                          className="ml-0.5 text-[#FF1A00] hover:text-[#FF1A00]"
                         >×</button>
                       </span>
                     ))}
@@ -595,7 +731,7 @@ export default function NouveauProduitPage() {
                     <p className="text-sm font-semibold text-gray-800">Actif</p>
                     <p className="text-xs text-gray-400">Visible en boutique</p>
                   </div>
-                  <div className={`relative w-11 h-6 rounded-full transition-colors ${form.actif ? "bg-green-500" : "bg-gray-300"}`}>
+                  <div className={`relative w-11 h-6 rounded-full transition-colors ${form.actif ? "bg-[#008000]" : "bg-gray-300"}`}>
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${form.actif ? "left-6" : "left-1"}`} />
                   </div>
                 </div>
@@ -632,7 +768,7 @@ export default function NouveauProduitPage() {
                           className="w-24 h-24 object-cover rounded-2xl border-2 border-gray-100 shadow-sm"
                         />
                         {i === 0 && (
-                          <span className="absolute bottom-1.5 left-1.5 bg-pink-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          <span className="absolute bottom-1.5 left-1.5 bg-[#FF1A00] text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
                             Principale
                           </span>
                         )}
@@ -650,7 +786,7 @@ export default function NouveauProduitPage() {
                   type="button" variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingPhoto}
-                  className="w-full h-11 rounded-xl gap-2 border-dashed border-2 border-pink-200 text-pink-600 hover:bg-pink-50"
+                  className="w-full h-11 rounded-xl gap-2 border-dashed border-2 border-[#1D4ED8] text-[#1D4ED8] hover:bg-[#1D4ED8] hover:text-white"
                 >
                   <Image className="w-4 h-4" />
                   {uploadingPhoto ? "Upload en cours…" : "Choisir une photo depuis l'appareil"}
@@ -714,20 +850,49 @@ export default function NouveauProduitPage() {
                     value={form.prix_promo}
                     onChange={(e) => setForm({ ...form, prix_promo: e.target.value })}
                     placeholder="0"
-                    className="mt-1.5 h-11 rounded-xl text-base font-bold text-rose-500"
+                    className="mt-1.5 h-11 rounded-xl text-base font-bold text-[#FF1A00]"
                   />
                   {pct > 0 && (
-                    <p className="text-xs text-green-600 font-bold mt-1">🎉 Réduction de {pct}%</p>
+                    <p className="text-xs text-[#008000] font-bold mt-1">🎉 Réduction de {pct}%</p>
                   )}
                 </div>
               </div>
 
-              {/* Aperçu prix */}
+              {/* Prix d'achat (coût) */}
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-[#305CDE] rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">💰</span>
+                  <div>
+                    <p className="text-sm font-bold text-[#305CDE] dark:text-[#305CDE]">Prix d'achat (coût)</p>
+                    <p className="text-xs text-[#305CDE] dark:text-[#305CDE]">Sert à calculer vos marges dans la page Prix & Intérêts</p>
+                  </div>
+                </div>
+                <Input
+                  type="number" min="0"
+                  value={form.prix_achat}
+                  onChange={(e) => setForm({ ...form, prix_achat: e.target.value })}
+                  placeholder="Combien vous coûte ce produit ?"
+                  className="h-11 rounded-xl text-base font-bold bg-white dark:bg-gray-800"
+                />
+                {form.prix_achat && form.prix && (() => {
+                  const achat = parseFloat(form.prix_achat);
+                  const vente = form.prix_promo ? parseFloat(form.prix_promo) : parseFloat(form.prix);
+                  const marge = vente - achat;
+                  const pctMarge = achat > 0 ? ((marge / achat) * 100).toFixed(0) : null;
+                  return (
+                    <div className={`mt-2 flex items-center gap-2 text-xs font-bold ${marge >= 0 ? "text-[#008000] dark:text-[#008000]" : "text-red-500"}`}>
+                      {marge >= 0 ? "📈" : "📉"} Marge : {marge >= 0 ? "+" : ""}{formatPrix(marge, boutique?.devise || "XOF")}
+                      {pctMarge && <span className="opacity-70">({marge >= 0 ? "+" : ""}{pctMarge}%)</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+
               {form.prix && (
                 <div className="bg-gray-50 rounded-2xl p-4">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Aperçu</p>
                   <div className="flex items-center gap-4 flex-nowrap">
-                    <span className="text-2xl font-black text-rose-500 whitespace-nowrap">
+                    <span className="text-2xl font-black text-[#FF1A00] whitespace-nowrap">
                       {formatPrix(
                         form.prix_promo ? parseFloat(form.prix_promo) : parseFloat(form.prix),
                         boutique?.devise || "XOF"
@@ -752,7 +917,7 @@ export default function NouveauProduitPage() {
                     <p className="text-sm font-medium text-gray-800">Stock illimité</p>
                     <p className="text-xs text-gray-400">Idéal pour les services ou produits numériques</p>
                   </div>
-                  <div className={`relative w-11 h-6 rounded-full transition-colors ${form.stock_illimite ? "bg-green-500" : "bg-gray-300"}`}>
+                  <div className={`relative w-11 h-6 rounded-full transition-colors ${form.stock_illimite ? "bg-[#008000]" : "bg-gray-300"}`}>
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${form.stock_illimite ? "left-6" : "left-1"}`} />
                   </div>
                 </div>
@@ -799,7 +964,7 @@ export default function NouveauProduitPage() {
                 </div>
               ))}
 
-              <div className="border-2 border-dashed border-pink-200 rounded-2xl p-4 space-y-3 bg-pink-50/30">
+              <div className="border-2 border-dashed border-[#1D4ED8] rounded-2xl p-4 space-y-3 bg-[#1D4ED8]/5">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nouvelle variation</p>
                 <Input
                   value={newVarNom}
@@ -816,7 +981,7 @@ export default function NouveauProduitPage() {
                 <Button
                   type="button" size="sm"
                   onClick={addVariation}
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white rounded-xl gap-2"
+                  className="w-full bg-[#1D4ED8] hover:bg-[#1B44B8] text-white rounded-xl gap-2"
                 >
                   <Plus className="w-3.5 h-3.5" /> Ajouter la variation
                 </Button>
@@ -835,7 +1000,7 @@ export default function NouveauProduitPage() {
                   <p className="text-sm font-semibold text-gray-800">Paiement à la réception</p>
                   <p className="text-xs text-gray-400 mt-0.5">Le client paie à la livraison</p>
                 </div>
-                <div className={`relative w-11 h-6 rounded-full transition-colors ${form.paiement_reception ? "bg-green-500" : "bg-gray-300"}`}>
+                <div className={`relative w-11 h-6 rounded-full transition-colors ${form.paiement_reception ? "bg-[#008000]" : "bg-gray-300"}`}>
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${form.paiement_reception ? "left-6" : "left-1"}`} />
                 </div>
               </div>
@@ -866,7 +1031,7 @@ export default function NouveauProduitPage() {
                 </div>
               ))}
 
-              <div className="border-2 border-dashed border-pink-200 rounded-2xl p-4 space-y-3 bg-pink-50/30">
+              <div className="border-2 border-dashed border-[#1D4ED8] rounded-2xl p-4 space-y-3 bg-[#1D4ED8]/5">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Ajouter Mobile Money</p>
                 <Input
                   value={newPaiement.reseau}
@@ -889,7 +1054,7 @@ export default function NouveauProduitPage() {
                 <Button
                   type="button" size="sm"
                   onClick={addPaiement}
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white rounded-xl gap-2"
+                  className="w-full bg-[#1D4ED8] hover:bg-[#1B44B8] text-white rounded-xl gap-2"
                 >
                   <Plus className="w-3.5 h-3.5" /> Ajouter
                 </Button>
@@ -905,8 +1070,9 @@ export default function NouveauProduitPage() {
               </p>
               {RESEAUX_LINKS.map((r) => (
                 <div key={r.key}>
-                  <label className="text-sm font-medium text-gray-700">
-                    {r.icon} {r.label}
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+                    <r.Icon />
+                    {r.label}
                   </label>
                   <Input
                     value={(form.reseaux_sociaux as any)[r.key] || ""}
@@ -917,8 +1083,13 @@ export default function NouveauProduitPage() {
                       }))
                     }
                     placeholder={r.placeholder}
-                    className="mt-1.5 h-10 rounded-xl"
+                    className="h-10 rounded-xl"
                   />
+                  {r.key === "whatsapp" && (
+                    <p className="text-xs text-amber-600 font-medium mt-1.5 flex items-center gap-1">
+                      ⚠️ Commencez toujours par l&apos;indicatif du pays — ex: <span className="font-bold">+229</span> Bénin, <span className="font-bold">+225</span> Côte d&apos;Ivoire, <span className="font-bold">+221</span> Sénégal…
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -942,7 +1113,7 @@ export default function NouveauProduitPage() {
                   value={form.politique_remboursement}
                   onChange={(e) => setForm({ ...form, politique_remboursement: e.target.value })}
                   placeholder="Ex : Remboursement accepté dans les 7 jours suivant la réception si le produit est défectueux…"
-                  className="mt-1.5 w-full h-32 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300 transition"
+                  className="mt-1.5 w-full h-32 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] focus:border-[#1D4ED8] transition"
                 />
               </div>
               <div>
@@ -951,7 +1122,7 @@ export default function NouveauProduitPage() {
                   value={form.politique_confidentialite}
                   onChange={(e) => setForm({ ...form, politique_confidentialite: e.target.value })}
                   placeholder="Ex : Vos données personnelles sont utilisées uniquement pour traiter votre commande…"
-                  className="mt-1.5 w-full h-32 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300 transition"
+                  className="mt-1.5 w-full h-32 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] focus:border-[#1D4ED8] transition"
                 />
               </div>
             </div>
@@ -961,7 +1132,7 @@ export default function NouveauProduitPage() {
           {activeSection === "seo" && (
             <div className="space-y-5">
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                <p className="text-xs text-blue-700 font-medium">
+                <p className="text-xs text-[#305CDE] font-medium">
                   🔍 Optimisez votre fiche produit pour être mieux référencé sur Google.
                 </p>
               </div>
@@ -983,7 +1154,7 @@ export default function NouveauProduitPage() {
                   onChange={(e) => setForm({ ...form, seo_description: e.target.value } as any)}
                   placeholder="Description courte et percutante du produit pour Google…"
                   maxLength={160}
-                  className="mt-1.5 w-full h-24 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300 transition"
+                  className="mt-1.5 w-full h-24 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] focus:border-[#1D4ED8] transition"
                 />
                 <p className="text-xs text-gray-400 mt-1">{((form as any).seo_description || "").length}/160 caractères</p>
               </div>
@@ -991,10 +1162,10 @@ export default function NouveauProduitPage() {
               {((form as any).seo_titre || form.nom) && (
                 <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Aperçu Google</p>
-                  <p className="text-blue-600 text-sm font-semibold line-clamp-1">
+                  <p className="text-[#305CDE] text-sm font-semibold line-clamp-1">
                     {(form as any).seo_titre || form.nom}
                   </p>
-                  <p className="text-green-600 text-xs mt-0.5 line-clamp-1">
+                  <p className="text-[#008000] text-xs mt-0.5 line-clamp-1">
                     votre-boutique.com/produits/{form.nom.toLowerCase().replace(/\s+/g, "-")}
                   </p>
                   <p className="text-gray-500 text-xs mt-1 line-clamp-2">
@@ -1004,15 +1175,26 @@ export default function NouveauProduitPage() {
               )}
             </div>
           )}
-        </div>
 
-        {/* ── Barre de progression sections ── */}
+          {/* ── COMPTE À REBOURS ── */}
+          {activeSection === "countdown" && (
+            <div className="space-y-5">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <p className="text-xs text-red-700 font-medium">
+                  ⏱️ Ajoutez un compte à rebours pour créer de l'urgence et booster vos ventes.
+                  Les couleurs, le style et le texte sont entièrement personnalisables.
+                </p>
+              </div>
+              <CountdownEditor config={countdown} onChange={setCountdown} />
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-1.5 px-1">
           {SECTIONS.map((s) => (
             <div
               key={s.id}
               className={`flex-1 h-1 rounded-full transition-all ${
-                activeSection === s.id ? "bg-pink-500" : "bg-gray-200"
+                activeSection === s.id ? "bg-[#1D4ED8]" : "bg-gray-200"
               }`}
             />
           ))}
@@ -1033,8 +1215,8 @@ export default function NouveauProduitPage() {
             disabled={saving}
             className={`flex-1 h-12 rounded-2xl font-bold gap-2 text-white shadow-lg transition-all ${
               saved
-                ? "bg-green-500 hover:bg-green-600 shadow-green-200"
-                : "bg-pink-500 hover:bg-pink-600 shadow-pink-200"
+                ? "bg-[#008000] hover:bg-[#008000] shadow-green-200"
+                : "bg-[#1D4ED8] hover:bg-[#1B44B8] shadow-blue-200"
             }`}
           >
             {saved ? (
@@ -1074,7 +1256,7 @@ export default function NouveauProduitPage() {
                     key={s}
                     className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
                       s === resizeModal.targetSize
-                        ? "bg-rose-100 text-rose-600 border-rose-200"
+                        ? "bg-red-100 text-[#FF1A00] border-rose-200"
                         : "bg-gray-100 text-gray-500 border-gray-200"
                     }`}
                   >
@@ -1084,14 +1266,14 @@ export default function NouveauProduitPage() {
               </div>
               <p className="text-xs text-gray-500 pt-1">
                 Sera rognée et redimensionnée en{" "}
-                <span className="font-bold text-rose-500">{resizeModal.targetSize}×{resizeModal.targetSize} px</span>.
+                <span className="font-bold text-[#FF1A00]">{resizeModal.targetSize}×{resizeModal.targetSize} px</span>.
               </p>
             </div>
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleConfirmResize}
                 disabled={uploadingPhoto}
-                className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-12 bg-[#1D4ED8] hover:bg-[#1B44B8] text-white font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {uploadingPhoto ? (
                   <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Redimensionnement…</>

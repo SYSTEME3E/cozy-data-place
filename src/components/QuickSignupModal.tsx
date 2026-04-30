@@ -152,8 +152,8 @@ export default function QuickSignupModal({
           </div>
 
           {affiliateRef && affiliateRef !== "public" && (
-            <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-2 rounded-xl">
-              <span className="text-emerald-500">✅</span>
+            <div className="flex items-center gap-2 text-xs text-[#008000] bg-[#008000]/10 px-3 py-2 rounded-xl">
+              <span className="text-[#008000]">✅</span>
               Code parrain détecté : <span className="font-bold">{affiliateRef}</span>
             </div>
           )}

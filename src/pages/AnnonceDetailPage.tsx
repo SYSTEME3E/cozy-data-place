@@ -15,6 +15,7 @@ interface Annonce {
   titre: string;
   description: string;
   prix: number;
+  devise?: string;
   type: string;
   ville: string;
   quartier: string;
@@ -24,6 +25,9 @@ interface Annonce {
   statut: string;
   favoris?: string[];
   created_at: string;
+  superficie?: string;
+  nb_chambres?: string;
+  nb_salles_bain?: string;
 }
 
 const TYPE_LABELS: Record<string, { label: string; emoji: string; color: string; bg: string }> = {
@@ -34,13 +38,19 @@ const TYPE_LABELS: Record<string, { label: string; emoji: string; color: string;
 };
 
 const STATUT_INFO: Record<string, { label: string; color: string }> = {
+  vendre:     { label: "À vendre", color: "#22c55e" },
+  louer:      { label: "À louer",  color: "#f97316" },
+  // anciens statuts (rétrocompatibilité)
   disponible: { label: "Disponible", color: "#22c55e" },
   vendu:      { label: "Vendu",      color: "#ef4444" },
   loue:       { label: "Loué",       color: "#eab308" },
 };
 
-function formatPrix(prix: number) {
-  return prix.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " FCFA";
+function formatPrix(prix: number, devise?: string) {
+  const formatted = prix.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  if (devise === "USD") return `$${formatted}`;
+  if (devise === "EUR") return `${formatted} €`;
+  return `${formatted} ${devise || "FCFA"}`;
 }
 
 export default function AnnonceDetailPage() {
@@ -200,13 +210,43 @@ export default function AnnonceDetailPage() {
               </div>
 
               <div className="text-3xl font-black" style={{ color: "#7c3aed" }}>
-                {formatPrix(annonce.prix)}
+                {formatPrix(annonce.prix, annonce.devise)}
               </div>
 
               {annonce.description && (
                 <p className="text-sm text-muted-foreground leading-relaxed border-t border-border pt-4">
                   {annonce.description}
                 </p>
+              )}
+
+              {/* ── Détails spécifiques ── */}
+              {(annonce.superficie || annonce.nb_chambres || annonce.nb_salles_bain) && (
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Caractéristiques</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {annonce.superficie && (
+                      <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-2xl p-3 text-center">
+                        <div className="text-2xl mb-1">📐</div>
+                        <p className="font-black text-green-700 dark:text-green-400 text-sm">{annonce.superficie} m²</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Superficie</p>
+                      </div>
+                    )}
+                    {annonce.nb_chambres && (
+                      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-3 text-center">
+                        <div className="text-2xl mb-1">🛏️</div>
+                        <p className="font-black text-blue-700 dark:text-blue-400 text-sm">{annonce.nb_chambres}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Chambre{Number(annonce.nb_chambres) > 1 ? "s" : ""}</p>
+                      </div>
+                    )}
+                    {annonce.nb_salles_bain && (
+                      <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-2xl p-3 text-center">
+                        <div className="text-2xl mb-1">🚿</div>
+                        <p className="font-black text-purple-700 dark:text-purple-400 text-sm">{annonce.nb_salles_bain}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Salle{Number(annonce.nb_salles_bain) > 1 ? "s" : ""} de bain</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* Vendeur */}

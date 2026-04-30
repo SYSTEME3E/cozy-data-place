@@ -80,14 +80,14 @@ const SwUpdateNotifier = () => {
         animation: "swFadeUp 0.4s ease",
       }}
     >
-      <RefreshCw size={16} color="#6366f1" />
+      <RefreshCw size={16} color="#305CDE" />
       <span style={{ color: "#fff", fontSize: "13px", fontWeight: 600 }}>
         Nouvelle version disponible
       </span>
       <button
         onClick={applyUpdate}
         style={{
-          background: "#6366f1",
+          background: "#305CDE",
           border: "none",
           cursor: "pointer",
           color: "#fff",

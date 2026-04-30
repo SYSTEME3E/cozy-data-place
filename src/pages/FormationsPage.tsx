@@ -22,7 +22,6 @@ import { getNexoraUser } from "@/lib/nexora-auth";
 import { distributeFormationCommissions, formatMontant } from "@/lib/mlm-utils";
 import { useToast } from "@/hooks/use-toast";
 import { initPayment } from "@/lib/Moneroo";
-import { useAffiliateTracking } from "@/lib/useAffiliateTracking";
 
 interface Formation {
   id: string;
@@ -41,9 +40,6 @@ interface Purchase {
 }
 
 export default function FormationsPage() {
-  // ✅ FIX : Détecte ?ref= dans l'URL, stocke le code affilié et enregistre le clic
-  useAffiliateTracking();
-
   const [formations, setFormations] = useState<Formation[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +56,6 @@ export default function FormationsPage() {
   const navigate = useNavigate();
 
   const user = getNexoraUser();
-  const affiliateRef = searchParams.get("ref");
 
   useEffect(() => {
     loadData();
@@ -111,18 +106,12 @@ export default function FormationsPage() {
             amount: 0,
             currency: "XOF",
             status: "completed",
-            affiliate_id: affiliateRef || null,
           })
           .select()
           .maybeSingle();
 
         if (error) throw error;
 
-        if (purchase && affiliateRef) {
-          await distributeFormationCommissions(
-            currentUser.id, affiliateRef, 0, purchase.id
-          );
-        }
         toast({ title: "Accès accordé ✅", description: `Vous avez accès à "${formation.titre}"` });
         await loadData();
         setSelectedFormation(formation);
@@ -142,7 +131,6 @@ export default function FormationsPage() {
           formation_id: formation.id,
           product_name: formation.titre,
           user_id: currentUser.id,
-          affiliate_id: affiliateRef || "",
         },
       });
 
@@ -153,7 +141,6 @@ export default function FormationsPage() {
           amount: formation.prix,
           currency: "XOF",
           status: "pending",
-          affiliate_id: affiliateRef || null,
           payment_id: result.payment_id || null,
         });
         toast({ title: "Redirection vers le paiement ✅" });
@@ -279,7 +266,7 @@ export default function FormationsPage() {
               </p>
             </div>
             <button
-              onClick={() => navigate(`/register${affiliateRef ? `?ref=${affiliateRef}` : ""}`)}
+              onClick={() => navigate(`/register`)}
               className="flex-shrink-0 bg-primary text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors"
             >
               Créer un compte
@@ -321,7 +308,7 @@ export default function FormationsPage() {
                   key={formation.id}
                   className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg transition-all group cursor-pointer"
                   onClick={() =>
-                    navigate(`/formations/${formation.id}${affiliateRef ? `?ref=${affiliateRef}` : ""}`)
+                    navigate(`/formations/${formation.id}`)
                   }
                 >
                   {/* Image */}
@@ -433,7 +420,6 @@ export default function FormationsPage() {
         open={signupModalOpen}
         onClose={() => { setSignupModalOpen(false); setPendingFormation(null); }}
         onSuccess={handleSignupSuccess}
-        affiliateRef={affiliateRef}
         formationTitre={pendingFormation?.titre}
       />
 

@@ -176,7 +176,64 @@ Deno.serve(async (req) => {
         console.log(`✅ Premium activé pour ${finalUserId}`);
       }
 
-      // ── PRODUCT (achat produit ou formation) ─────────────────
+      // ── VENTE DIGITALE (produit numérique via page publique) ──────────────
+      else if (finalType === "vente_digitale") {
+        const commandeId   = finalMeta.commande_id   ?? null;
+        const sellerUserId = finalMeta.seller_user_id ?? finalUserId ?? null;
+        const montantBrut  = finalNet > 0 ? finalNet : (tx.amount ?? amountRaw ?? 0);
+        const commission   = Math.round(montantBrut * 0.06);
+        const montantNet   = Math.max(0, montantBrut - commission);
+
+        // 1. Marquer la commande comme payée
+        if (commandeId) {
+          await supabase.from("commandes" as any)
+            .update({
+              statut_paiement: "paye",
+              statut:          "confirmee",
+              kkiapay_id:      reference ?? null,
+            })
+            .eq("id", commandeId);
+          console.log(`✅ Commande digitale payée : ${commandeId}`);
+        }
+
+        // 2. Créditer le portefeuille du vendeur
+        if (sellerUserId && montantNet > 0) {
+          // Vérifier si déjà traité (idempotence)
+          const { data: existing } = await supabase
+            .from("nexora_transactions" as any)
+            .select("id")
+            .eq("reference", reference ?? "")
+            .eq("type", "vente_digitale")
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase.from("nexora_transactions" as any).insert({
+              user_id:     sellerUserId,
+              type:        "vente_digitale",
+              montant:     montantNet,
+              commission:  commission,
+              statut:      "succes",
+              description: `Vente digitale — commande ${commandeId ?? "?"}`,
+              reference:   reference ?? commandeId ?? null,
+              metadata: {
+                commande_id:  commandeId,
+                montant_brut: montantBrut,
+              },
+            });
+
+            // Notification au vendeur
+            await supabase.from("nexora_notifications" as any).insert({
+              user_id: sellerUserId,
+              titre:   "💰 Vente digitale confirmée !",
+              message: `Vous avez reçu ${montantNet} FCFA pour une vente de produit digital.`,
+              type:    "success",
+            });
+            console.log(`💰 Vendeur ${sellerUserId} crédité de ${montantNet} FCFA (commission: ${commission})`);
+          } else {
+            console.log(`⚠️ Transaction vente_digitale déjà traitée pour référence ${reference}`);
+          }
+        }
+      }
       else if (finalType === "product" && finalUserId) {
         const formationId = finalMeta.formation_id ?? null;
         const productId   = finalMeta.product_id   ?? null;

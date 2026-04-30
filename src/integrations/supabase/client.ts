@@ -10,8 +10,8 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: false,    // Auth custom (nexora-auth) — pas de session Supabase à persister
+    autoRefreshToken: false,  // Pas de refresh automatique du token
+    detectSessionInUrl: false, // Pas de lecture de session dans l'URL
   }
 });

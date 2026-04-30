@@ -5,46 +5,50 @@ import {
   Search, ChevronRight, TrendingUp, History,
   HandCoins, Receipt, Store, BadgeCheck, Map,
   ShieldCheck, ArrowLeftRight, Sun, Moon, Phone, CreditCard,
-  GraduationCap, Network, Coins, BookOpen, Filter, Sparkles, Leaf, ClipboardList
+  GraduationCap, Coins, BookOpen, Filter, Sparkles, Leaf, ClipboardList, ShoppingBag,
+  Headphones, Users, Info
 } from "lucide-react";
 import { clearSession, isAdminUser } from "@/lib/app-utils";
 import { logoutUser, getNexoraUser, isNexoraAdmin, refreshNexoraSession } from "@/lib/nexora-auth";
 import { Input } from "@/components/ui/input";
 import { ReactNode } from "react";
-import nexoraLogo from "@/assets/nexora-logo.png";
 import NexoraNotifications from "@/components/NexoraNotifications";
 import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
 
+
 const getNavItems = (isAdmin: boolean) => {
   const items = [
-    { path: "/dashboard",        icon: LayoutDashboard, label: "Tableau de bord",     color: "text-red-400",     bg: "bg-red-400/10"     },
-    { path: "/formations",       icon: GraduationCap,   label: "Formations",          color: "text-emerald-400", bg: "bg-emerald-400/10" },
-    { path: "/mes-formations",   icon: BookOpen,        label: "Mes Formations",       color: "text-sky-400",     bg: "bg-sky-400/10"     },
-    { path: "/nexora-academy",   icon: Sparkles,        label: "Nexora Academy",       color: "text-fuchsia-400", bg: "bg-fuchsia-400/10" },
-    { path: "/reseau",           icon: Network,         label: "Mon Réseau MLM",       color: "text-violet-400",  bg: "bg-violet-400/10"  },
-    { path: "/commissions",      icon: Coins,           label: "Mes Commissions",      color: "text-yellow-400",  bg: "bg-yellow-400/10"  },
-    { path: "/mes-commissions",  icon: TrendingUp,      label: "Stats Affilié",        color: "text-orange-400",  bg: "bg-orange-400/10"  },
-    { path: "/historique",       icon: History,         label: "Historique",           color: "text-accent",      bg: "bg-accent/10"      },
-    { path: "/transfert",        icon: ArrowLeftRight,  label: "Nexora Transfert",    color: "text-violet-400",  bg: "bg-violet-400/10"  },
-    { path: "/paylink",          icon: CreditCard,      label: "Nexora PayLink",      color: "text-cyan-400",    bg: "bg-cyan-400/10"    },
-    { path: "/factures",         icon: Receipt,         label: "Factures",             color: "text-purple-300",  bg: "bg-purple-300/10"  },
-    { path: "/boutique",         icon: Store,           label: "Nexora Shop",          color: "text-pink-300",    bg: "bg-pink-300/10"    },
-    { path: "/yupi-shop",        icon: Leaf,            label: "BIEN-ÊTRE YUPI",       color: "text-green-400",   bg: "bg-green-400/10"   },
-    // { path: "/funnels",          icon: Filter,          label: "Funnels",              color: "text-indigo-400",  bg: "bg-indigo-400/10"  },
-    { path: "/contacts-whatsapp", icon: Phone,           label: "Contacts WhatsApp",    color: "text-green-400",   bg: "bg-green-400/10"   },
-    { path: "/immobilier",        icon: Map,             label: "Marché Immobilier",    color: "text-blue-300",    bg: "bg-blue-300/10"    },
+    { path: "/dashboard",        icon: LayoutDashboard, label: "Tableau de bord",     color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/mes-formations",   icon: BookOpen,        label: "Mes Formations",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/nexora-academy",   icon: Sparkles,        label: "Nexora Academy",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/transfert",        icon: ArrowLeftRight,  label: "Nexora Transfert",     color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/paylink",          icon: CreditCard,      label: "Nexora PayLink",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/boutique",         icon: Store,           label: "Nexora Shop",          color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/nexora-shop",      icon: ShoppingBag,     label: "Shopping Public",      color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/support",          icon: Headphones,      label: "Support",              color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/communaute",       icon: Users,           label: "Communauté",           color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/a-propos",         icon: Info,            label: "À propos",             color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
   ];
   if (isAdmin) {
-    items.push({ path: "/coffre-fort", icon: Lock,       label: "Coffre-fort",   color: "text-yellow-300", bg: "bg-yellow-300/10" });
-    items.push({ path: "/liens",       icon: Link2,      label: "Liens & Contacts", color: "text-green-300", bg: "bg-green-300/10" });
-    items.push({ path: "/prets",       icon: HandCoins,  label: "Contrats Prêt", color: "text-orange-300", bg: "bg-orange-300/10" });
-    items.push({ path: "/admin",             icon: ShieldCheck,   label: "Panel Admin",         color: "text-amber-400",   bg: "bg-amber-400/10"   });
-    items.push({ path: "/yupi-commandes",    icon: ClipboardList, label: "Commandes YUPI",      color: "text-green-300",   bg: "bg-green-300/10"   });
-    items.push({ path: "/admin/formations", icon: GraduationCap, label: "Gestion Formations",  color: "text-emerald-300", bg: "bg-emerald-300/10" });
-    items.push({ path: "/medias",           icon: Image,         label: "Médias",               color: "text-sky-300",     bg: "bg-sky-300/10"     });
+    items.push({ path: "/coffre-fort",       icon: Lock,          label: "Coffre-fort",         color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
+    items.push({ path: "/liens",             icon: Link2,         label: "Liens & Contacts",    color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
+    items.push({ path: "/prets",             icon: HandCoins,     label: "Contrats Prêt",       color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
+    items.push({ path: "/admin",             icon: ShieldCheck,   label: "Panel Admin",         color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
+    items.push({ path: "/yupi-commandes",    icon: ClipboardList, label: "Commandes YUPI",      color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
+    items.push({ path: "/admin/formations",  icon: GraduationCap, label: "Gestion Formations",  color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
+    items.push({ path: "/medias",            icon: Image,         label: "Médias",               color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" });
   }
   return items;
 };
+
+// Pages affichées dans la barre de navigation en bas (mobile uniquement)
+const bottomNavItems = [
+  { path: "/dashboard",    icon: LayoutDashboard, label: "Dashboard"  },
+  { path: "/immobilier",   icon: Map,             label: "Immobilier" },
+  { path: "/transfert",    icon: ArrowLeftRight,  label: "Transfert"  },
+  { path: "/nexora-shop",  icon: ShoppingBag,     label: "Shop Public"},
+  { path: "/boutique",     icon: Store,           label: "Shop"       },
+];
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -108,16 +112,15 @@ export default function AppLayout({
   const currentPage = navItems.find(
     (i) =>
       i.path === location.pathname ||
-      (i.path === "/boutique" && location.pathname.startsWith("/boutique") && !location.pathname.startsWith("/boutique") === false && location.pathname !== "/yupi-shop") ||
-      (i.path === "/yupi-shop" && location.pathname === "/yupi-shop") ||
+      (i.path === "/boutique" && location.pathname.startsWith("/boutique") && !location.pathname.startsWith("/boutique/bien-etre-yupi")) ||
+      (i.path === "/boutique/bien-etre-yupi" && location.pathname === "/boutique/bien-etre-yupi") ||
       (i.path === "/formations" && location.pathname.startsWith("/formations") && !location.pathname.startsWith("/formations/")) ||
       (i.path === "/mes-formations" && location.pathname === "/mes-formations")
   );
 
   const handleLogout = async () => {
     await logoutUser();
-    clearSession();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   if (isAdminPage) return <>{children}</>;
@@ -125,62 +128,52 @@ export default function AppLayout({
   return (
     <div className="min-h-screen flex bg-muted/30 dark:bg-gray-950 overflow-x-hidden max-w-[100vw]">
       {mobileSidebarOpen && (
-        <div className="fixed inset-0 bg-foreground/30 z-20 lg:hidden" onClick={() => setMobileSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-foreground/30 z-[200] lg:hidden" onClick={() => setMobileSidebarOpen(false)} />
       )}
 
       {/* ── Sidebar ── */}
       <aside className={`
-        fixed top-0 left-0 h-full z-30
-        bg-sidebar dark:bg-gray-900
-        border-r border-sidebar-border dark:border-gray-800
-        text-sidebar-foreground flex flex-col
-        transition-all duration-300 shadow-brand-lg
+        fixed top-0 left-0 h-full z-[300]
+        bg-white dark:bg-gray-900
+        border-r border-gray-200 dark:border-gray-800
+        text-gray-800 flex flex-col
+        transition-all duration-300 shadow-xl
         ${sidebarOpen ? "w-60" : "w-[68px]"}
         ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
-        <div className="h-1 w-full bg-gradient-to-r from-primary via-accent to-destructive flex-shrink-0" />
-
         {/* Profil */}
-        <Link
-          to="/profil"
-          onClick={() => setMobileSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-3.5 border-b border-sidebar-border dark:border-gray-800 hover:bg-sidebar-accent dark:hover:bg-gray-800 transition-colors"
-        >
-          <div className="relative flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-accent/60">
-              {nexoraUser?.avatar_url ? (
-                <img src={nexoraUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-accent/20 flex items-center justify-center">
-                  <User className="w-5 h-5 text-accent" />
-                </div>
-              )}
-            </div>
-          </div>
-          {sidebarOpen && (
-            <div className="min-w-0 flex-1">
-              <div className="font-display font-black text-sm text-sidebar-foreground dark:text-gray-100 truncate flex items-center gap-1.5">
-                {displayName.split(" ")[0]}
-                {hasBadge && <BadgeCheck className="w-4 h-4 text-green-400 flex-shrink-0" />}
+        <div className="flex items-center border-b border-gray-200 dark:border-gray-800">
+          <Link
+            to="/profil"
+            onClick={() => setMobileSidebarOpen(false)}
+            className={`flex items-center gap-3 px-3 py-3.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-1 min-w-0`}
+          >
+            <div className="relative flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-accent/60">
+                {nexoraUser?.avatar_url ? (
+                  <img src={nexoraUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-accent/20 flex items-center justify-center">
+                    <User className="w-5 h-5 text-accent" />
+                  </div>
+                )}
               </div>
-              <div className="text-xs text-sidebar-foreground/50 dark:text-gray-400 truncate">{displayRole}</div>
             </div>
-          )}
-        </Link>
-
-        {/* Logo + toggle collapse */}
-        <div className={`flex items-center gap-2.5 px-3 py-2.5 border-b border-sidebar-border dark:border-gray-800 ${!sidebarOpen ? "justify-center" : ""}`}>
-          <img src={nexoraLogo} alt="Nexora" className="w-6 h-6 object-contain flex-shrink-0" />
-          {sidebarOpen && (
-            <span className="font-display font-black text-xs text-sidebar-foreground dark:text-gray-100 tracking-widest flex-1">
-              NEXORA
-            </span>
-          )}
+            {sidebarOpen && (
+              <div className="min-w-0 flex-1">
+                <div className="font-display font-black text-sm text-gray-800 dark:text-gray-100 truncate flex items-center gap-1.5">
+                  {displayName.split(" ")[0]}
+                  {hasBadge && <BadgeCheck className="w-4 h-4 text-green-400 flex-shrink-0" />}
+                </div>
+                <div className="text-xs text-gray-400 dark:text-gray-400 truncate">{displayRole}</div>
+              </div>
+            )}
+          </Link>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-sidebar-accent dark:hover:bg-gray-800 transition-colors flex-shrink-0 ${!sidebarOpen ? "ml-0" : "ml-auto"}`}
+            className="hidden lg:flex w-8 h-8 items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0 mr-2"
           >
-            <ChevronRight className={`w-3.5 h-3.5 text-sidebar-foreground/70 dark:text-gray-400 transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
+            <ChevronRight className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
           </button>
         </div>
 
@@ -189,19 +182,24 @@ export default function AppLayout({
           {navItems.map(({ path, icon: Icon, label, color, bg }) => {
             const active =
               location.pathname === path ||
-              (path === "/boutique" && location.pathname.startsWith("/boutique") && location.pathname !== "/yupi-shop") ||
+              (path === "/boutique" && location.pathname.startsWith("/boutique") && !location.pathname.startsWith("/boutique/bien-etre-yupi")) ||
               (path === "/formations" && location.pathname.startsWith("/formations"));
             const isAdminItem = path === "/admin";
             return (
               <div key={path}>
                 {isAdminItem && (
                   <div className="my-2 mx-1">
-                    <div className="h-px bg-sidebar-border dark:bg-gray-700 opacity-40" />
+                    <div className="h-px bg-gray-200 dark:bg-gray-700 opacity-40" />
                     {sidebarOpen && (
-                      <p className="text-[10px] font-bold text-sidebar-foreground/30 dark:text-gray-500 uppercase tracking-widest px-2 pt-2 pb-1">
+                      <p className="text-[10px] font-bold text-gray-300 dark:text-gray-500 uppercase tracking-widest px-2 pt-2 pb-1">
                         Administration
                       </p>
                     )}
+                  </div>
+                )}
+                {path === "/nexora-shop" && (
+                  <div className="my-2 mx-1">
+                    <div className="h-px bg-gray-200 dark:bg-gray-700 opacity-40" />
                   </div>
                 )}
                 <Link
@@ -209,11 +207,15 @@ export default function AppLayout({
                   onClick={() => setMobileSidebarOpen(false)}
                   title={!sidebarOpen ? label : undefined}
                   className={`
-                    flex items-center gap-3 rounded-xl transition-all duration-150
+                    ${bottomNavItems.some(i => i.path === path) ? "hidden lg:flex" : "flex"} items-center gap-3 rounded-xl transition-all duration-150
                     ${sidebarOpen ? "px-2.5 py-2" : "px-0 py-2 justify-center"}
-                    ${active
-                      ? "bg-accent text-accent-foreground font-semibold shadow-sm"
-                      : "text-sidebar-foreground/75 dark:text-gray-300 hover:bg-sidebar-accent dark:hover:bg-gray-800 hover:text-sidebar-foreground dark:hover:text-white"
+                    ${path === "/nexora-shop"
+                      ? active
+                        ? "bg-green-500/20 text-green-600 font-semibold shadow-sm ring-1 ring-green-400/30"
+                        : "text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 font-semibold"
+                      : active
+                        ? "bg-sky-500/15 text-sky-500 font-semibold shadow-sm"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
                     }
                   `}
                 >
@@ -225,7 +227,14 @@ export default function AppLayout({
                   `}>
                     <Icon className={`flex-shrink-0 ${sidebarOpen ? "w-4.5 h-4.5" : "w-5.5 h-5.5"} ${active ? "text-accent-foreground" : color}`} />
                   </div>
-                  {sidebarOpen && <span className="text-[15px] font-semibold truncate">{label}</span>}
+                  {sidebarOpen && <span className="text-[15px] font-semibold truncate flex items-center gap-1.5">
+                    {label}
+                    {path === "/nexora-shop" && (
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ background: "#008000" }}>
+                        LIVE
+                      </span>
+                    )}
+                  </span>}
                 </Link>
               </div>
             );
@@ -233,21 +242,21 @@ export default function AppLayout({
         </nav>
 
         {/* Thème + Déconnexion */}
-        <div className="p-2.5 border-t border-sidebar-border dark:border-gray-800 space-y-1">
+        <div className="p-2.5 pb-20 lg:pb-2.5 border-t border-gray-200 dark:border-gray-800 space-y-1">
           <button
             onClick={handleToggleTheme}
             title={darkMode ? "Mode clair" : "Mode sombre"}
             className={`
               w-full flex items-center gap-3 rounded-xl transition-colors
-              text-sidebar-foreground/70 dark:text-gray-300
-              hover:bg-sidebar-accent dark:hover:bg-gray-800
+              text-gray-500 dark:text-gray-300
+              hover:bg-gray-100 dark:hover:bg-gray-800
               ${sidebarOpen ? "px-2.5 py-2" : "px-0 py-2 justify-center"}
             `}
           >
-            <div className={`flex items-center justify-center rounded-lg flex-shrink-0 ${darkMode ? "bg-yellow-400/20" : "bg-indigo-400/20"} ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
+            <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-gray-100 dark:bg-gray-700 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
               {darkMode
-                ? <Sun className={`flex-shrink-0 text-yellow-400 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
-                : <Moon className={`flex-shrink-0 text-indigo-300 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
+                ? <Sun className={`flex-shrink-0 text-gray-700 dark:text-gray-300 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
+                : <Moon className={`flex-shrink-0 text-gray-700 dark:text-gray-300 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
               }
             </div>
             {sidebarOpen && <span className="text-sm">{darkMode ? "Mode clair" : "Mode sombre"}</span>}
@@ -258,13 +267,13 @@ export default function AppLayout({
             onClick={handleLogout}
             title="Déconnexion"
             className={`
-              w-full flex items-center gap-3 rounded-xl text-sidebar-foreground/70 dark:text-gray-300
+              w-full flex items-center gap-3 rounded-xl text-gray-500 dark:text-gray-300
               hover:bg-destructive/20 hover:text-red-200 transition-colors
               ${sidebarOpen ? "px-2.5 py-2" : "px-0 py-2 justify-center"}
             `}
           >
-            <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-red-500/10 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
-              <LogOut className={`text-red-300 flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
+            <div className={`flex items-center justify-center rounded-lg flex-shrink-0 bg-gray-100 dark:bg-gray-700 ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}`}>
+              <LogOut className={`text-gray-700 dark:text-gray-300 flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"}`} />
             </div>
             {sidebarOpen && <span className="text-sm">Déconnexion</span>}
           </button>
@@ -276,11 +285,17 @@ export default function AppLayout({
 
         {/* Header */}
         <header className="sticky top-0 z-10 bg-card dark:bg-gray-900 border-b border-border dark:border-gray-800 px-4 lg:px-6 h-14 flex items-center gap-3 shadow-sm">
+          {/* Avatar / profil — ouvre le menu latéral sur mobile */}
           <button
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted dark:hover:bg-gray-800 transition-colors"
+            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full overflow-hidden border-2 border-white/80 shadow-sm transition-all flex-shrink-0"
+            style={{ background: "#0ea5e9" }}
           >
-            {mobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {nexoraUser?.avatar_url ? (
+              <img src={nexoraUser.avatar_url} alt="Profil" className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-5 h-5 text-white" />
+            )}
           </button>
 
           <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -310,14 +325,69 @@ export default function AppLayout({
           <NexoraNotifications />
         </header>
 
-        <main className="flex-1 p-3 lg:p-5 overflow-x-hidden min-w-0 max-w-full">
+        <main className="flex-1 p-3 lg:p-5 overflow-x-hidden min-w-0 max-w-full pb-20 lg:pb-5">
           {children}
         </main>
 
-        <footer className="py-2.5 px-6 border-t border-border dark:border-gray-800 text-center text-xs text-muted-foreground dark:text-gray-500">
-          NEXORA © {new Date().getFullYear()} — Tous droits réservés
+        <footer className="hidden lg:flex py-2.5 px-6 border-t border-border dark:border-gray-800 items-center justify-between text-xs text-muted-foreground dark:text-gray-500">
+          <span>NEXORA © {new Date().getFullYear()} — Tous droits réservés</span>
+          <div className="flex items-center gap-4">
+            <a href="/cgu" className="hover:text-foreground transition-colors">CGU</a>
+            <a href="/cgv" className="hover:text-foreground transition-colors">CGV</a>
+            <a href="/confidentialite" className="hover:text-foreground transition-colors">Confidentialité</a>
+            <a href="/cookies" className="hover:text-foreground transition-colors">Cookies</a>
+            <a href="/mentions-legales" className="hover:text-foreground transition-colors">Mentions légales</a>
+          </div>
         </footer>
       </div>
+
+      {/* ── Barre de navigation en bas (mobile uniquement) ── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[#2a52c5] shadow-[0_-2px_12px_rgba(48,92,222,0.3)]" style={{ backgroundColor: "#305CDE" }}>
+        <div className="flex items-stretch h-16">
+          {bottomNavItems.map(({ path, icon: Icon, label }, idx) => {
+            const active =
+              location.pathname === path ||
+              (path === "/boutique" && location.pathname.startsWith("/boutique") && !location.pathname.startsWith("/boutique/bien-etre-yupi"));
+            const isCenter = idx === 2;
+
+            if (isCenter) {
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className="flex-1 flex flex-col items-center justify-end pb-1.5 gap-0.5 relative"
+                >
+                  <div className={`w-14 h-14 flex items-center justify-center rounded-full shadow-lg -mt-6 transition-all duration-150 ${active ? "scale-110" : ""}`}
+                    style={{ backgroundColor: "#FF1100", boxShadow: "0 4px 16px rgba(255,17,0,0.45)" }}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <span className="text-[10px] font-semibold leading-none text-white">
+                    {label}
+                  </span>
+                </Link>
+              );
+            }
+
+            return (
+              <Link
+                key={path}
+                to={path}
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 relative transition-all duration-150"
+              >
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-white" />
+                )}
+                <div className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-150 ${active ? "bg-white/20 scale-110" : "bg-transparent"}`}>
+                  <Icon className={`w-5 h-5 transition-colors ${active ? "text-white" : "text-white/70"}`} />
+                </div>
+                <span className={`text-[10px] font-semibold leading-none transition-colors ${active ? "text-white" : "text-white/70"}`}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

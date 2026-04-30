@@ -27,11 +27,18 @@ interface SuggestedProduct {
 export default function SmartCartDrawer() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { items, isOpen, closeCart, removeItem, updateQuantity, subtotal, itemCount, slug } = useCart();
+  const { items, isOpen, closeCart, removeItem, updateQuantity, subtotal, itemCount, slug, setSlug: setCartSlug } = useCart();
 
   // Fallback: extraire le slug depuis l'URL courante si le contexte ne l'a pas
   const slugFromUrl = location.pathname.match(/\/shop\/([^/]+)/)?.[1] ?? null;
   const effectiveSlug = slug || slugFromUrl;
+
+  // S'assurer que le cart-context connaît le slug (cas où on arrive directement sur /shop/:slug)
+  useEffect(() => {
+    if (!slug && slugFromUrl) {
+      setCartSlug(slugFromUrl);
+    }
+  }, [slug, slugFromUrl]);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [suggestions, setSuggestions] = useState<SuggestedProduct[]>([]);
   const [loadingSug, setLoadingSug] = useState(false);
@@ -157,10 +164,10 @@ export default function SmartCartDrawer() {
                         key={sug.id}
                         product={sug}
                         devise={devise}
-                        slug={slug || ""}
+                        slug={effectiveSlug || ""}
                         onView={() => {
                           closeCart();
-                          navigate(`/shop/${slug}/produit/${sug.id}`);
+                          navigate(`/shop/${effectiveSlug}/produit/${sug.id}`);
                         }}
                       />
                     ))}

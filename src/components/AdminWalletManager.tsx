@@ -34,7 +34,7 @@ interface WalletBalance {
   transfert:    number;
   commissions:  number;
   bonus:        number;
-  paylinks:     { id: string; title: string; total_paid: number }[];
+  paylink:      number;
 }
 
 interface AdjustmentLog {
@@ -73,7 +73,6 @@ export default function AdminWalletManager({ user, onDone }: Props) {
 
   // Formulaire
   const [wallet,      setWallet]      = useState<string>("transfert");
-  const [paylinkId,   setPaylinkId]   = useState<string>("");
   const [operation,   setOperation]   = useState<"credit" | "debit">("credit");
   const [amount,      setAmount]      = useState<string>("");
   const [note,        setNote]        = useState<string>("");
@@ -88,32 +87,24 @@ export default function AdminWalletManager({ user, onDone }: Props) {
       const [
         { data: transfertData },
         { data: userData },
-        { data: paylinksData },
         { data: logsData },
       ] = await Promise.all([
         (supabase as any).from("nexora_transfert_comptes")
           .select("solde").eq("user_id", user.id).maybeSingle(),
         (supabase as any).from("nexora_users")
-          .select("solde_commissions, solde_bonus").eq("id", user.id).maybeSingle(),
-        (supabase as any).from("paylinks")
-          .select("id, title, total_paid").eq("user_id", user.id).order("created_at"),
+          .select("solde_commissions, solde_bonus, solde_paylink").eq("id", user.id).maybeSingle(),
         (supabase as any).from("admin_wallet_adjustments")
           .select("*").eq("user_id", user.id)
           .order("created_at", { ascending: false }).limit(30),
       ]);
 
       setBalances({
-        transfert:   transfertData?.solde          ?? 0,
-        commissions: userData?.solde_commissions   ?? 0,
-        bonus:       userData?.solde_bonus         ?? 0,
-        paylinks:    paylinksData                  ?? [],
+        transfert:   transfertData?.solde            ?? 0,
+        commissions: userData?.solde_commissions     ?? 0,
+        bonus:       userData?.solde_bonus           ?? 0,
+        paylink:     userData?.solde_paylink         ?? 0,
       });
       setLogs(logsData ?? []);
-
-      // Pré-sélectionner le premier paylink si wallet = paylink
-      if (paylinksData?.length && !paylinkId) {
-        setPaylinkId(paylinksData[0].id);
-      }
     } catch (e) {
       console.error(e);
     }
@@ -129,10 +120,7 @@ export default function AdminWalletManager({ user, onDone }: Props) {
     if (wallet === "transfert")   return balances.transfert;
     if (wallet === "commissions") return balances.commissions;
     if (wallet === "bonus")       return balances.bonus;
-    if (wallet === "paylink") {
-      const pl = balances.paylinks.find(p => p.id === paylinkId);
-      return pl?.total_paid ?? 0;
-    }
+    if (wallet === "paylink")     return balances.paylink;
     return 0;
   })();
 
@@ -142,10 +130,6 @@ export default function AdminWalletManager({ user, onDone }: Props) {
     const amt = parseFloat(amount.replace(/\s/g, "").replace(",", "."));
     if (!amt || amt <= 0) {
       setResult({ ok: false, msg: "Montant invalide." });
-      return;
-    }
-    if (wallet === "paylink" && !paylinkId) {
-      setResult({ ok: false, msg: "Sélectionnez un PayLink." });
       return;
     }
 
@@ -168,15 +152,17 @@ export default function AdminWalletManager({ user, onDone }: Props) {
         params = { p_user_id: user.id, p_montant: signedAmount, p_note: note || null };
       } else if (wallet === "paylink") {
         rpcName = "admin_adjust_paylink";
-        params = { p_paylink_id: paylinkId, p_montant: signedAmount, p_user_id: user.id, p_note: note || null };
+        params = { p_paylink_id: null, p_montant: signedAmount, p_user_id: user.id, p_note: note || null };
       }
 
       const { data, error } = await (supabase as any).rpc(rpcName, params);
 
       if (error) throw error;
 
-      const avant = data?.avant ?? 0;
-      const apres = data?.apres ?? 0;
+      // Supabase RPC peut retourner un objet ou un tableau selon la version
+      const result = Array.isArray(data) ? data[0] : data;
+      const avant = result?.avant ?? 0;
+      const apres = result?.apres ?? 0;
       const label = WALLET_META[wallet]?.label ?? wallet;
       setResult({
         ok: true,
@@ -184,6 +170,17 @@ export default function AdminWalletManager({ user, onDone }: Props) {
       });
       setAmount("");
       setNote("");
+
+      // Mise à jour immédiate du state local
+      setBalances(prev => {
+        if (!prev) return prev;
+        if (wallet === "transfert")   return { ...prev, transfert: apres };
+        if (wallet === "commissions") return { ...prev, commissions: apres };
+        if (wallet === "bonus")       return { ...prev, bonus: apres };
+        if (wallet === "paylink")     return { ...prev, paylink: apres };
+        return prev;
+      });
+
       await loadBalances();
       onDone?.();
 
@@ -293,9 +290,7 @@ export default function AdminWalletManager({ user, onDone }: Props) {
               <span className="text-xs text-muted-foreground font-medium">PayLinks</span>
             </div>
             <div className="text-sm font-black text-pink-700">
-              {balances?.paylinks.length
-                ? fmt(balances.paylinks.reduce((a, p) => a + p.total_paid, 0))
-                : "Aucun"}
+              {fmt(balances?.paylink ?? 0)}
             </div>
           </button>
         </div>
@@ -313,29 +308,6 @@ export default function AdminWalletManager({ user, onDone }: Props) {
               Solde actuel : {fmt(currentBalance)}
             </div>
           </div>
-
-          {/* Sélecteur PayLink */}
-          {wallet === "paylink" && (
-            <div>
-              {balances?.paylinks.length ? (
-                <select
-                  value={paylinkId}
-                  onChange={e => setPaylinkId(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-input bg-white text-sm"
-                >
-                  {balances.paylinks.map(pl => (
-                    <option key={pl.id} value={pl.id}>
-                      {pl.title} — {fmt(pl.total_paid)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">
-                  Cet utilisateur n'a aucun PayLink.
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Crédit / Débit toggle */}
           <div className="grid grid-cols-2 gap-2">
@@ -400,7 +372,7 @@ export default function AdminWalletManager({ user, onDone }: Props) {
           {/* Bouton confirmer */}
           <button
             onClick={handleSubmit}
-            disabled={saving || !amount || (wallet === "paylink" && !paylinkId)}
+            disabled={saving || !amount}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
               operation === "credit"
                 ? "bg-green-600 hover:bg-green-700"

@@ -58,6 +58,16 @@ export default function CheckoutPage() {
   const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [cartInitialized, setCartInitialized] = useState(false); // panier lu depuis localStorage
+
+  // ── Lecture synchrone du panier depuis localStorage (évite le flash "panier vide") ──
+  const cartFromStorage = (() => {
+    if (typeof window === "undefined" || !slug) return [];
+    try {
+      const raw = window.localStorage.getItem(`nexora_shop_cart_${slug}`);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  })();
   const [saving, setSaving] = useState(false);
   const [etape, setEtape] = useState<Etape>("formulaire");
   const [commandeRef, setCommandeRef] = useState("");
@@ -193,7 +203,7 @@ export default function CheckoutPage() {
   };
 
   const handleConfirmer = async () => {
-    if (!boutique || items.length === 0) return;
+    if (!boutique || (items.length === 0 && cartFromStorage.length === 0)) return;
     setSaving(true);
 
     const ref = `NX-${Date.now().toString(36).toUpperCase()}`;
@@ -266,13 +276,13 @@ export default function CheckoutPage() {
     </div>
   );
 
-  if (!boutique || (items.length === 0 && etape !== "confirmation" && etape !== "paiement")) return (
+  if (!boutique || (items.length === 0 && cartFromStorage.length === 0 && etape !== "confirmation" && etape !== "paiement")) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
       <div className="text-center max-w-sm">
         <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-700">Panier vide</h2>
         <p className="text-gray-500 mt-2">Ajoutez des produits avant de commander.</p>
-        <button onClick={() => navigate(slug ? `/shop/${slug}` : "/")} className="mt-4 inline-flex items-center gap-2 text-rose-600 font-semibold">
+        <button onClick={() => navigate(slug ? `/shop/${slug}` : "/")} className="mt-4 inline-flex items-center gap-2 text-[#FF1A00] font-semibold">
           <ArrowLeft className="w-4 h-4" /> Retour à la boutique
         </button>
       </div>
@@ -319,22 +329,22 @@ export default function CheckoutPage() {
               <div className="flex flex-col items-center gap-1">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
                   etape === e
-                    ? "bg-rose-500 text-white shadow-lg shadow-rose-200 scale-110"
+                    ? "bg-[#FF1A00] text-white shadow-lg shadow-rose-200 scale-110"
                     : i < etapes.indexOf(etape)
-                    ? "bg-green-500 text-white"
+                    ? "bg-[#008000] text-white"
                     : "bg-gray-200 text-gray-400"
                 }`}>
                   {i < etapes.indexOf(etape) ? "✓" : i + 1}
                 </div>
                 <span className={`text-[10px] font-semibold whitespace-nowrap ${
-                  etape === e ? "text-rose-600" : "text-gray-400"
+                  etape === e ? "text-[#FF1A00]" : "text-gray-400"
                 }`}>
                   {etapeLabels[i]}
                 </span>
               </div>
               {i < 2 && (
                 <div className={`flex-1 h-0.5 mb-4 mx-1 rounded transition-colors duration-300 ${
-                  i < etapes.indexOf(etape) ? "bg-green-400" : "bg-gray-200"
+                  i < etapes.indexOf(etape) ? "bg-[#008000]" : "bg-gray-200"
                 }`} />
               )}
             </div>
@@ -364,10 +374,10 @@ export default function CheckoutPage() {
             {/* Bannière lien de paiement externe */}
             {isExternalLink && (
               <div className="flex items-start gap-3 rounded-2xl p-4 border bg-blue-50 border-blue-200">
-                <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-600" />
+                <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#305CDE]" />
                 <div>
-                  <p className="text-xs font-bold text-blue-700">Paiement en ligne 🔗</p>
-                  <p className="text-xs mt-0.5 text-blue-600">
+                  <p className="text-xs font-bold text-[#305CDE]">Paiement en ligne 🔗</p>
+                  <p className="text-xs mt-0.5 text-[#305CDE]">
                     Un lien de paiement vous sera proposé après confirmation de vos informations.
                   </p>
                 </div>
@@ -377,7 +387,7 @@ export default function CheckoutPage() {
             {/* Récapitulatif articles */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 text-rose-500" /> Votre commande
+                <ShoppingBag className="w-4 h-4 text-[#FF1A00]" /> Votre commande
               </h2>
               <div className="space-y-3">
                 {items.map((it, idx) => {
@@ -388,25 +398,25 @@ export default function CheckoutPage() {
                       <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
                         {it.produit.photos?.[0]
                           ? <img src={it.produit.photos[0]} alt={it.produit.nom} className="w-full h-full object-cover" />
-                          : isD ? <Zap className="w-5 h-5 text-purple-400" /> : <Package className="w-5 h-5 text-gray-300" />
+                          : isD ? <Zap className="w-5 h-5 text-[#305CDE]" /> : <Package className="w-5 h-5 text-gray-300" />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{it.produit.nom}</p>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          isD ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                          isD ? "bg-[#305CDE] text-[#305CDE]" : "bg-blue-100 text-[#305CDE]"
                         }`}>
                           {isD ? "Digital" : `Qté: ${it.quantite}`}
                         </span>
                       </div>
-                      <p className="text-sm font-black text-rose-600">{formatPrix(prix * it.quantite, boutique.devise)}</p>
+                      <p className="text-sm font-black text-[#FF1A00]">{formatPrix(prix * it.quantite, boutique.devise)}</p>
                     </div>
                   );
                 })}
               </div>
               <div className="border-t border-gray-100 mt-4 pt-4 flex justify-between items-center">
                 <span className="font-black text-gray-900">Total</span>
-                <span className="font-black text-xl text-rose-600">{formatPrix(subtotal, boutique.devise)}</span>
+                <span className="font-black text-xl text-[#FF1A00]">{formatPrix(subtotal, boutique.devise)}</span>
               </div>
             </div>
 
@@ -415,11 +425,11 @@ export default function CheckoutPage() {
 
               <div className="flex items-center gap-2.5 pb-1">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  needsDelivery ? "bg-rose-100" : "bg-purple-100"
+                  needsDelivery ? "bg-[#FF1A00]" : "bg-[#305CDE]"
                 }`}>
                   {needsDelivery
-                    ? <Truck className="w-4 h-4 text-rose-600" />
-                    : <Zap className="w-4 h-4 text-purple-600" />
+                    ? <Truck className="w-4 h-4 text-[#FF1A00]" />
+                    : <Zap className="w-4 h-4 text-[#305CDE]" />
                   }
                 </div>
                 <div>
@@ -438,7 +448,7 @@ export default function CheckoutPage() {
               {/* NOM */}
               <div>
                 <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                  Nom complet <span className="text-rose-500">*</span>
+                  Nom complet <span className="text-[#FF1A00]">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -476,7 +486,7 @@ export default function CheckoutPage() {
                 <label className="text-xs font-bold text-gray-600 mb-1.5 block">
                   Email
                   {!needsDelivery
-                    ? <span className="text-rose-500 ml-1">*</span>
+                    ? <span className="text-[#FF1A00] ml-1">*</span>
                     : <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
                   }
                 </label>
@@ -499,7 +509,7 @@ export default function CheckoutPage() {
               <AnimatedField visible={needsDelivery}>
                 <div className="pb-0.5">
                   <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                    Ville <span className="text-rose-500">*</span>
+                    Ville <span className="text-[#FF1A00]">*</span>
                   </label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -521,7 +531,7 @@ export default function CheckoutPage() {
               <AnimatedField visible={needsDelivery}>
                 <div className="pb-0.5">
                   <label className="text-xs font-bold text-gray-600 mb-1.5 block">
-                    Adresse de livraison <span className="text-rose-500">*</span>
+                    Adresse de livraison <span className="text-[#FF1A00]">*</span>
                   </label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
@@ -626,7 +636,7 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4">
 
               <p className="font-black text-gray-900 text-base">
-                À payer : <span className="text-rose-600">{formatPrix(displaySubtotal, boutique.devise)}</span>
+                À payer : <span className="text-[#FF1A00]">{formatPrix(displaySubtotal, boutique.devise)}</span>
               </p>
 
               {/* Mobile Money */}
@@ -645,7 +655,7 @@ export default function CheckoutPage() {
                       }`}
                     >
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        selectedReseau === i ? "bg-rose-500" : "bg-gray-200"
+                        selectedReseau === i ? "bg-[#FF1A00]" : "bg-gray-200"
                       }`}>
                         <MessageSquare className={`w-5 h-5 ${selectedReseau === i ? "text-white" : "text-gray-500"}`} />
                       </div>
@@ -657,12 +667,12 @@ export default function CheckoutPage() {
                           <div className="mt-2 pt-2 border-t border-rose-200">
                             <div className="flex justify-between items-center">
                               <span className="text-xs text-gray-500">Montant à envoyer</span>
-                              <span className="font-black text-rose-600">{formatPrix(displaySubtotal, boutique.devise)}</span>
+                              <span className="font-black text-[#FF1A00]">{formatPrix(displaySubtotal, boutique.devise)}</span>
                             </div>
                           </div>
                         )}
                       </div>
-                      {selectedReseau === i && <CheckCircle2 className="w-4 h-4 text-rose-500 flex-shrink-0 mt-1" />}
+                      {selectedReseau === i && <CheckCircle2 className="w-4 h-4 text-[#FF1A00] flex-shrink-0 mt-1" />}
                     </button>
                   ))}
                 </div>
@@ -671,10 +681,10 @@ export default function CheckoutPage() {
               {/* Paiement à la livraison */}
               {displayPaiementReception && (
                 <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-                  <Truck className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <Truck className="w-5 h-5 text-[#008000] mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-bold text-sm text-emerald-700">Paiement à la livraison</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">Vous payez à la réception de votre commande.</p>
+                    <p className="font-bold text-sm text-[#008000]">Paiement à la livraison</p>
+                    <p className="text-xs text-[#008000] mt-0.5">Vous payez à la réception de votre commande.</p>
                   </div>
                 </div>
               )}
@@ -682,8 +692,8 @@ export default function CheckoutPage() {
               {/* Aucun moyen configuré */}
               {!displayHasPaiementOptions && (
                 <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                  <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-blue-700">
+                  <Info className="w-4 h-4 text-[#305CDE] mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-[#305CDE]">
                     Le vendeur vous contactera via WhatsApp pour les détails du paiement après confirmation.
                   </p>
                 </div>
@@ -750,8 +760,8 @@ function ConfirmationPage({
   return (
     <div className="min-h-screen bg-[#f7f7f8] flex items-center justify-center p-8">
       <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-green-100 flex items-center justify-center mx-auto">
-          <CheckCircle2 className="w-8 h-8 text-green-600" />
+        <div className="w-16 h-16 rounded-3xl bg-[#008000] flex items-center justify-center mx-auto">
+          <CheckCircle2 className="w-8 h-8 text-[#008000]" />
         </div>
         <h2 className="text-2xl font-black text-gray-900">Commande confirmée !</h2>
         <p className="text-sm text-gray-500">
@@ -761,12 +771,12 @@ function ConfirmationPage({
         {(hasDigital || hasPhysical) && (
           <div className="flex items-center justify-center gap-2 flex-wrap">
             {hasDigital && (
-              <span className="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-[#305CDE] text-[#305CDE] text-xs font-bold px-3 py-1.5 rounded-full">
                 <Zap className="w-3 h-3" /> Produits digitaux
               </span>
             )}
             {hasPhysical && (
-              <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-blue-100 text-[#305CDE] text-xs font-bold px-3 py-1.5 rounded-full">
                 <Package className="w-3 h-3" /> Produits physiques
               </span>
             )}

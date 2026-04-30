@@ -6,8 +6,10 @@ import {
   FileText, Key, Package2, Briefcase, Package,
   ExternalLink, Phone, Share2, ArrowLeft
 } from "lucide-react";
+import { CountdownDisplay, CountdownConfig } from "@/components/ProductCountdown";
 
 type TypeDigital = "fichier" | "formation" | "licence" | "bundle" | "service";
+
 
 const TYPES_DIGITAL: Record<TypeDigital, { label: string; icon: any; color: string }> = {
   fichier:   { label: "Fichier",   icon: FileText,  color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -119,6 +121,20 @@ export default function ProductPublicPage() {
             ))}
           </div>
         )}
+
+        {/* Compte à rebours */}
+        {produit.countdown_actif && produit.countdown_fin && (() => {
+          const cdConfig: CountdownConfig = {
+            countdown_actif: produit.countdown_actif,
+            countdown_fin: produit.countdown_fin,
+            countdown_titre: produit.countdown_titre ?? null,
+            countdown_bg_couleur: produit.countdown_bg_couleur ?? "#ef4444",
+            countdown_texte_couleur: produit.countdown_texte_couleur ?? "#ffffff",
+            countdown_style: produit.countdown_style ?? "banner",
+            countdown_message_fin: produit.countdown_message_fin ?? null,
+          };
+          return <CountdownDisplay config={cdConfig} />;
+        })()}
 
         {/* Infos principales */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">

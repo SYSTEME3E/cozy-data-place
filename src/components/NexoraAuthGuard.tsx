@@ -40,19 +40,16 @@ export default function NexoraAuthGuard({
       }
 
       // ── Vérification PIN obligatoire ──────────────────────────────────────
-      // Si on n'est pas déjà dans un flux PIN, vérifier l'état du PIN
       if (!PIN_FLOW_PATHS.includes(location.pathname)) {
         const pinUnlocked = sessionStorage.getItem(PIN_UNLOCKED_KEY) === "true";
         if (!pinUnlocked) {
-          // Vérifier si l'utilisateur a déjà configuré un PIN
           const pinAlreadySet = await hasPinSet(user.id);
           if (!pinAlreadySet) {
-            // Nouveau compte : rediriger vers la création du PIN
             navigate("/setup-pin", { replace: true });
           } else {
-            // PIN existant : demander le déverrouillage
             navigate("/unlock-pin", { replace: true });
           }
+          setIsLoading(false);
           return;
         }
       }
@@ -60,11 +57,13 @@ export default function NexoraAuthGuard({
 
       if (requireAdmin && !user.is_admin) {
         navigate("/dashboard", { replace: true });
+        setIsLoading(false);
         return;
       }
 
       if (requirePremium && user.plan === "gratuit") {
         navigate("/abonnement", { replace: true });
+        setIsLoading(false);
         return;
       }
 
@@ -77,26 +76,21 @@ export default function NexoraAuthGuard({
 
   if (isLoading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#080c10" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                style={{
-                  width: 12, height: 12, borderRadius: "50%",
-                  background: "#00ff78",
-                  animation: "bounce 0.8s infinite",
-                  animationDelay: `${i * 0.15}s`,
-                  boxShadow: "0 0 8px rgba(0,255,120,0.5)",
-                }}
-              />
-            ))}
-          </div>
-          <p style={{ color: "rgba(0,255,120,0.5)", fontFamily: "'Courier New', monospace", fontSize: "0.75rem", letterSpacing: "0.1em" }}>
-            VÉRIFICATION...
-          </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#ffffff" }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                width: 10, height: 10, borderRadius: "50%",
+                background: "#2962FF",
+                animation: "bounce 0.8s infinite",
+                animationDelay: `${i * 0.15}s`,
+              }}
+            />
+          ))}
         </div>
+        <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }`}</style>
       </div>
     );
   }

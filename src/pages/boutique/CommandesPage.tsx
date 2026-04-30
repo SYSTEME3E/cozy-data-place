@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
-import { getNexoraUser, hasNexoraPremium } from "@/lib/nexora-auth";
+import { getNexoraUser } from "@/lib/nexora-auth";
 import { useNavigate } from "react-router-dom";
 import {
   ShoppingBag, ChevronDown, ChevronUp, Phone,
   Clock, CheckCircle, Truck,
-  XCircle, Search, MessageCircle, Crown, Zap, Package, Lock
+  XCircle, Search, MessageCircle, Crown, Zap, Package
 } from "lucide-react";
 
 // 4 statuts seulement
@@ -41,9 +41,9 @@ interface Commande {
 }
 
 const STATUTS: Record<StatutCommande, { label: string; color: string; bg: string; darkColor: string; darkBg: string; icon: any; terminal: boolean }> = {
-  en_cours: { label: "En cours",  color: "text-blue-700",  bg: "bg-blue-100",  darkColor: "dark:text-blue-300",  darkBg: "dark:bg-blue-950/50",  icon: Clock,        terminal: false },
-  payee:    { label: "Payé",      color: "text-green-700", bg: "bg-green-100", darkColor: "dark:text-green-300", darkBg: "dark:bg-green-950/50", icon: CheckCircle,  terminal: true  },
-  livree:   { label: "Livré",     color: "text-purple-700",bg: "bg-purple-100",darkColor: "dark:text-purple-300",darkBg: "dark:bg-purple-950/50",icon: Truck,        terminal: true  },
+  en_cours: { label: "En cours",  color: "text-[#305CDE]",  bg: "bg-blue-100",  darkColor: "dark:text-[#305CDE]",  darkBg: "dark:bg-blue-950/50",  icon: Clock,        terminal: false },
+  payee:    { label: "Payé",      color: "text-[#008000]", bg: "bg-green-100", darkColor: "dark:text-[#008000]", darkBg: "dark:bg-green-950/50", icon: CheckCircle,  terminal: true  },
+  livree:   { label: "Livré",     color: "text-[#305CDE]",bg: "bg-blue-100",darkColor: "dark:text-[#305CDE]",darkBg: "dark:bg-[#305CDE]/20",icon: Truck,        terminal: true  },
   annulee:  { label: "Annulé",    color: "text-red-700",   bg: "bg-red-100",   darkColor: "dark:text-red-300",   darkBg: "dark:bg-red-950/50",   icon: XCircle,      terminal: true  },
 };
 
@@ -61,7 +61,6 @@ function formatDate(dt: string): string {
 export default function CommandesPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const isPremium = hasNexoraPremium();
 
   const [boutique, setBoutique] = useState<any>(null);
   const [commandes, setCommandes] = useState<Commande[]>([]);
@@ -81,6 +80,7 @@ export default function CommandesPage() {
       const { data } = await supabase
         .from("commandes" as any).select("*")
         .eq("boutique_id", (b as any).id)
+        .neq("product_type", "numerique")
         .order("created_at", { ascending: false });
       setCommandes((data as any[] || []).map(c => ({
         ...c,
@@ -95,36 +95,6 @@ export default function CommandesPage() {
 
   useEffect(() => { load(); }, []);
 
-  if (!isPremium) {
-    return (
-      <BoutiqueLayout boutiqueName="Nexora Shop">
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center mb-6 shadow-lg">
-            <Crown className="w-10 h-10 text-white" />
-          </div>
-          <h2 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-2">Fonctionnalité Premium</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1 max-w-xs">
-            La boutique est réservée aux membres <span className="font-bold text-yellow-600">Premium</span>.
-          </p>
-          <p className="text-gray-400 dark:text-gray-500 text-xs mb-8 max-w-xs">
-            Passez au plan Premium pour gérer vos commandes et votre boutique.
-          </p>
-          <button
-            onClick={() => navigate("/boutique/parametres")}
-            className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-white font-bold px-8 py-3 rounded-xl shadow-md transition-all"
-          >
-            <Crown className="w-4 h-4" /> Passer à Premium
-          </button>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="mt-4 text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          >
-            Retour au tableau de bord
-          </button>
-        </div>
-      </BoutiqueLayout>
-    );
-  }
 
   const changeStatut = async (id: string, statut: StatutCommande) => {
     await supabase.from("commandes" as any).update({ statut }).eq("id", id);
@@ -160,11 +130,7 @@ export default function CommandesPage() {
               <h1 className="text-2xl font-black text-gray-800 dark:text-gray-100">
                 {total <= 1 ? "Commande" : "Commandes"}
               </h1>
-              {total > 0 && (
-                <span className="bg-pink-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm shadow-pink-200 dark:shadow-pink-900">
-                  {total}
-                </span>
-              )}
+              
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">{total} {labelCommande} au total</p>
           </div>
@@ -172,21 +138,21 @@ export default function CommandesPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-2xl p-4">
-            <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">En cours</p>
-            <p className="text-3xl font-black text-blue-700 dark:text-blue-300">{stats.enCours}</p>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-[#305CDE] font-semibold mb-1">En cours</p>
+            <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.enCours}</p>
           </div>
-          <div className="bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-900 rounded-2xl p-4">
-            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Payées</p>
-            <p className="text-3xl font-black text-green-700 dark:text-green-300">{stats.payees}</p>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-[#305CDE] font-semibold mb-1">Payées</p>
+            <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.payees}</p>
           </div>
-          <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900 rounded-2xl p-4">
-            <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Livrées</p>
-            <p className="text-3xl font-black text-purple-700 dark:text-purple-300">{stats.livrees}</p>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-[#305CDE] font-semibold mb-1">Livrées</p>
+            <p className="text-3xl font-black text-gray-900 dark:text-white">{stats.livrees}</p>
           </div>
-          <div className="bg-pink-50 dark:bg-pink-950/40 border border-pink-100 dark:border-pink-900 rounded-2xl p-4">
-            <p className="text-xs text-pink-600 dark:text-pink-400 font-medium">Chiffre d'affaires</p>
-            <p className="text-lg font-black text-pink-700 dark:text-pink-300">
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-[#305CDE] font-semibold mb-1">Chiffre d'affaires</p>
+            <p className="text-lg font-black text-gray-900 dark:text-white">
               {formatMontant(stats.chiffre, boutique?.devise || "XOF")}
             </p>
           </div>
@@ -212,7 +178,7 @@ export default function CommandesPage() {
         {/* Liste */}
         {loading ? (
           <div className="flex justify-center py-10">
-            <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-[#FF1A00] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-14 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl">
@@ -233,17 +199,17 @@ export default function CommandesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-pink-600 dark:text-pink-400 text-sm">#{cmd.numero}</span>
+                          <span className="font-bold text-[#1D4ED8] dark:text-[#1D4ED8] text-sm">#{cmd.numero}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1
                             ${STATUTS[cmd.statut].bg} ${STATUTS[cmd.statut].color}
                             ${STATUTS[cmd.statut].darkBg} ${STATUTS[cmd.statut].darkColor}`}>
                             <StatutIcon className="w-3 h-3" />
                             {STATUTS[cmd.statut].label}
                           </span>
-                          {/* Badge verrouillé */}
-                          {estTerminal && (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 flex items-center gap-1">
-                              <Lock className="w-3 h-3" /> Verrouillé
+                          {/* Badge succès si confirmé */}
+                          {cmd.statut !== "en_cours" && cmd.statut !== "annulee" && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-[#008000] dark:bg-green-950/40 dark:text-[#008000]">
+                              ✅ Succès
                             </span>
                           )}
                         </div>
@@ -254,7 +220,7 @@ export default function CommandesPage() {
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(cmd.created_at)}</span>
                         </div>
 
-                        <div className="text-lg font-black text-pink-600 dark:text-pink-400 mt-1">
+                        <div className="text-lg font-black text-gray-800 dark:text-gray-100 mt-1">
                           {formatMontant(cmd.total, cmd.devise)}
                         </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -292,14 +258,14 @@ export default function CommandesPage() {
                                     {photoArt
                                       ? <img src={photoArt} alt="" className="w-full h-full object-cover" />
                                       : typeArt === "numerique"
-                                        ? <Zap className="w-5 h-5 text-purple-400" />
+                                        ? <Zap className="w-5 h-5 text-[#305CDE]" />
                                         : <Package className="w-5 h-5 text-gray-400" />
                                     }
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{nomArt}</p>
                                     {typeArt === "numerique" && (
-                                      <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">Digital</span>
+                                      <span className="text-xs bg-blue-100 dark:bg-[#305CDE]/40 text-[#305CDE] dark:text-[#305CDE] px-2 py-0.5 rounded-full font-medium">Digital</span>
                                     )}
                                     {(art as any).variations_choisies && Object.keys((art as any).variations_choisies).length > 0 && (
                                       <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -310,14 +276,14 @@ export default function CommandesPage() {
                                       {qteArt} × {formatMontant(prixUnit, cmd.devise)}
                                     </p>
                                   </div>
-                                  <span className="font-bold text-pink-600 dark:text-pink-400 text-sm flex-shrink-0">
+                                  <span className="font-bold text-gray-800 dark:text-gray-200 text-sm flex-shrink-0">
                                     {formatMontant(montantArt, cmd.devise)}
                                   </span>
                                 </div>
                               );
                             })}
                           </div>
-                          <div className="mt-3 flex justify-between font-black text-pink-600 dark:text-pink-400 border-t border-gray-200 dark:border-gray-700 pt-2 text-sm">
+                          <div className="mt-3 flex justify-between font-black text-gray-800 dark:text-gray-100 border-t border-gray-200 dark:border-gray-700 pt-2 text-sm">
                             <span>Total</span>
                             <span>{formatMontant(cmd.total, cmd.devise)}</span>
                           </div>
@@ -333,31 +299,23 @@ export default function CommandesPage() {
                         </div>
                       )}
 
-                      {/* Changer statut — verrouillé si terminal */}
-                      {estTerminal ? (
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
-                          <Lock className="w-4 h-4 text-gray-400" />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                            Statut confirmé — aucune modification possible.
-                          </p>
-                        </div>
+                      {/* Action commande */}
+                      {cmd.statut === "en_cours" ? (
+                        <button
+                          onClick={async () => {
+                            await changeStatut(cmd.id, "payee");
+                            setExpandedId(null);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 bg-[#008000] hover:bg-[#008000] active:scale-95 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-green-200 dark:shadow-green-900/30 transition-all"
+                        >
+                          <CheckCircle className="w-5 h-5" />
+                          Confirmer la commande
+                        </button>
                       ) : (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Changer le statut</p>
-                          <div className="flex gap-2 flex-wrap">
-                            {ORDRE_STATUTS.filter(s => s !== cmd.statut).map(s => (
-                              <button key={s} onClick={() => changeStatut(cmd.id, s)}
-                                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors
-                                  ${STATUTS[s].bg} ${STATUTS[s].color}
-                                  ${STATUTS[s].darkBg} ${STATUTS[s].darkColor}
-                                  hover:opacity-80`}>
-                                → {STATUTS[s].label}
-                              </button>
-                            ))}
-                          </div>
-                          {/* Avertissement avant statut terminal */}
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
-                            ⚠️ Les statuts Payé, Livré et Annulé sont définitifs et ne peuvent plus être modifiés.
+                        <div className="flex items-center justify-center gap-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-[#008000] rounded-xl py-3 px-4">
+                          <CheckCircle className="w-5 h-5 text-[#008000] flex-shrink-0" />
+                          <p className="text-sm font-bold text-[#008000] dark:text-[#008000]">
+                            ✅ Commande confirmée — {STATUTS[cmd.statut].label}
                           </p>
                         </div>
                       )}
@@ -366,7 +324,7 @@ export default function CommandesPage() {
                       {cmd.client_tel && (
                         <div className="flex gap-2">
                           <a href={`tel:${cmd.client_tel}`}
-                            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold">
+                            className="flex-1 flex items-center justify-center gap-2 bg-[#008000] text-white rounded-xl py-2.5 text-sm font-semibold">
                             <Phone className="w-4 h-4" /> Appeler
                           </a>
                           <a href={`https://wa.me/${cmd.client_tel.replace(/[^0-9]/g, "")}?text=Bonjour ${cmd.client_nom}, concernant votre commande #${cmd.numero}`}

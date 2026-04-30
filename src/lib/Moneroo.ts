@@ -1,7 +1,7 @@
 // src/lib/Moneroo.ts
 // ─────────────────────────────────────────────────────────────────
-// Client GeniusPay pour le frontend React
-// Appelle les Supabase Edge Functions
+// Client KKiaPay pour le frontend React
+// Appelle les Supabase Edge Functions KKiaPay
 // ─────────────────────────────────────────────────────────────────
 
 import { supabase } from "@/integrations/supabase/client";
@@ -97,7 +97,7 @@ async function extractErrorMessage(error: any): Promise<string> {
         const parsed = JSON.parse(body);
         // ✅ FIX : on cherche error/message, sinon on affiche le status HTTP, jamais "{}"
         return parsed?.error ?? parsed?.message
-          ?? (parsed?.detail ? `Erreur GeniusPay : ${JSON.stringify(parsed.detail)}` : null)
+          ?? (parsed?.detail ? `Erreur KKiaPay : ${JSON.stringify(parsed.detail)}` : null)
           ?? body;
       }
     }
@@ -112,7 +112,7 @@ async function extractErrorMessage(error: any): Promise<string> {
           return "Erreur de paiement — vérifiez votre connexion et réessayez.";
         }
         return parsed?.error ?? parsed?.message
-          ?? `Erreur GeniusPay (${raw})`;
+          ?? `Erreur KKiaPay (${raw})`;
       } catch {
         return raw || "Erreur inconnue";
       }
@@ -133,7 +133,7 @@ export async function initPayment(params: InitPaymentParams): Promise<GeniusPayR
   const montantAvecFrais = params.amount + frais;
 
   try {
-    const { data, error } = await supabase.functions.invoke("geniuspay-payment", {
+    const { data, error } = await supabase.functions.invoke("kkiapay-payment", {
       body: {
         type:           params.type,
         amount:         montantAvecFrais,
@@ -186,7 +186,7 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
   const lastName  = parts.slice(1).join(" ") || "NEXORA";
 
   try {
-    const { data, error } = await supabase.functions.invoke("geniuspay-payout", {
+    const { data, error } = await supabase.functions.invoke("kkiapay-payout", {
       body: {
         type:            params.type,
         amount:          params.amount,
@@ -221,6 +221,63 @@ export async function initPayout(params: InitPayoutParams): Promise<GeniusPayRes
   } catch (err: any) {
     const msg = await extractErrorMessage(err);
     console.error("initPayout exception:", msg);
+    return { success: false, error: msg };
+  }
+}
+
+// ─────────────────────────────────────────────
+// PAIEMENT PUBLIC (acheteur anonyme, page produit)
+// Pas besoin d'être connecté sur NEXORA
+// ─────────────────────────────────────────────
+
+export interface InitPublicPaymentParams {
+  amount: number;
+  currency?: string;
+  buyer_name: string;
+  buyer_email?: string;
+  buyer_phone?: string;
+  seller_user_id: string;        // user_id du vendeur (pour créditer son wallet)
+  metadata?: Record<string, string>;
+}
+
+export async function initPublicPayment(params: InitPublicPaymentParams): Promise<GeniusPayResult> {
+  const frais            = FRAIS_PAIEMENT;
+  const montantAvecFrais = params.amount + frais;
+
+  try {
+    const { data, error } = await supabase.functions.invoke("kkiapay-payment", {
+      body: {
+        type:           "recharge_transfert",
+        amount:         montantAvecFrais,
+        amount_net:     params.amount,
+        currency:       params.currency ?? "XOF",
+        payment_method: undefined,
+        user_id:        params.seller_user_id,   // le vendeur reçoit les fonds
+        user_email:     params.buyer_email ?? "",
+        user_name:      params.buyer_name,
+        user_phone:     params.buyer_phone ?? "",
+        metadata:       params.metadata ?? {},
+      },
+    });
+
+    if (error) {
+      const msg = await extractErrorMessage(error);
+      console.error("initPublicPayment error:", msg);
+      return { success: false, error: msg };
+    }
+
+    if (!data?.success) {
+      return { success: false, error: data?.error ?? "Erreur paiement" };
+    }
+
+    return {
+      success:     true,
+      payment_url: data.payment_url,
+      payment_id:  data.payment_id,
+    };
+  } catch (err: any) {
+    const msg = await extractErrorMessage(err);
+    console.error("initPublicPayment exception:", msg);
     return { success: false, error: msg };
   }
 }

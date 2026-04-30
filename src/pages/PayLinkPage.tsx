@@ -746,13 +746,13 @@ function ModalRetrait({ onClose, onSuccess, solde }: {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md">
       <div className="w-full max-w-md bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto border border-border/40">
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-5 flex items-center gap-4">
+        <div className="p-5 flex items-center gap-4" style={{background:'linear-gradient(to right, #EF3340, #c0392b)'}}>
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
             <Wallet className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
             <h2 className="text-base font-black text-white">Demande de retrait</h2>
-            <p className="text-xs text-emerald-100/80">Commission 7% · Traitement 12–24h</p>
+            <p className="text-xs text-red-100/80">Commission 7% · Traitement 12–24h</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors">
             <X className="w-4 h-4 text-white" />
@@ -846,7 +846,7 @@ function ModalRetrait({ onClose, onSuccess, solde }: {
           )}
 
           <button onClick={handleSubmit} disabled={!valid || loading}
-            className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:opacity-50 disabled:pointer-events-none text-white font-black rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25">
+            className="w-full py-3.5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none text-white font-black rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg" style={{background: loading ? '#c0392b' : '#EF3340', boxShadow: '0 4px 15px rgba(239,51,64,0.35)'}}>
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Traitement…</> : <><Wallet className="w-4 h-4" /> Lancer le retrait</>}
           </button>
         </div>
@@ -1005,14 +1005,15 @@ export default function PayLinkPage() {
   const [visiblePayments, setVisiblePayments] = useState(5);
   const [filterPmt, setFilterPmt] = useState<"all" | "success" | "pending" | "failed">("all");
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const [soldePaylink, setSoldePaylink] = useState<number>(0);
 
   const showSuccess = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 5000); };
   const showError = (msg: string) => { setErrorMsg(msg); setTimeout(() => setErrorMsg(null), 5000); };
 
-  const totalCollected = payments.filter(p => p.statut === "success").reduce((s, p) => s + p.montant, 0);
+  const totalCollected = paylinks.reduce((s, p) => s + (p.total_collected ?? 0), 0);
   const totalPending = payments.filter(p => p.statut === "pending").reduce((s, p) => s + p.montant, 0);
   const totalWithdrawn = withdrawals.filter(w => w.statut !== "failed").reduce((s, w) => s + w.montant, 0);
-  const soldeDisponible = Math.max(0, totalCollected - totalWithdrawn);
+  const soldeDisponible = Math.max(0, soldePaylink - totalWithdrawn);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1059,11 +1060,33 @@ export default function PayLinkPage() {
         nom: row.nom, pays: row.pays, reseau: row.reseau, telephone: row.telephone,
         statut: row.statut, created_at: row.created_at,
       })));
+
+      // Lire le solde PayLink crédité par l'admin
+      const { data: userData } = await (supabase as any)
+        .from("nexora_users").select("solde_paylink").eq("id", user.id).maybeSingle();
+      setSoldePaylink(userData?.solde_paylink ?? 0);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Realtime — mise à jour du solde PayLink quand l'admin crédite
+  useEffect(() => {
+    const user = getNexoraUser();
+    if (!user?.id) return;
+    const channel = (supabase as any)
+      .channel("paylink-solde-live")
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "nexora_users",
+        filter: `id=eq.${user.id}`,
+      }, (payload: any) => {
+        if (payload.new?.solde_paylink !== undefined)
+          setSoldePaylink(payload.new.solde_paylink);
+      })
+      .subscribe();
+    return () => { (supabase as any).removeChannel(channel); };
+  }, []);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("nexora_paylinks" as any).delete().eq("id", id);
@@ -1090,8 +1113,8 @@ export default function PayLinkPage() {
 
         {/* Toasts */}
         {successMsg && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-emerald-500 text-white px-5 py-3 rounded-2xl font-bold shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 max-w-sm">
-            <CheckCircle2 className="w-4 h-4 shrink-0" /> {successMsg}
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] text-white px-5 py-3 rounded-2xl font-bold shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 max-w-sm" style={{background:'#00C853', boxShadow:'0 8px 25px rgba(0,200,83,0.4)'}}>
+            <span className="text-lg">✅</span> {successMsg}
           </div>
         )}
         {errorMsg && (
@@ -1139,7 +1162,7 @@ export default function PayLinkPage() {
                 <Plus className="w-4 h-4" /> Nouveau PayLink
               </button>
               <button onClick={() => setShowRetrait(true)} disabled={soldeDisponible < 1000}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-black rounded-xl transition-all text-sm shadow-lg shadow-emerald-500/30">
+                className="flex-1 flex items-center justify-center gap-2 py-3 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-black rounded-xl transition-all text-sm shadow-lg" style={{background:'#00C853', boxShadow:'0 4px 15px rgba(0,200,83,0.35)'}}>
                 <Wallet className="w-4 h-4" /> Retirer
               </button>
             </div>
@@ -1283,7 +1306,7 @@ export default function PayLinkPage() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">Commission retrait : {FRAIS_RETRAIT * 100}%</p>
                   </div>
                   <button onClick={() => setShowRetrait(true)} disabled={soldeDisponible < 1000}
-                    className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-black rounded-xl transition-all flex items-center gap-2 text-sm shadow-md shadow-emerald-500/25">
+                    className="px-4 py-2.5 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-black rounded-xl transition-all flex items-center gap-2 text-sm shadow-md" style={{background:'#00C853', boxShadow:'0 4px 12px rgba(0,200,83,0.35)'}}>
                     <Wallet className="w-4 h-4" /> Retirer
                   </button>
                 </div>

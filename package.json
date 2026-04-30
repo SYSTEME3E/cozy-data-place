@@ -12,9 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "api": "node server.js",
-    "api:dev": "node --watch server.js",
-    "start:all": "concurrently \"vite\" \"node --watch server.js\""
+    "start:all": "vite"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
+import ThemeVitrineConfig from "@/components/ThemeVitrineConfig";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import {
   Store, Globe, Facebook, Bell, Save,
-  Eye, EyeOff, Image, Phone
+  Eye, EyeOff, Image, Phone, Palette, ExternalLink, CheckCircle2
 } from "lucide-react";
 
 const PAYS = [
@@ -39,6 +41,7 @@ const DEVISES = [
 
 const TABS = [
   { id: "general",       label: "Général",         icon: Store    },
+  { id: "apparence",     label: "Apparence",       icon: Palette  },
   { id: "pixel",         label: "Facebook Pixel",  icon: Facebook },
   { id: "notifications", label: "Notifications",   icon: Bell     },
 ];
@@ -53,6 +56,8 @@ interface Boutique {
   api_conversion_token: string; api_conversion_actif: boolean;
   domaine_personnalise: string; domaine_actif: boolean;
   notifications_actives: boolean; actif: boolean;
+  theme_couleur_principale: string; theme_couleur_secondaire: string;
+  theme_style: string; theme_fond: string; theme_police: string;
 }
 
 const defaultBoutique: Boutique = {
@@ -64,16 +69,20 @@ const defaultBoutique: Boutique = {
   api_conversion_token: "", api_conversion_actif: false,
   domaine_personnalise: "", domaine_actif: false,
   notifications_actives: true, actif: true,
+    theme_couleur_principale: "#FF1A00", theme_couleur_secondaire: "#305CDE",
+    theme_style: "moderne", theme_fond: "blanc", theme_police: "inter",
 };
 
 // Classes communes réutilisables
 const inputCls = "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500";
 const selectCls = "w-full h-10 px-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm";
-const cardCls = "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm space-y-4";
-const labelCls = "text-sm font-medium text-gray-700 dark:text-gray-300";
+const cardCls = "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-sm space-y-5";
+const labelCls = "block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5";
+const sectionTitleCls = "font-bold text-sm text-[#FF1A00] dark:text-[#FF1A00] uppercase tracking-wide pb-1 border-b border-[#FF1A00] dark:border-[#FF1A00]/50";
 
 export default function BoutiqueParametresPage() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const fileLogoRef     = useRef<HTMLInputElement>(null);
   const fileBanniereRef = useRef<HTMLInputElement>(null);
 
@@ -84,6 +93,7 @@ export default function BoutiqueParametresPage() {
   const [showToken, setShowToken]             = useState(false);
   const [uploadingLogo, setUploadingLogo]     = useState(false);
   const [uploadingBanniere, setUploadingBanniere] = useState(false);
+  const [justCreated, setJustCreated]         = useState(false);
 
   const currentUser = getNexoraUser();
 
@@ -131,6 +141,7 @@ export default function BoutiqueParametresPage() {
       toast({ title: "Utilisateur non connecté", variant: "destructive" }); return;
     }
     setSaving(true);
+    const isCreation = !boutique.id;
     const payload = { ...boutique, user_id: currentUser.id, slug: boutique.slug || genSlug(boutique.nom) };
     let error;
     if (boutique.id) {
@@ -143,7 +154,13 @@ export default function BoutiqueParametresPage() {
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Boutique sauvegardée !" });
+      if (isCreation) {
+        // Nouvelle boutique — afficher la bannière de succès avec lien
+        setJustCreated(true);
+        toast({ title: "Boutique créée avec succès ! 🎉" });
+      } else {
+        toast({ title: "Boutique sauvegardée !" });
+      }
       load();
     }
     setSaving(false);
@@ -152,7 +169,7 @@ export default function BoutiqueParametresPage() {
   if (loading) return (
     <BoutiqueLayout>
       <div className="flex items-center justify-center h-64">
-        <div className="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#FF1A00] border-t-transparent rounded-full animate-spin" />
       </div>
     </BoutiqueLayout>
   );
@@ -160,6 +177,34 @@ export default function BoutiqueParametresPage() {
   return (
     <BoutiqueLayout boutiqueName={boutique?.nom || "Ma Boutique"} boutiqueSlug={boutique?.slug}>
       <div className="space-y-5 pb-10">
+
+        {/* ── Bannière succès création ── */}
+        {justCreated && boutique.slug && (
+          <div className="rounded-2xl bg-gradient-to-r from-[#008000] to-[#305CDE] p-5 text-white shadow-lg flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 flex-shrink-0" />
+              <div>
+                <p className="font-bold text-base">Boutique créée avec succès 🎉</p>
+                <p className="text-sm text-[#008000] mt-0.5">Votre boutique est en ligne et prête à recevoir des commandes.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => navigate(`/shop/${boutique.slug}`)}
+                className="flex-1 bg-white text-[#008000] hover:bg-green-50 font-bold gap-2 h-10"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Voir ma boutique
+              </Button>
+              <button
+                onClick={() => setJustCreated(false)}
+                className="px-4 py-2 rounded-xl border border-white/40 text-sm text-white hover:bg-white/10 transition"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -169,7 +214,7 @@ export default function BoutiqueParametresPage() {
           </div>
           <div className="flex gap-2">
             <Button onClick={handleSave} disabled={saving}
-              className="bg-pink-500 hover:bg-pink-600 text-white gap-1">
+              className="bg-[#FF1A00] hover:bg-[#FF1A00] text-white gap-1">
               <Save className="w-4 h-4" />
               {saving ? "Sauvegarde..." : "Sauvegarder"}
             </Button>
@@ -179,13 +224,13 @@ export default function BoutiqueParametresPage() {
         {/* Statut boutique */}
         <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl px-4 py-3 shadow-sm">
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${boutique.actif ? "bg-green-500" : "bg-red-400"}`} />
+            <div className={`w-3 h-3 rounded-full ${boutique.actif ? "bg-[#008000]" : "bg-red-400"}`} />
             <span className="font-medium text-sm text-gray-700 dark:text-gray-300">
               Boutique {boutique.actif ? "active" : "inactive"}
             </span>
           </div>
           <button onClick={() => setBoutique(prev => ({ ...prev, actif: !prev.actif }))}
-            className={`relative w-12 h-6 rounded-full transition-colors ${boutique.actif ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+            className={`relative w-12 h-6 rounded-full transition-colors ${boutique.actif ? "bg-[#008000]" : "bg-gray-300 dark:bg-gray-600"}`}>
             <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.actif ? "left-7" : "left-1"}`} />
           </button>
         </div>
@@ -196,8 +241,8 @@ export default function BoutiqueParametresPage() {
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                 activeTab === tab.id
-                  ? "bg-pink-500 text-white shadow"
-                  : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-pink-300 dark:hover:border-pink-600"
+                  ? "bg-[#1D4ED8] text-white shadow"
+                  : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-[#1D4ED8] dark:hover:border-[#1D4ED8]"
               }`}>
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
@@ -209,12 +254,12 @@ export default function BoutiqueParametresPage() {
         {activeTab === "general" && (
           <div className="space-y-4">
             <div className={cardCls}>
-              <p className="font-semibold text-sm text-pink-600 dark:text-pink-400">Informations générales</p>
+              <p className={sectionTitleCls}>Informations générales</p>
               <div>
                 <label className={labelCls}>Nom de la boutique *</label>
                 <Input value={boutique.nom}
                   onChange={e => setBoutique(prev => ({ ...prev, nom: e.target.value, slug: genSlug(e.target.value) }))}
-                  placeholder="Ma Super Boutique" className={`mt-1 ${inputCls}`} />
+                  placeholder="Ma Super Boutique" className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>URL de la boutique</label>
@@ -226,7 +271,7 @@ export default function BoutiqueParametresPage() {
                 </div>
                 {boutique.slug && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Votre vitrine : <span className="text-pink-500 font-medium">/shop/{boutique.slug}</span>
+                    Votre vitrine : <span className="text-[#FF1A00] font-medium">/shop/{boutique.slug}</span>
                   </p>
                 )}
               </div>
@@ -241,7 +286,7 @@ export default function BoutiqueParametresPage() {
                 <label className={labelCls}>Devise</label>
                 <select value={boutique.devise}
                   onChange={e => setBoutique(prev => ({ ...prev, devise: e.target.value }))}
-                  className={`mt-1 ${selectCls}`}>
+                  className={selectCls}>
                   {DEVISES.map(d => <option key={d.code} value={d.code}>{d.label} ({d.symbole})</option>)}
                 </select>
               </div>
@@ -249,7 +294,7 @@ export default function BoutiqueParametresPage() {
 
             {/* Images */}
             <div className={cardCls}>
-              <p className="font-semibold text-sm text-pink-600 dark:text-pink-400">Images</p>
+              <p className={sectionTitleCls}>Images</p>
               <div>
                 <label className={labelCls}>Logo de la boutique</label>
                 <div className="mt-2 flex items-center gap-3">
@@ -266,7 +311,7 @@ export default function BoutiqueParametresPage() {
                     <Button type="button" variant="outline" size="sm"
                       onClick={() => fileLogoRef.current?.click()}
                       disabled={uploadingLogo}
-                      className="w-full gap-1 border-gray-200 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                      className="w-full gap-1 border-[#1D4ED8] text-[#1D4ED8] dark:border-[#1D4ED8] dark:bg-gray-700 dark:text-blue-300 dark:hover:bg-gray-600">
                       <Image className="w-3 h-3" />
                       {uploadingLogo ? "Upload..." : "Choisir logo"}
                     </Button>
@@ -287,7 +332,7 @@ export default function BoutiqueParametresPage() {
                   <Button type="button" variant="outline" size="sm"
                     onClick={() => fileBanniereRef.current?.click()}
                     disabled={uploadingBanniere}
-                    className="w-full gap-1 border-gray-200 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                    className="w-full gap-1 border-[#1D4ED8] text-[#1D4ED8] dark:border-[#1D4ED8] dark:bg-gray-700 dark:text-blue-300 dark:hover:bg-gray-600">
                     <Image className="w-3 h-3" />
                     {uploadingBanniere ? "Upload..." : "Choisir bannière"}
                   </Button>
@@ -300,12 +345,12 @@ export default function BoutiqueParametresPage() {
 
             {/* Contact */}
             <div className={cardCls}>
-              <p className="font-semibold text-sm text-pink-600 dark:text-pink-400">Contact vendeur</p>
+              <p className={sectionTitleCls}>Contact vendeur</p>
               <div>
                 <label className={labelCls}>Email *</label>
                 <Input type="email" value={boutique.email}
                   onChange={e => setBoutique(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="contact@maboutique.com" className={`mt-1 ${inputCls}`} />
+                  placeholder="contact@maboutique.com" className={inputCls} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -332,7 +377,7 @@ export default function BoutiqueParametresPage() {
                   <label className={labelCls}>Pays</label>
                   <select value={boutique.pays}
                     onChange={e => setBoutique(prev => ({ ...prev, pays: e.target.value }))}
-                    className={`mt-1 ${selectCls}`}>
+                    className={selectCls}>
                     {PAYS.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
@@ -340,14 +385,14 @@ export default function BoutiqueParametresPage() {
                   <label className={labelCls}>Ville</label>
                   <Input value={boutique.ville}
                     onChange={e => setBoutique(prev => ({ ...prev, ville: e.target.value }))}
-                    placeholder="Cotonou" className={`mt-1 ${inputCls}`} />
+                    placeholder="Cotonou" className={inputCls} />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Adresse</label>
                 <Input value={boutique.adresse}
                   onChange={e => setBoutique(prev => ({ ...prev, adresse: e.target.value }))}
-                  placeholder="Adresse complète" className={`mt-1 ${inputCls}`} />
+                  placeholder="Adresse complète" className={inputCls} />
               </div>
             </div>
           </div>
@@ -357,18 +402,22 @@ export default function BoutiqueParametresPage() {
         {activeTab === "pixel" && (
           <div className="space-y-4">
             <div className={cardCls}>
-              <div className="flex items-center gap-2">
-                <Facebook className="w-5 h-5 text-blue-600" />
-                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">Pixel Facebook</p>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-[#305CDE]/40 flex items-center justify-center">
+                  <Facebook className="w-5 h-5 text-[#305CDE]" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-gray-800 dark:text-gray-100">Pixel Facebook</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Tracking navigateur côté client</p>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Suivez les visites, ajouts au panier et achats sur votre boutique.</p>
-              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-[#305CDE] rounded-xl">
                 <div>
                   <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Activer le Pixel</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">Tracking navigateur</p>
                 </div>
                 <button onClick={() => setBoutique(prev => ({ ...prev, pixel_actif: !prev.pixel_actif }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.pixel_actif ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.pixel_actif ? "bg-[#305CDE]" : "bg-gray-300 dark:bg-gray-600"}`}>
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.pixel_actif ? "left-7" : "left-1"}`} />
                 </button>
               </div>
@@ -376,21 +425,23 @@ export default function BoutiqueParametresPage() {
                 <label className={labelCls}>ID Pixel Facebook</label>
                 <Input value={boutique.pixel_facebook_id}
                   onChange={e => setBoutique(prev => ({ ...prev, pixel_facebook_id: e.target.value }))}
-                  placeholder="123456789012345" className={`mt-1 font-mono ${inputCls}`} />
+                  placeholder="123456789012345" className={`font-mono ${inputCls}`} />
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Trouvez-le dans Facebook Events Manager</p>
               </div>
             </div>
 
             <div className={cardCls}>
-              <p className="font-semibold text-sm text-blue-700 dark:text-blue-400">API Conversions</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Plus fiable que le Pixel — contourne les bloqueurs de publicité.</p>
-              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 rounded-xl">
+              <div>
+                <p className="font-bold text-sm text-[#305CDE] dark:text-[#305CDE]">API Conversions (CAPI)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Plus fiable que le Pixel — contourne les bloqueurs de publicité et les limitations iOS.</p>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-[#305CDE] rounded-xl">
                 <div>
                   <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Activer l'API Conversions</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500">Tracking serveur</p>
                 </div>
                 <button onClick={() => setBoutique(prev => ({ ...prev, api_conversion_actif: !prev.api_conversion_actif }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.api_conversion_actif ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.api_conversion_actif ? "bg-[#305CDE]" : "bg-gray-300 dark:bg-gray-600"}`}>
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.api_conversion_actif ? "left-7" : "left-1"}`} />
                 </button>
               </div>
@@ -407,15 +458,24 @@ export default function BoutiqueParametresPage() {
                   </button>
                 </div>
               </div>
-              <div className="bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900 rounded-xl p-3">
-                <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-1">Événements trackés :</p>
-                <ul className="text-xs text-yellow-700 dark:text-yellow-400 space-y-0.5">
-                  <li>• <strong>PageView</strong> — visite boutique</li>
-                  <li>• <strong>ViewContent</strong> — vue produit</li>
-                  <li>• <strong>AddToCart</strong> — ajout panier</li>
-                  <li>• <strong>InitiateCheckout</strong> — début commande</li>
-                  <li>• <strong>Purchase</strong> — commande confirmée</li>
-                </ul>
+              <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-[#305CDE] rounded-xl p-4">
+                <p className="text-xs font-bold text-[#305CDE] dark:text-[#305CDE] mb-2">Événements trackés :</p>
+                <div className="space-y-1.5">
+                  {[
+                    { name: "PageView", desc: "visite boutique", ok: true },
+                    { name: "ViewContent", desc: "vue produit", ok: true },
+                    { name: "AddToCart", desc: "ajout panier", ok: true },
+                    { name: "InitiateCheckout", desc: "début commande", ok: true },
+                    { name: "Purchase", desc: "commande confirmée", ok: true },
+                  ].map(ev => (
+                    <div key={ev.name} className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ev.ok ? "bg-[#008000]" : "bg-red-400"}`} />
+                      <span className="text-xs text-[#305CDE] dark:text-[#305CDE]">
+                        <strong>{ev.name}</strong> — {ev.desc}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -426,12 +486,12 @@ export default function BoutiqueParametresPage() {
           <div className="space-y-4">
             <div className={cardCls}>
               <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-pink-500" />
+                <Globe className="w-5 h-5 text-[#FF1A00]" />
                 <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">Domaine personnalisé</p>
               </div>
-              <div className="bg-pink-50 dark:bg-pink-950/40 border border-pink-100 dark:border-pink-900 rounded-xl p-3">
-                <p className="text-xs font-semibold text-pink-700 dark:text-pink-400 mb-1">URL actuelle :</p>
-                <p className="text-sm font-mono text-pink-600 dark:text-pink-400 break-all">
+              <div className="bg-[#FF1A00]/5 dark:bg-[#FF1A00]/20 border border-[#FF1A00] dark:border-[#FF1A00] rounded-xl p-3">
+                <p className="text-xs font-semibold text-[#FF1A00] dark:text-[#FF1A00] mb-1">URL actuelle :</p>
+                <p className="text-sm font-mono text-[#FF1A00] dark:text-[#FF1A00] break-all">
                   https://budget-and-vault.vercel.app/shop/{boutique.slug || "votre-slug"}
                 </p>
               </div>
@@ -439,7 +499,7 @@ export default function BoutiqueParametresPage() {
                 <label className={labelCls}>Votre domaine</label>
                 <Input value={boutique.domaine_personnalise}
                   onChange={e => setBoutique(prev => ({ ...prev, domaine_personnalise: e.target.value }))}
-                  placeholder="www.maboutique.com" className={`mt-1 font-mono ${inputCls}`} />
+                  placeholder="www.maboutique.com" className={`font-mono ${inputCls}`} />
               </div>
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                 <div>
@@ -447,7 +507,7 @@ export default function BoutiqueParametresPage() {
                   <p className="text-xs text-gray-400 dark:text-gray-500">Après configuration DNS</p>
                 </div>
                 <button onClick={() => setBoutique(prev => ({ ...prev, domaine_actif: !prev.domaine_actif }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.domaine_actif ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.domaine_actif ? "bg-[#008000]" : "bg-gray-300 dark:bg-gray-600"}`}>
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.domaine_actif ? "left-7" : "left-1"}`} />
                 </button>
               </div>
@@ -459,10 +519,10 @@ export default function BoutiqueParametresPage() {
                   <li>Ajoutez un enregistrement CNAME :</li>
                 </ol>
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 font-mono text-xs space-y-0.5">
-                  <p><span className="text-pink-500">Type :</span> <span className="text-gray-700 dark:text-gray-200">CNAME</span></p>
-                  <p><span className="text-pink-500">Nom :</span> <span className="text-gray-700 dark:text-gray-200">www</span></p>
-                  <p><span className="text-pink-500">Valeur :</span> <span className="text-gray-700 dark:text-gray-200">cname.vercel-dns.com</span></p>
-                  <p><span className="text-pink-500">TTL :</span> <span className="text-gray-700 dark:text-gray-200">Auto</span></p>
+                  <p><span className="text-[#FF1A00]">Type :</span> <span className="text-gray-700 dark:text-gray-200">CNAME</span></p>
+                  <p><span className="text-[#FF1A00]">Nom :</span> <span className="text-gray-700 dark:text-gray-200">www</span></p>
+                  <p><span className="text-[#FF1A00]">Valeur :</span> <span className="text-gray-700 dark:text-gray-200">cname.vercel-dns.com</span></p>
+                  <p><span className="text-[#FF1A00]">TTL :</span> <span className="text-gray-700 dark:text-gray-200">Auto</span></p>
                 </div>
                 <ol start={4} className="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
                   <li>Ajoutez le domaine dans Vercel → Settings → Domains</li>
@@ -478,7 +538,7 @@ export default function BoutiqueParametresPage() {
           <div className="space-y-4">
             <div className={cardCls}>
               <div className="flex items-center gap-2">
-                <Bell className="w-5 h-5 text-pink-500" />
+                <Bell className="w-5 h-5 text-[#FF1A00]" />
                 <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">Notifications Push</p>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -490,11 +550,11 @@ export default function BoutiqueParametresPage() {
                   <p className="text-xs text-gray-400 dark:text-gray-500">Nouvelles commandes en temps réel</p>
                 </div>
                 <button onClick={() => setBoutique(prev => ({ ...prev, notifications_actives: !prev.notifications_actives }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.notifications_actives ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}>
+                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.notifications_actives ? "bg-[#008000]" : "bg-gray-300 dark:bg-gray-600"}`}>
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.notifications_actives ? "left-7" : "left-1"}`} />
                 </button>
               </div>
-              <Button className="w-full bg-pink-500 hover:bg-pink-600 text-white gap-2"
+              <Button className="w-full bg-[#1D4ED8] hover:bg-[#1B44B8] text-white gap-2"
                 onClick={async () => {
                   try {
                     const permission = await Notification.requestPermission();
@@ -523,9 +583,17 @@ export default function BoutiqueParametresPage() {
           </div>
         )}
 
+        {/* ── TAB Apparence ── */}
+        {activeTab === "apparence" && (
+          <ThemeVitrineConfig
+            boutique={boutique}
+            onChange={(updates) => setBoutique(prev => ({ ...prev, ...updates }))}
+          />
+        )}
+
         {/* Bouton sauvegarder bas */}
         <Button onClick={handleSave} disabled={saving}
-          className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 text-base font-bold gap-2">
+          className="w-full bg-[#1D4ED8] hover:bg-[#1B44B8] text-white py-3 text-base font-bold gap-2">
           <Save className="w-5 h-5" />
           {saving ? "Sauvegarde..." : "Sauvegarder les paramètres"}
         </Button>

@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronDown, Phone, User, Search, Check, X, AlertCircle,
-  Loader2, Globe, ShieldCheck, Download, ArrowLeft, Zap, BadgeCheck
+  Loader2, Globe, ShieldCheck, Download, ArrowLeft, Zap, BadgeCheck, Clock, AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -177,7 +177,7 @@ body{font-family:'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;}
   </div>
   <div class="footer">
     <p>Reçu généré par <strong style="color:#7c3aed">NEXORA PAYLINK</strong><br/>
-    Powered by GeniusPay · support@nexora.africa<br/>
+    Powered by KKiaPay · support@nexora.africa<br/>
     © ${new Date().getFullYear()} NEXORA — Tous droits réservés</p>
   </div>
 </div></body></html>`;
@@ -213,6 +213,25 @@ export default function PayLinkCheckoutPage() {
   const [paymentRef, setPaymentRef] = useState<string>("");
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
+  // ── Timer expiration 10 min ──
+  const [timeLeft, setTimeLeft] = useState<number>(600);
+  const [paymentExpired, setPaymentExpired] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const deadline = Date.now() + 10 * 60 * 1000;
+    timerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(timerRef.current!);
+        setPaymentExpired(true);
+        setStep("failed");
+      }
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
   useEffect(() => {
     const fetchPayLink = async () => {
       if (!slug) { setNotFound(true); setLoading(false); return; }
@@ -230,7 +249,7 @@ export default function PayLinkCheckoutPage() {
     fetchPayLink();
   }, [slug]);
 
-  // ── Gérer le retour GeniusPay (success_url / error_url) ─────────
+  // ── Gérer le retour KKiaPay (via listener success/failed) ─────────
   useEffect(() => {
     const status = searchParams.get("status");
     const ref    = searchParams.get("ref");
@@ -300,49 +319,53 @@ export default function PayLinkCheckoutPage() {
           if (dbErr) console.warn("⚠️ Insert paylink_payments non bloquant :", dbErr.message);
         });
 
-      // Appel API GeniusPay via la fonction existante geniuspay-payment
-      const { data: payData, error: fnErr } = await supabase.functions.invoke("geniuspay-payment", {
-        body: {
-          type: "paylink",
-          paylink_id: paylink.id,
-          amount: paylink.montant,
-          currency: paylink.devise,
-          payment_method: paymentMethod === "mobile_money" ? reseau : undefined,
-          pays: pays?.code,
-          customer: {
-            name: nomClient.trim(),
-            phone: telephone.trim(),
-          },
-          reference: ref,
-          metadata: {
-            slug,
+      // Ouvrir le widget KKiaPay directement
+      const { openKkiapay, onKkiapaySuccess, onKkiapayFailed, removeKkiapayListeners } = await import("@/lib/kkiapay");
+
+      await removeKkiapayListeners();
+
+      await onKkiapaySuccess(async ({ transactionId }) => {
+        await removeKkiapayListeners();
+        setStep("processing");
+        // ⏳ Attendre 2s pour laisser KKiaPay finaliser la transaction côté API
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Vérifier la transaction et marquer le paylink comme payé
+        const { data: verifyData, error: verifyErr } = await supabase.functions.invoke("kkiapay-verify", {
+          body: {
+            transactionId,
+            type:       "paylink",
             paylink_id: paylink.id,
-            description: paylink.nom_produit,
+            reference:  ref,
           },
-        },
+        });
+        if (verifyErr || !verifyData?.success) {
+          setError(verifyData?.error ?? "Erreur de vérification du paiement.");
+          setStep("failed");
+        } else {
+          await supabase.from("nexora_paylink_payments" as any)
+            .update({ statut: "paye", kkiapay_transaction_id: transactionId })
+            .eq("reference", ref);
+          setStep("success");
+        }
       });
 
-      if (fnErr || !payData?.success) {
-        // Afficher l'erreur réelle
-        const errMsg = payData?.error ?? fnErr?.message ?? "Erreur de paiement. Veuillez réessayer.";
+      await onKkiapayFailed(() => {
+        removeKkiapayListeners();
+        const errMsg = "Le paiement a échoué. Veuillez réessayer.";
         setError(errMsg);
-        await supabase
-          .from("nexora_paylink_payments" as any)
+        supabase.from("nexora_paylink_payments" as any)
           .update({ statut: "failed", error_message: errMsg })
           .eq("reference", ref);
         setStep("failed");
-        return;
-      }
+      });
 
-      const redirectUrl = payData.checkout_url ?? payData.payment_url ?? null;
-      if (redirectUrl) {
-        setCheckoutUrl(redirectUrl);
-        setStep("processing");
-        window.location.href = redirectUrl; // Redirection directe vers GeniusPay
-      } else {
-        setError("Impossible d'obtenir le lien de paiement.");
-        setStep("failed");
-      }
+      await openKkiapay({
+        amount: paylink.montant,
+        name:   nomClient.trim(),
+        phone:  telephone.trim(),
+        reason: paylink.nom_produit ?? "Paiement NEXORA PayLink",
+        data:   JSON.stringify({ slug, paylink_id: paylink.id, reference: ref }),
+      });
     } catch (err: any) {
       const errMsg = err?.message ?? "Erreur inattendue. Veuillez réessayer.";
       setError(errMsg);
@@ -471,12 +494,12 @@ export default function PayLinkCheckoutPage() {
         <Loader2 className="w-12 h-12 animate-spin text-violet-400 mx-auto" />
         <div className="space-y-2">
           <h2 className="text-white font-black text-xl">Paiement en cours...</h2>
-          <p className="text-white/50 text-sm">Completez le paiement sur la page GeniusPay.</p>
+          <p className="text-white/50 text-sm">Completez le paiement dans le widget KKiaPay.</p>
         </div>
         {checkoutUrl && (
           <a href={checkoutUrl} target="_blank" rel="noopener noreferrer"
             className="w-full inline-flex items-center justify-center gap-2 py-3.5 bg-violet-500 hover:bg-violet-600 text-white font-black rounded-2xl transition-colors">
-            Ouvrir GeniusPay
+            Ouvrir KKiaPay
           </a>
         )}
         <button
@@ -648,9 +671,47 @@ export default function PayLinkCheckoutPage() {
               )}
             </div>
 
+            {/* ── Timer expiration ── */}
+            {paymentExpired ? (
+              <div className="flex items-start gap-3 bg-red-500/20 border border-red-400/40 rounded-2xl p-4">
+                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-red-300 text-sm">Session expirée</p>
+                  <p className="text-xs text-red-400 mt-0.5">
+                    Ce paiement a expiré après 10 minutes. Rechargez la page pour recommencer.
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-xs font-bold text-red-300 underline"
+                  >
+                    ↺ Recharger la page
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 border ${
+                timeLeft <= 60 ? "bg-red-500/20 border-red-400/40"
+                : timeLeft <= 180 ? "bg-amber-500/20 border-amber-400/40"
+                : "bg-white/5 border-white/10"
+              }`}>
+                <Clock className={`w-4 h-4 flex-shrink-0 ${
+                  timeLeft <= 60 ? "text-red-400" : timeLeft <= 180 ? "text-amber-400" : "text-white/40"
+                }`} />
+                <p className={`text-xs font-semibold ${
+                  timeLeft <= 60 ? "text-red-400" : timeLeft <= 180 ? "text-amber-400" : "text-white/40"
+                }`}>
+                  Session expire dans{" "}
+                  <span className="font-black tabular-nums">
+                    {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
+                  </span>
+                  {timeLeft <= 60 && " — Dépêchez-vous !"}
+                </p>
+              </div>
+            )}
+
             <button
               onClick={handleSubmit}
-              disabled={!valid || submitting}
+              disabled={!valid || submitting || paymentExpired}
               className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 text-base shadow-lg shadow-violet-500/30 hover:scale-[1.02] active:scale-[0.99]"
             >
               {submitting
@@ -663,7 +724,7 @@ export default function PayLinkCheckoutPage() {
             <div className="flex items-center justify-center gap-4 pt-2">
               {[
                 { icon: ShieldCheck, text: "Paiement sécurisé" },
-                { icon: BadgeCheck, text: "Powered by GeniusPay" },
+                { icon: BadgeCheck, text: "Powered by KKiaPay" },
                 { icon: Globe, text: "24 pays africains" },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-1 text-white/25 text-[10px]">

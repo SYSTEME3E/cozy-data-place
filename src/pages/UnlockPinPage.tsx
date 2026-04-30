@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, ShieldAlert, Clock, LogOut, Fingerprint } from "lucide-react";
+import { ShieldAlert, Clock, LogOut, Fingerprint } from "lucide-react";
 import PinInput from "@/components/auth/PinInput";
 import { verifyPin } from "@/services/pinService";
 import { getNexoraUser, logoutUser } from "@/lib/nexora-auth";
@@ -15,9 +15,8 @@ export default function UnlockPinPage() {
   const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lockCountdown, setLockCountdown] = useState(0);
-  const [pinKey, setPinKey] = useState(0); // force re-render PinInput
+  const [pinKey, setPinKey] = useState(0);
 
-  // Countdown timer for lockout
   useEffect(() => {
     if (!isLockedOut()) return;
     setLockCountdown(getLockoutRemaining());
@@ -60,7 +59,6 @@ export default function UnlockPinPage() {
       if (locked) {
         setLockCountdown(getLockoutRemaining());
         setError(`Trop de tentatives. Réessayez dans ${Math.ceil(getLockoutRemaining() / 60)} min.`);
-        // Start countdown
         const timer = setInterval(() => {
           const remaining = getLockoutRemaining();
           setLockCountdown(remaining);
@@ -90,198 +88,132 @@ export default function UnlockPinPage() {
   const locked = isLockedOut();
   const attempts = getAttempts();
 
-  return (
-    <div className="min-h-screen bg-[#080c10] flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Ambient glows */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div style={{
-          position: "absolute", top: "30%", left: "50%",
-          transform: "translate(-50%,-50%)",
-          width: 500, height: 500, borderRadius: "50%",
-          background: locked
-            ? "radial-gradient(circle, rgba(255,68,68,0.06) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(0,255,120,0.07) 0%, transparent 70%)",
-          transition: "background 0.5s",
-        }} />
-      </div>
+  const blue = "#1a56db";
+  const blueSoft = "rgba(26,86,219,0.10)";
+  const blueBorder = "rgba(26,86,219,0.3)";
 
-      <div className="relative z-10 w-full max-w-sm">
-        {/* Header */}
-        <div className="text-center mb-8">
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#ffffff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "1rem",
+    }}>
+      <div style={{ width: "100%", maxWidth: 360 }}>
+
+        {/* Icône + titre */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 72, height: 72, borderRadius: 20, marginBottom: 16,
-            background: locked ? "rgba(255,68,68,0.1)" : "rgba(0,255,120,0.1)",
-            border: locked ? "1.5px solid rgba(255,68,68,0.4)" : "1.5px solid rgba(0,255,120,0.3)",
-            boxShadow: locked ? "0 0 30px rgba(255,68,68,0.15)" : "0 0 30px rgba(0,255,120,0.15)",
-            transition: "all 0.5s",
+            width: 64, height: 64, borderRadius: 18, marginBottom: 14,
+            background: locked ? "rgba(220,38,38,0.08)" : blueSoft,
+            border: locked ? "1.5px solid rgba(220,38,38,0.3)" : `1.5px solid ${blueBorder}`,
           }}>
             {locked
-              ? <ShieldAlert className="w-8 h-8" style={{ color: "#ff4444" }} />
-              : <Fingerprint className="w-8 h-8" style={{ color: "#00ff78" }} />
+              ? <ShieldAlert style={{ width: 28, height: 28, color: "#dc2626" }} />
+              : <Fingerprint style={{ width: 28, height: 28, color: blue }} />
             }
           </div>
-          <h1 style={{
-            fontSize: "1.5rem", fontWeight: 800, color: "#f0fdf4",
-            letterSpacing: "-0.02em", fontFamily: "'Courier New', monospace",
-          }}>
-            NEXORA
-          </h1>
-          <p style={{
-            color: locked ? "rgba(255,68,68,0.6)" : "rgba(0,255,120,0.6)",
-            fontSize: "0.75rem", letterSpacing: "0.2em", marginTop: 2,
-            transition: "color 0.5s",
-          }}>
-            {locked ? "COMPTE VERROUILLÉ" : "DÉVERROUILLAGE"}
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827", margin: 0 }}>
+            Entrez votre code PIN
+          </h2>
+          <p style={{ fontSize: "0.8rem", color: "#9ca3af", marginTop: 4 }}>
+            {locked ? "Compte temporairement verrouillé" : "Saisissez votre code PIN à 4 chiffres"}
           </p>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background: "rgba(10,18,12,0.9)",
-          border: locked ? "1px solid rgba(255,68,68,0.25)" : "1px solid rgba(0,255,120,0.2)",
-          borderRadius: 20, padding: "2rem",
-          boxShadow: "0 0 40px rgba(0,0,0,0.6)",
-          backdropFilter: "blur(20px)",
-          transition: "border-color 0.5s",
-        }}>
-          {/* User greeting */}
+        {/* Lockout */}
+        {locked ? (
           <div style={{
-            display: "flex", alignItems: "center", gap: 10, marginBottom: 20,
-            padding: "10px 14px", borderRadius: 10,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.07)",
+            marginBottom: 20, padding: "16px", borderRadius: 12,
+            background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)",
+            textAlign: "center",
           }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: "50%",
-              background: "linear-gradient(135deg, rgba(0,255,120,0.3), rgba(0,200,255,0.3))",
-              border: "1.5px solid rgba(0,255,120,0.3)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "0.875rem", fontWeight: 700, color: "#00ff78",
-              fontFamily: "'Courier New', monospace",
-            }}>
-              {user?.nom_prenom?.charAt(0)?.toUpperCase() || "?"}
-            </div>
-            <div>
-              <p style={{ color: "#f0fdf4", fontSize: "0.8rem", fontWeight: 600 }}>
-                {user?.nom_prenom || "Utilisateur"}
-              </p>
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.7rem" }}>
-                @{user?.username || ""}
-              </p>
-            </div>
-            <Lock className="w-4 h-4 ml-auto" style={{ color: "rgba(0,255,120,0.4)" }} />
-          </div>
-
-          <div className="text-center mb-2">
-            <h2 style={{
-              fontSize: "1.0rem", fontWeight: 700, color: "#f0fdf4",
-              fontFamily: "'Courier New', monospace",
-            }}>
-              Entrez votre code PIN
-            </h2>
-            <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
-              Saisissez votre code PIN à 4 chiffres
+            <Clock style={{ width: 30, height: 30, color: "#dc2626", margin: "0 auto 8px" }} />
+            <p style={{ color: "#dc2626", fontWeight: 700, fontSize: "0.9rem", margin: 0 }}>
+              Trop de tentatives incorrectes
             </p>
-          </div>
-
-          {/* Lockout display */}
-          {locked ? (
             <div style={{
-              margin: "20px 0",
-              padding: "16px",
-              borderRadius: 12,
-              background: "rgba(255,68,68,0.08)",
-              border: "1px solid rgba(255,68,68,0.25)",
-              textAlign: "center",
+              display: "inline-block", marginTop: 10, padding: "5px 18px", borderRadius: 20,
+              background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)",
+              color: "#dc2626", fontWeight: 700, fontSize: "1.1rem", fontFamily: "monospace",
             }}>
-              <Clock className="w-8 h-8 mx-auto mb-2" style={{ color: "#ff4444" }} />
-              <p style={{ color: "#ff6b6b", fontWeight: 700, fontSize: "0.9rem", fontFamily: "'Courier New', monospace" }}>
-                Compte temporairement verrouillé
-              </p>
-              <p style={{ color: "rgba(255,107,107,0.7)", fontSize: "0.78rem", marginTop: 4 }}>
-                Trop de tentatives incorrectes
-              </p>
-              <div style={{
-                display: "inline-block", marginTop: 12,
-                padding: "6px 16px", borderRadius: 20,
-                background: "rgba(255,68,68,0.15)",
-                border: "1px solid rgba(255,68,68,0.3)",
-                fontFamily: "'Courier New', monospace",
-                color: "#ff4444", fontWeight: 700, fontSize: "1.1rem",
-              }}>
-                {formatTime(lockCountdown)}
-              </div>
+              {formatTime(lockCountdown)}
             </div>
-          ) : (
-            <div className="my-5">
-              <PinInput
-                key={pinKey}
-                onComplete={handlePin}
-                disabled={loading || locked}
-                error={!!error && !locked}
-                shake={shake}
-              />
-            </div>
-          )}
-
-          {/* Error message */}
-          {error && !locked && (
-            <div style={{
-              textAlign: "center", padding: "8px 12px", borderRadius: 8,
-              background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.3)",
-              color: "#ff6b6b", fontSize: "0.78rem",
-            }}>
-              {error}
-            </div>
-          )}
-
-          {/* Loading dots */}
-          {loading && (
-            <div className="flex items-center justify-center gap-2 mt-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} style={{
-                  width: 6, height: 6, borderRadius: "50%", background: "#00ff78",
-                  animation: "bounce 0.8s infinite", animationDelay: `${i * 0.15}s`,
-                }} />
-              ))}
-            </div>
-          )}
-
-          {/* Attempts indicator */}
-          {!locked && attempts > 0 && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 12 }}>
-              {Array.from({ length: MAX_ATTEMPTS }).map((_, i) => (
-                <div key={i} style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: i < attempts ? "#ff4444" : "rgba(255,255,255,0.1)",
-                  border: i < attempts ? "none" : "1px solid rgba(255,255,255,0.2)",
-                  boxShadow: i < attempts ? "0 0 6px rgba(255,68,68,0.5)" : "none",
-                  transition: "all 0.3s",
-                }} />
-              ))}
-            </div>
-          )}
-
-          {/* Logout option */}
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
-            <button
-              onClick={handleLogout}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                color: "rgba(255,255,255,0.3)", fontSize: "0.75rem",
-                background: "none", border: "none", cursor: "pointer",
-                padding: "6px 12px", borderRadius: 8,
-                transition: "color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Se déconnecter
-            </button>
           </div>
+        ) : (
+          <div style={{ marginBottom: 16 }}>
+            <PinInput
+              key={pinKey}
+              onComplete={handlePin}
+              disabled={loading || locked}
+              error={!!error && !locked}
+              shake={shake}
+            />
+          </div>
+        )}
+
+        {/* Erreur */}
+        {error && !locked && (
+          <div style={{
+            textAlign: "center", padding: "8px 12px", borderRadius: 8,
+            background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)",
+            color: "#dc2626", fontSize: "0.78rem", marginBottom: 12,
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{
+                width: 6, height: 6, borderRadius: "50%", background: blue,
+                animation: "bounce 0.8s infinite", animationDelay: `${i * 0.15}s`,
+              }} />
+            ))}
+          </div>
+        )}
+
+        {/* Indicateur tentatives */}
+        {!locked && attempts > 0 && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+            {Array.from({ length: MAX_ATTEMPTS }).map((_, i) => (
+              <div key={i} style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: i < attempts ? "#dc2626" : "#e5e7eb",
+                boxShadow: i < attempts ? "0 0 5px rgba(220,38,38,0.4)" : "none",
+                transition: "all 0.3s",
+              }} />
+            ))}
+          </div>
+        )}
+
+        {/* Séparateur + Déconnexion */}
+        <div style={{
+          marginTop: 20, paddingTop: 16,
+          borderTop: "1px solid #f3f4f6",
+          textAlign: "center",
+        }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              color: "#9ca3af", fontSize: "0.78rem",
+              background: "none", border: "none", cursor: "pointer",
+              padding: "6px 12px", borderRadius: 8, transition: "color 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#374151")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+          >
+            <LogOut style={{ width: 14, height: 14 }} />
+            Se déconnecter
+          </button>
         </div>
+
       </div>
     </div>
   );

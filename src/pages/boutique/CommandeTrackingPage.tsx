@@ -77,7 +77,7 @@ export default function CommandeTrackingPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-[#FF1A00] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -88,7 +88,7 @@ export default function CommandeTrackingPage() {
         <Package className="w-16 h-16 text-gray-300" />
         <h1 className="text-xl font-black text-gray-800">Commande introuvable</h1>
         <p className="text-sm text-gray-500">Ce lien est invalide ou la commande n'existe plus.</p>
-        <button onClick={() => navigate("/")} className="text-pink-600 underline text-sm font-semibold">
+        <button onClick={() => navigate("/")} className="text-[#FF1A00] underline text-sm font-semibold">
           Retour à l'accueil
         </button>
       </div>
@@ -118,8 +118,8 @@ export default function CommandeTrackingPage() {
 
         {/* Identité boutique */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-pink-100 flex items-center justify-center flex-shrink-0">
-            <Store className="w-7 h-7 text-pink-500" />
+          <div className="w-14 h-14 rounded-2xl bg-[#FF1A00] flex items-center justify-center flex-shrink-0">
+            <Store className="w-7 h-7 text-[#FF1A00]" />
           </div>
           <div className="min-w-0">
             <p className="font-black text-gray-900 text-base truncate">{boutique.nom}</p>
@@ -137,7 +137,7 @@ export default function CommandeTrackingPage() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-blue-500" />
+                <MapPin className="w-5 h-5 text-[#305CDE]" />
               </div>
               <div>
                 <p className="font-black text-sm text-gray-900 mb-0.5">Adresse</p>
@@ -160,14 +160,14 @@ export default function CommandeTrackingPage() {
             rel="noopener noreferrer"
             className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-green-300 hover:shadow-md transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-200 transition-colors">
-              <MessageCircle className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 rounded-xl bg-[#008000] flex items-center justify-center flex-shrink-0 group-hover:bg-[#008000] transition-colors">
+              <MessageCircle className="w-5 h-5 text-[#008000]" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-black text-sm text-gray-900">WhatsApp</p>
               <p className="text-sm text-gray-500">{boutique.whatsapp}</p>
             </div>
-            <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+            <span className="text-xs font-bold text-[#008000] bg-green-50 px-3 py-1 rounded-full">
               Contacter
             </span>
           </a>
@@ -180,13 +180,13 @@ export default function CommandeTrackingPage() {
             className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-blue-300 hover:shadow-md transition-all group"
           >
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
-              <Phone className="w-5 h-5 text-blue-600" />
+              <Phone className="w-5 h-5 text-[#305CDE]" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-black text-sm text-gray-900">Téléphone</p>
               <p className="text-sm text-gray-500">{boutique.telephone}</p>
             </div>
-            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+            <span className="text-xs font-bold text-[#305CDE] bg-blue-50 px-3 py-1 rounded-full">
               Appeler
             </span>
           </a>
@@ -196,16 +196,16 @@ export default function CommandeTrackingPage() {
         {mailLink && boutique.email && (
           <a
             href={mailLink}
-            className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-purple-300 hover:shadow-md transition-all group"
+            className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-[#305CDE] hover:shadow-md transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
-              <Mail className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 rounded-xl bg-[#305CDE] flex items-center justify-center flex-shrink-0 group-hover:bg-[#305CDE] transition-colors">
+              <Mail className="w-5 h-5 text-[#305CDE]" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-black text-sm text-gray-900">Email</p>
               <p className="text-sm text-gray-500 truncate">{boutique.email}</p>
             </div>
-            <span className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+            <span className="text-xs font-bold text-[#305CDE] bg-[#305CDE]/5 px-3 py-1 rounded-full">
               Écrire
             </span>
           </a>

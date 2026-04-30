@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Lock, User, Mail, AtSign, ChevronRight, CheckCircle2, XCircle, HelpCircle, UserPlus, Shield, KeyRound, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Lock, User, HelpCircle, ArrowLeft, CheckCircle2, XCircle, Shield, KeyRound, ChevronRight, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { loginUser, registerUser, validatePassword, initAdminUser, isNexoraAuthenticated, updatePasswordById } from "@/lib/nexora-auth";
+import { loginUser, validatePassword, initAdminUser, isNexoraAuthenticated, updatePasswordById } from "@/lib/nexora-auth";
 import { useToast } from "@/hooks/use-toast";
 import nexoraLogo from "@/assets/nexora-logo.png";
 import { initTheme } from "@/lib/theme";
-import PhoneInputComponent, { COUNTRIES, type CountryOption } from "@/components/PhoneInputComponent";
+import PageLoader from "@/components/PageLoader";
 import PinInput from "@/components/auth/PinInput";
 import { verifyPin } from "@/services/pinService";
 import { supabase } from "@/integrations/supabase/client";
 
-
-type Mode = "login" | "register" | "forgot";
 type ForgotStep = "identity" | "pin" | "newpassword" | "success";
 
 function PasswordStrength({ password }: { password: string }) {
@@ -37,35 +35,16 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login" | "register" }) {
-  const [searchParams] = useSearchParams();
-  const refFromUrl = searchParams.get("ref");
-  const [mode, setMode] = useState<Mode>(defaultMode ?? "login");
-  const [loading, setLoading]     = useState(false);
-  const [pageReady, setPageReady] = useState(false);
-  const [referrerCode, setReferrerCode] = useState(refFromUrl ?? "");
+export default function LoginPage() {
+  const [mode, setMode] = useState<"login" | "forgot">("login");
+  const [loading, setLoading] = useState(false);
+  const [fullscreenLoading, setFullscreenLoading] = useState(false);
 
   // Login fields
-  const [identifier, setIdentifier]     = useState("");
-  const [password, setPassword]         = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword]     = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember]         = useState(false);
-
-  // Register fields
-  const [nomPrenom, setNomPrenom]               = useState("");
-  const [username, setUsername]                 = useState("");
-  const [email, setEmail]                       = useState("");
-  const [regPassword, setRegPassword]           = useState("");
-  const [confirmPassword, setConfirmPassword]   = useState("");
-  const [showRegPassword, setShowRegPassword]   = useState(false);
-  const [showConfirm, setShowConfirm]           = useState(false);
-  const [whatsapp, setWhatsapp]                 = useState("");
-  const defaultCountry = COUNTRIES.find(c => c.code === "BJ") || COUNTRIES[0];
-  const [waCountry, setWaCountry]               = useState<CountryOption>(defaultCountry);
-  const [waLocal, setWaLocal]                   = useState("");
-  const [waFull, setWaFull]                     = useState("");
-  const [waValid, setWaValid]                   = useState(false);
-  const [waError, setWaError]                   = useState("");
+  const [remember, setRemember]     = useState(false);
 
   // Forgot password state
   const [forgotStep, setForgotStep]               = useState<ForgotStep>("identity");
@@ -93,8 +72,6 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
       navigate(pinUnlocked ? "/dashboard" : "/unlock-pin", { replace: true });
       return;
     }
-    const ready = setTimeout(() => setPageReady(true), 800);
-    return () => clearTimeout(ready);
   }, []);
 
   const goBackToLogin = () => {
@@ -107,23 +84,11 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
     setConfirmNewPassword("");
   };
 
-  if (!pageReady) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ backgroundColor: "#1a2235", gap: "24px" }}>
-        <div style={{ fontSize: "36px", fontWeight: 900, fontFamily: "'Segoe UI', sans-serif", letterSpacing: "0.02em" }}>
-          <span style={{ color: "#ffffff" }}>Nex</span>
-          <span style={{ color: "#2979ff" }}>ora</span>
-        </div>
-        <div style={{ width: "38px", height: "38px", borderRadius: "50%", border: "3.5px solid rgba(255,255,255,0.1)", borderTopColor: "#2979ff", animation: "nexora-spin 0.85s cubic-bezier(0.4,0,0.6,1) infinite" }} />
-        <style>{`@keyframes nexora-spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim() || !password) { toast({ title: "Remplissez tous les champs", variant: "destructive" }); return; }
     setLoading(true);
+    setFullscreenLoading(true);
     const result = await loginUser({ identifier, password, remember });
     if (result.success) {
       toast({ title: "✅ Connexion réussie !", description: `Bienvenue ${result.user?.nom_prenom?.split(" ")[0]} !` });
@@ -132,36 +97,8 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
       sessionStorage.removeItem("nexora_pin_locked_until");
       navigate("/unlock-pin", { replace: true });
     } else {
+      setFullscreenLoading(false);
       toast({ title: "Connexion échouée", description: result.error, variant: "destructive" });
-    }
-    setLoading(false);
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nomPrenom.trim() || !username.trim() || !email.trim() || !regPassword) { toast({ title: "Remplissez tous les champs obligatoires", variant: "destructive" }); return; }
-    if (!whatsapp.trim()) { setWaError("Numéro WhatsApp requis."); return; }
-    if (!waValid) { setWaError("Numéro WhatsApp invalide (minimum 6 chiffres)."); return; }
-    setWaError("");
-    if (regPassword !== confirmPassword) { toast({ title: "Les mots de passe ne correspondent pas", variant: "destructive" }); return; }
-    const validation = validatePassword(regPassword);
-    if (!validation.valid) { toast({ title: "Mot de passe invalide", description: validation.error, variant: "destructive" }); return; }
-    setLoading(true);
-    const result = await registerUser({ nom_prenom: nomPrenom, username, email, password: regPassword, whatsapp: whatsapp.trim(), referrer_code: referrerCode || null });
-    if (result.success) {
-      // Connecter automatiquement et rediriger vers setup-pin
-      const loginResult = await loginUser({ identifier: username, password: regPassword, remember: false });
-      if (loginResult.success) {
-        toast({ title: "✅ Compte créé !", description: "Configurez votre code PIN de sécurité." });
-        sessionStorage.removeItem("nexora_pin_unlocked");
-        navigate("/setup-pin", { replace: true });
-      } else {
-        toast({ title: "✅ Compte créé !", description: "Connectez-vous maintenant." });
-        setMode("login");
-        setIdentifier(username);
-      }
-    } else {
-      toast({ title: "Erreur d'inscription", description: result.error, variant: "destructive" });
     }
     setLoading(false);
   };
@@ -221,10 +158,9 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
     setForgotLoadingReset(true);
     const result = await updatePasswordById(forgotUserId, newPassword);
     setForgotLoadingReset(false);
-    if (!result.success) { 
-      console.error("Erreur reset mot de passe:", result.error);
-      toast({ title: "Erreur", description: result.error || "Impossible de mettre à jour le mot de passe.", variant: "destructive" }); 
-      return; 
+    if (!result.success) {
+      toast({ title: "Erreur", description: result.error || "Impossible de mettre à jour le mot de passe.", variant: "destructive" });
+      return;
     }
     setForgotStep("success");
   };
@@ -232,6 +168,7 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
   const FORGOT_STEPS: ForgotStep[] = ["identity", "pin", "newpassword", "success"];
 
   return (
+    <PageLoader duration={600} loading={fullscreenLoading} delayShow={300} minDisplay={500}>
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "radial-gradient(ellipse at top, hsl(217 89% 18%) 0%, hsl(217 89% 8%) 100%)" }}>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -248,10 +185,13 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
         </div>
 
         <div className="bg-card dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
-          {mode !== "forgot" && (
+
+          {/* Header onglet */}
+          {mode === "login" && (
             <div className="flex border-b border-border dark:border-gray-800">
-              <button onClick={() => setMode("login")} className={`flex-1 py-3 text-sm font-bold transition-colors ${mode === "login" ? "text-primary border-b-2 border-primary bg-primary-bg dark:bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}>Se connecter</button>
-              <button onClick={() => setMode("register")} className={`flex-1 py-3 text-sm font-bold transition-colors ${mode === "register" ? "text-primary border-b-2 border-primary bg-primary-bg dark:bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}>S'inscrire</button>
+              <div className="flex-1 py-3 text-sm font-bold text-center text-primary border-b-2 border-primary bg-primary/10">
+                Se connecter
+              </div>
             </div>
           )}
 
@@ -259,97 +199,46 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
 
             {/* CONNEXION */}
             {mode === "login" && (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Username ou Email</label>
-                  <Input value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="username ou email@example.com" className="h-11 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" autoFocus />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Mot de passe</label>
-                  <div className="relative">
-                    <Input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 pr-12 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+              <div className="space-y-5">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Username ou Email</label>
+                    <Input value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="username ou email@example.com" className="h-11 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" autoFocus />
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="remember" checked={remember} onChange={e => setRemember(e.target.checked)} className="rounded" />
-                    <label htmlFor="remember" className="text-xs text-muted-foreground cursor-pointer">Restez connecté</label>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Mot de passe</label>
+                    <div className="relative">
+                      <Input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 pr-12 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                    </div>
                   </div>
-                  <button type="button" onClick={() => setMode("forgot")} className="text-xs text-primary hover:underline font-medium flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Mot de passe oublié ?</button>
-                </div>
-                <Button type="submit" disabled={loading} className="w-full h-11 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl gap-2">
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Lock className="w-4 h-4" /> Se connecter</>}
-                </Button>
-              </form>
-            )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="remember" checked={remember} onChange={e => setRemember(e.target.checked)} className="rounded" />
+                      <label htmlFor="remember" className="text-xs text-muted-foreground cursor-pointer">Restez connecté</label>
+                    </div>
+                    <button type="button" onClick={() => setMode("forgot")} className="text-xs text-primary hover:underline font-medium flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Mot de passe oublié ?</button>
+                  </div>
+                  <Button type="submit" disabled={loading} className="w-full h-11 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl gap-2">
+                    {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Lock className="w-4 h-4" /> Se connecter</>}
+                  </Button>
+                </form>
 
-            {/* INSCRIPTION */}
-            {mode === "register" && (
-              <form onSubmit={handleRegister} className="space-y-3.5">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Nom et Prénom *</label>
-                  <Input value={nomPrenom} onChange={e => setNomPrenom(e.target.value)} placeholder="Jean Dupont" className="h-10 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" autoFocus />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><AtSign className="w-3.5 h-3.5" /> Username *</label>
-                  <Input value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ""))} placeholder="mon_username" className="h-10 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-                  <p className="text-xs text-muted-foreground mt-0.5">Lettres, chiffres et _ uniquement</p>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email *</label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="exemple@gmail.com" className="h-10 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-                </div>
-                <div>
-                  <PhoneInputComponent
-                    label="WhatsApp"
-                    required
-                    value={waLocal}
-                    onChange={(full, local, country) => {
-                      setWaFull(full);
-                      setWaLocal(local);
-                      setWhatsapp(full);
-                      setWaValid(local.replace(/\s/g, "").length >= 6);
-                      setWaError("");
-                    }}
-                    selectedCountry={waCountry}
-                    onCountryChange={setWaCountry}
-                    placeholder="90 00 00 00"
-                    error={waError}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Mot de passe *</label>
-                  <div className="relative">
-                    <Input type={showRegPassword ? "text" : "password"} value={regPassword} onChange={e => setRegPassword(e.target.value)} placeholder="Mot de passe sécurisé" className="h-10 pr-10 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-                    <button type="button" onClick={() => setShowRegPassword(!showRegPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                  </div>
-                  {regPassword && <PasswordStrength password={regPassword} />}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Confirmer le mot de passe *</label>
-                  <div className="relative">
-                    <Input type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirmer" className="h-10 pr-10 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-                    <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                  </div>
-                  {confirmPassword && regPassword !== confirmPassword && (<p className="text-xs text-destructive mt-1 flex items-center gap-1"><XCircle className="w-3 h-3" /> Les mots de passe ne correspondent pas.</p>)}
-                  {confirmPassword && regPassword === confirmPassword && confirmPassword.length > 0 && (<p className="text-xs text-green-600 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Les mots de passe correspondent.</p>)}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><UserPlus className="w-3.5 h-3.5 text-primary" /> Code parrain {referrerCode ? "✅" : "(optionnel)"}</label>
-                  <Input value={referrerCode} onChange={e => setReferrerCode(e.target.value.trim())} placeholder="Entrez un code de parrainage" className={`h-10 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 ${refFromUrl ? "border-primary/60 bg-primary/5" : ""}`} readOnly={!!refFromUrl} />
-                  {refFromUrl && (<p className="text-xs text-primary mt-0.5 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Parrain détecté automatiquement depuis le lien</p>)}
-                </div>
-                <Button type="submit" disabled={loading} className="w-full h-11 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl gap-2 mt-1">
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><ChevronRight className="w-4 h-4" /> Créer mon compte</>}
-                </Button>
-              </form>
+                {/* Bouton vers Register — Bleu roi */}
+                <button
+                  onClick={() => navigate("/register")}
+                  className="w-full h-11 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
+                  style={{ background: "#2962FF", color: "#ffffff", border: "none", cursor: "pointer" }}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Je n'ai pas de compte
+                </button>
+              </div>
             )}
 
             {/* MOT DE PASSE OUBLIÉ */}
             {mode === "forgot" && (
               <div className="space-y-5 slide-in">
-
                 {/* Indicateur d'étapes */}
                 <div className="flex items-center justify-center gap-2 mb-1">
                   {FORGOT_STEPS.map((step, i) => (
@@ -362,7 +251,7 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
                   ))}
                 </div>
 
-                {/* ÉTAPE 1 : Identifiant */}
+                {/* ÉTAPE 1 */}
                 {forgotStep === "identity" && (
                   <div className="space-y-4 slide-in">
                     <div className="text-center">
@@ -466,5 +355,6 @@ export default function NexoraLoginPage({ defaultMode }: { defaultMode?: "login"
         <p className="text-center text-xs text-blue-300/50 mt-4">NEXORA © {new Date().getFullYear()} — Plateforme sécurisée</p>
       </div>
     </div>
+    </PageLoader>
   );
 }

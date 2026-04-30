@@ -40,13 +40,13 @@ export function SectionPaiement({ form, setForm }: SectionPaiementProps) {
     <div className="space-y-4">
 
       {/* ── Lien externe (seule option disponible) ── */}
-      <div className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-violet-500 bg-violet-500/8">
+      <div className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-[#305CDE] bg-[#305CDE]/8">
         <span className="text-2xl">🔗</span>
         <div className="flex-1">
           <p className="font-semibold text-white text-sm">Lien externe</p>
           <p className="text-xs text-slate-500">Wave, PayDunya, CinetPay, Stripe...</p>
         </div>
-        <CheckCircle className="w-5 h-5 text-violet-400 flex-shrink-0" />
+        <CheckCircle className="w-5 h-5 text-[#305CDE] flex-shrink-0" />
       </div>
 
       {/* ── Champ URL ── */}
@@ -63,14 +63,14 @@ export function SectionPaiement({ form, setForm }: SectionPaiementProps) {
           }
           placeholder="https://pay.wave.com/m/..."
           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm
-                     focus:outline-none focus:border-blue-500 placeholder-slate-600 transition-colors"
+                     focus:outline-none focus:border-[#305CDE] placeholder-slate-600 transition-colors"
         />
         {form.paiement_lien && (
           <a
             href={form.paiement_lien}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors mt-1"
+            className="inline-flex items-center gap-1.5 text-xs text-[#305CDE] hover:text-[#305CDE] transition-colors mt-1"
           >
             <ExternalLink className="w-3.5 h-3.5" /> Tester le lien
           </a>

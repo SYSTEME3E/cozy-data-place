@@ -123,7 +123,7 @@ function CustomerSheet({ customer, onClose }: { customer: Customer; onClose: () 
             <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-black text-lg flex-shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-[#1D4ED8] flex items-center justify-center text-white font-black text-lg flex-shrink-0">
               {getInitials(customer.full_name)}
             </div>
             <div>
@@ -136,9 +136,9 @@ function CustomerSheet({ customer, onClose }: { customer: Customer; onClose: () 
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-3 gap-3 p-4">
             {[
-              { label: "Commandes", value: customer.total_orders, icon: ShoppingBag, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
-              { label: "Dépensé", value: formatPrix(customer.total_spent, customer.devise), icon: TrendingUp, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
-              { label: "Dernier achat", value: customer.last_order_at ? formatDate(customer.last_order_at) : "—", icon: Calendar, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30" },
+              { label: "Commandes", value: customer.total_orders, icon: ShoppingBag, color: "text-[#305CDE]", bg: "bg-blue-50 dark:bg-blue-950/30" },
+              { label: "Dépensé", value: formatPrix(customer.total_spent, customer.devise), icon: TrendingUp, color: "text-[#008000]", bg: "bg-green-50 dark:bg-green-950/30" },
+              { label: "Dernier achat", value: customer.last_order_at ? formatDate(customer.last_order_at) : "—", icon: Calendar, color: "text-[#305CDE]", bg: "bg-[#305CDE]/5 dark:bg-[#305CDE]/20" },
             ].map(s => (
               <div key={s.label} className={`${s.bg} rounded-2xl p-3 text-center`}>
                 <s.icon className={`w-4 h-4 ${s.color} mx-auto mb-1`} />
@@ -152,8 +152,8 @@ function CustomerSheet({ customer, onClose }: { customer: Customer; onClose: () 
             <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Coordonnées</p>
             {customer.phone_number && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
-                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-4 h-4 text-green-600" />
+                <div className="w-8 h-8 rounded-lg bg-[#008000] dark:bg-[#008000]/30 flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-4 h-4 text-[#008000]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">Téléphone / WhatsApp</p>
@@ -163,8 +163,8 @@ function CustomerSheet({ customer, onClose }: { customer: Customer; onClose: () 
             )}
             {customer.email && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-4 h-4 text-indigo-600" />
+                <div className="w-8 h-8 rounded-lg bg-[#305CDE] dark:bg-[#305CDE]/30 flex items-center justify-center flex-shrink-0">
+                  <Mail className="w-4 h-4 text-[#305CDE]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">Email</p>
@@ -199,14 +199,14 @@ function CustomerSheet({ customer, onClose }: { customer: Customer; onClose: () 
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{o.numero}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                        o.statut === "livree" ? "bg-green-100 text-green-700" :
+                        o.statut === "livree" ? "bg-green-100 text-[#008000]" :
                         o.statut === "annulee" ? "bg-red-100 text-red-700" :
-                        "bg-blue-100 text-blue-700"
+                        "bg-blue-100 text-[#305CDE]"
                       }`}>{o.statut.replace(/_/g, " ")}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(o.created_at)}</p>
-                      <p className="text-sm font-black text-pink-600">{formatPrix(o.total, o.devise)}</p>
+                      <p className="text-sm font-black text-[#FF1A00]">{formatPrix(o.total, o.devise)}</p>
                     </div>
                     {o.items && o.items.length > 0 && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
@@ -222,19 +222,19 @@ function CustomerSheet({ customer, onClose }: { customer: Customer; onClose: () 
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-3 gap-2">
           <button onClick={handleEmail} disabled={!customer.email}
-            className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <Mail className="w-5 h-5 text-indigo-600" />
-            <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">Email</span>
+            className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-[#1D4ED8]/10 dark:bg-[#1D4ED8]/20 hover:bg-[#1D4ED8] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors group">
+            <Mail className="w-5 h-5 text-[#1D4ED8] group-hover:text-white" />
+            <span className="text-xs font-semibold text-[#1D4ED8] dark:text-[#1D4ED8] group-hover:text-white">Email</span>
           </button>
           <button onClick={handleWhatsApp} disabled={!customer.phone_number}
-            className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-green-50 dark:bg-green-950/30 hover:bg-green-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <MessageCircle className="w-5 h-5 text-green-600" />
-            <span className="text-xs font-semibold text-green-700 dark:text-green-400">WhatsApp</span>
+            className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-green-50 dark:bg-green-950/30 hover:bg-[#008000] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <MessageCircle className="w-5 h-5 text-[#008000]" />
+            <span className="text-xs font-semibold text-[#008000] dark:text-[#008000]">WhatsApp</span>
           </button>
           <button onClick={handleCall} disabled={!customer.phone_number}
-            className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <Phone className="w-5 h-5 text-blue-600" />
-            <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Appeler</span>
+            className="flex flex-col items-center gap-1 p-3 rounded-2xl bg-[#1D4ED8]/10 dark:bg-[#1D4ED8]/20 hover:bg-[#1D4ED8] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors group">
+            <Phone className="w-5 h-5 text-[#1D4ED8] group-hover:text-white" />
+            <span className="text-xs font-semibold text-[#1D4ED8] dark:text-[#1D4ED8] group-hover:text-white">Appeler</span>
           </button>
         </div>
       </div>
@@ -315,7 +315,7 @@ export default function ClientsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Users className="w-6 h-6 text-pink-500" /> Mes Clients
+              <Users className="w-6 h-6 text-[#FF1A00]" /> Mes Clients
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {customers.length} client{customers.length !== 1 ? "s" : ""} au total
@@ -331,13 +331,13 @@ export default function ClientsPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Total clients", value: customers.length, color: "from-pink-500 to-rose-500" },
-            { label: "Avec téléphone", value: customers.filter(c => c.phone_number).length, color: "from-green-500 to-emerald-500" },
-            { label: "Avec email", value: customers.filter(c => c.email).length, color: "from-indigo-500 to-blue-500" },
+            { label: "Total clients", value: customers.length },
+            { label: "Avec téléphone", value: customers.filter(c => c.phone_number).length },
+            { label: "Avec email", value: customers.filter(c => c.email).length },
           ].map(s => (
             <div key={s.label} className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 shadow-sm">
-              <p className={`text-2xl font-black bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.value}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{s.label}</p>
+              <p className="text-xs text-[#305CDE] font-semibold mb-1">{s.label}</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">{s.value}</p>
             </div>
           ))}
         </div>
@@ -348,7 +348,7 @@ export default function ClientsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher par nom, email, téléphone..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none focus:border-pink-400 transition-colors shadow-sm"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none focus:border-[#1D4ED8] transition-colors shadow-sm"
           />
           {search && (
             <button onClick={() => setSearch("")} className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -359,7 +359,7 @@ export default function ClientsPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-10 h-10 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
+            <div className="w-10 h-10 rounded-full border-4 border-[#FF1A00] border-t-transparent animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-gray-400 dark:text-gray-600">
@@ -373,9 +373,9 @@ export default function ClientsPage() {
               <button
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
-                className="w-full text-left bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:border-pink-200 dark:hover:border-pink-800 hover:shadow-md transition-all p-4 flex items-center gap-4"
+                className="w-full text-left bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:border-[#1D4ED8] dark:hover:border-[#1D4ED8] hover:shadow-md transition-all p-4 flex items-center gap-4"
               >
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-[#1D4ED8] flex items-center justify-center text-white font-black text-sm flex-shrink-0">
                   {getInitials(customer.full_name)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -383,20 +383,20 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-3 mt-0.5">
                     {customer.phone_number && (
                       <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <Phone className="w-3 h-3 text-green-500" />
+                        <Phone className="w-3 h-3 text-[#008000]" />
                         {customer.phone_number}
                       </span>
                     )}
                     {customer.email && !customer.phone_number && (
                       <span className="flex items-center gap-1 text-xs text-gray-400">
-                        <Mail className="w-3 h-3 text-indigo-400" />
+                        <Mail className="w-3 h-3 text-[#305CDE]" />
                         {customer.email}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 hidden sm:block">
-                  <p className="text-sm font-black text-pink-600">{customer.total_orders} cmd</p>
+                  <p className="text-sm font-black text-[#FF1A00]">{customer.total_orders} cmd</p>
                   {customer.last_order_at && (
                     <p className="text-xs text-gray-400">{formatDate(customer.last_order_at)}</p>
                   )}
