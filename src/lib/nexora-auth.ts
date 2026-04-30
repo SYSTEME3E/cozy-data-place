@@ -322,6 +322,8 @@ export function isNexoraAuthenticated(): boolean {
 
 export function hasNexoraPremium(): boolean {
   const user = getNexoraUser();
+  // Les admins ont accès complet sans abonnement payant
+  if (user?.is_admin === true) return true;
   return ["boss", "roi", "admin"].includes(user?.plan || "");
 }
 
