@@ -144,19 +144,26 @@ export default function NexoraAcademy() {
   const [cryptoModalOpen, setCryptoModalOpen] = useState(false);
 
   // Wallets admin Nexora Academy (USDT-TRC20 + BNB)
-  // Prix : 50 000 FCFA ≈ 85 USD — configurable ici
+  // Prix : 50 000 FCFA ≈ 85 USD
+  // ⚠️  Configurez vos adresses wallet dans .env :
+  //      VITE_NEXORA_USDT_WALLET=TXxxxxxxxxxxxxxxxxxx
+  //      VITE_NEXORA_BNB_WALLET=0xxxxxxxxxxxxxxxxxx
+  const NEXORA_USDT_WALLET = import.meta.env.VITE_NEXORA_USDT_WALLET || "";
+  const NEXORA_BNB_WALLET  = import.meta.env.VITE_NEXORA_BNB_WALLET  || "";
+  const NEXORA_PRICE_USD   = Number(import.meta.env.VITE_NEXORA_PRICE_USD) || 85;
+
   const NEXORA_CRYPTO_WALLETS = [
     {
       reseau:    "usdttrc20" as const,
-      adresse:   "",   // ← À remplir : adresse USDT TRC-20 de l'admin
-      prix_usdt: 85,   // ≈ 50 000 FCFA
+      adresse:   NEXORA_USDT_WALLET,
+      prix_usdt: NEXORA_PRICE_USD,
     },
     {
       reseau:    "bnbbsc" as const,
-      adresse:   "",   // ← À remplir : adresse BNB (BSC) de l'admin
-      prix_usdt: 85,   // NOWPayments convertira en BNB équivalent
+      adresse:   NEXORA_BNB_WALLET,
+      prix_usdt: NEXORA_PRICE_USD,
     },
-  ].filter(w => w.adresse.length > 0);  // n'afficher que les wallets configurés
+  ].filter(w => w.adresse.length > 10); // n'afficher que les wallets configurés
 
   const cryptoEnabled = NEXORA_CRYPTO_WALLETS.length > 0;
 
