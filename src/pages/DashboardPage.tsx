@@ -214,7 +214,7 @@ export default function DashboardPage() {
 
   const prenom        = user?.nom_prenom?.split(" ")[0] || "Vous";
   const plan          = getPlanLabel(user?.plan);
-  const isPremium     = user?.plan !== "gratuit";
+  const isPremium     = user?.plan !== "gratuit" || user?.is_admin === true;
   const joursRestants = daysLeft(stats.premiumExpiresAt);
   const progressPct   = joursRestants != null ? Math.min(100, Math.round((joursRestants / 30) * 100)) : 0;
 
