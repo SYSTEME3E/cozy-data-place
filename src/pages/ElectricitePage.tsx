@@ -258,9 +258,8 @@ export default function ElectricitePage() {
   // ── Validation compteur ─────────────────────────────────────────────────────
   const validerCompteur = useCallback(async () => {
     if (!pays) return;
-    const regex = new RegExp(pays.compteurFormat);
-    if (!regex.test(numeroCompteur.trim().toUpperCase())) {
-      setErreurCompteur(`Format invalide. Exemple : ${pays.compteurExample}`);
+    if (!numeroCompteur.trim()) {
+      setErreurCompteur("Veuillez saisir le numéro de compteur");
       return;
     }
     setErreurCompteur("");
@@ -442,7 +441,6 @@ export default function ElectricitePage() {
                     className={`w-full pl-10 pr-4 py-3 bg-muted/50 border rounded-xl text-sm font-mono outline-none transition-colors ${
                       erreurCompteur ? "border-red-400" : "border-border/60 focus:border-yellow-400"
                     }`}
-                    maxLength={16}
                     autoFocus
                   />
                 </div>
