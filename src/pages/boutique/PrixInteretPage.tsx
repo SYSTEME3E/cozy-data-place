@@ -346,7 +346,7 @@ export default function PrixInteretPage() {
     const { data: b } = await supabase.from("boutiques" as any).select("*").eq("user_id", userId).limit(1).maybeSingle();
     if (!b) { setLoading(false); return; }
     setBoutique(b);
-    const { data: phys } = await supabase.from("produits" as any).select("id,nom,photos,prix,prix_promo,prix_achat,stock,stock_illimite,actif").eq("boutique_id", (b as any).id).eq("type","physique").order("created_at",{ascending:false});
+    const { data: phys } = await supabase.from("produits" as any).select("id,nom,photos,prix,prix_promo,prix_achat,stock,stock_illimite,actif").eq("boutique_id", (b as any).id).order("created_at",{ascending:false});
     const { data: cmds } = await supabase.from("commandes" as any).select("items").eq("boutique_id",(b as any).id).neq("statut","annulee");
     const ids = (phys || []).map((p: any) => p.id);
     const { data: campagnes } = ids.length > 0 ? await supabase.from("campagnes_pub" as any).select("*").in("produit_id", ids) : { data: [] };
@@ -459,7 +459,7 @@ export default function PrixInteretPage() {
         ) : produits.length === 0 ? (
           <div className="text-center py-14 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl">
             <Package className="w-12 h-12 text-gray-200 dark:text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-gray-400 font-medium">Aucun produit physique</p>
+            <p className="text-gray-500 dark:text-gray-400 font-medium">Aucun produit trouvé</p>
             <button onClick={()=>navigate("/boutique/produits/nouveau")} className="mt-4 bg-[#008000] hover:bg-[#008000] text-white px-5 py-2 rounded-xl text-sm font-semibold transition-colors">+ Créer un produit</button>
           </div>
         ) : (
