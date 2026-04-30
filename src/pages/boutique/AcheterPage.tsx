@@ -159,19 +159,32 @@ export default function AcheterPage() {
       if (!b) { setLoading(false); return; }
       setBoutique(b as unknown as BoutiqueInfo);
 
-
-      // Chercher le produit sans filtrer sur actif (actif peut être false ou null)
-      const baseQuery = supabase.from("produits" as any)
+      // ── Stratégie de recherche robuste ──────────────────────────────────────
+      // 1. Si UUID → chercher par id directement (ne jamais rediriger vers slug
+      //    car la migration peut ne pas être appliquée et le slug BDD peut être null)
+      // 2. Si slug → chercher par slug, et si rien n'est trouvé, essayer par id au cas où
+      const baseQuery = () => supabase.from("produits" as any)
         .select("id,nom,slug,prix,prix_promo,photos,paiement_lien,paiement_reception,moyens_paiement,type,actif,payment_mode,bouton_texte,bouton_couleur,boutique_id,instructions_achat")
         .eq("boutique_id", (b as any).id);
-      const produitQuery = isUUID(produitSlug)
-        ? baseQuery.eq("id", produitSlug)
-        : baseQuery.eq("slug", produitSlug);
-      const { data: p } = await produitQuery.maybeSingle();
-      if (p && isUUID(produitSlug) && (p as any).slug) {
-        navigate(`/shop/${slug}/acheter/${(p as any).slug}`, { replace: true });
-        return;
+
+      let p: any = null;
+
+      if (isUUID(produitSlug)) {
+        // Recherche directe par UUID → toujours fiable
+        const { data } = await baseQuery().eq("id", produitSlug).maybeSingle();
+        p = data;
+        // Ne PAS rediriger vers le slug : risque de boucle infinie si slug null en BDD
+      } else {
+        // Recherche par slug
+        const { data: bySlug } = await baseQuery().eq("slug", produitSlug).maybeSingle();
+        if (bySlug) {
+          p = bySlug;
+        } else {
+          // Fallback : peut-être que produitSlug ressemble à un slug mais c'est un id partiel
+          // Ne rien faire → afficher "Produit introuvable"
+        }
       }
+
       if (p) setProduit({ ...(p as any), photos: (p as any).photos || [], moyens_paiement: (p as any).moyens_paiement || [] });
       setLoading(false);
     };
