@@ -323,9 +323,6 @@ export default function VentesDigitalesPage() {
                   key={vente.id}
                   className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm"
                 >
-                  {/* Barre de couleur statut en haut */}
-                  <div className={`h-1 w-full ${cfg.dot}`} />
-
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
