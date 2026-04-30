@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CryptoPaymentModal from "@/components/CryptoPaymentModal";
 
 // ─── Countdown Hook ────────────────────────────────────────────────────────────
 function useCountdown() {
@@ -138,6 +139,26 @@ export default function NexoraAcademy() {
 
   const FORMATION_URL = "https://cozy-data-place-nu.vercel.app/formations/14050f23-500d-43b2-9a0c-2485767a1437/";
   const goFormation = () => window.open(FORMATION_URL, "_blank");
+
+  // ── Crypto payment state ──────────────────────────────────────────────────
+  const [cryptoModalOpen, setCryptoModalOpen] = useState(false);
+
+  // Wallets admin Nexora Academy (USDT-TRC20 + BNB)
+  // Prix : 50 000 FCFA ≈ 85 USD — configurable ici
+  const NEXORA_CRYPTO_WALLETS = [
+    {
+      reseau:    "usdttrc20" as const,
+      adresse:   "",   // ← À remplir : adresse USDT TRC-20 de l'admin
+      prix_usdt: 85,   // ≈ 50 000 FCFA
+    },
+    {
+      reseau:    "bnbbsc" as const,
+      adresse:   "",   // ← À remplir : adresse BNB (BSC) de l'admin
+      prix_usdt: 85,   // NOWPayments convertira en BNB équivalent
+    },
+  ].filter(w => w.adresse.length > 0);  // n'afficher que les wallets configurés
+
+  const cryptoEnabled = NEXORA_CRYPTO_WALLETS.length > 0;
 
   // Progress bar + sticky countdown
   const progressRef = useRef<HTMLDivElement>(null);
@@ -756,6 +777,48 @@ export default function NexoraAcademy() {
             <button className="na-btn na-btn-red na-btn-xl na-pulse" onClick={goFormation}>
               ACCÉDER À LA FORMATION MAINTENANT →
             </button>
+
+            {/* ── Crypto CTA ── */}
+            {cryptoEnabled && (
+              <button
+                onClick={() => setCryptoModalOpen(true)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: "10px", width: "100%", maxWidth: 480, margin: "12px auto 0",
+                  padding: "14px 24px", borderRadius: 14,
+                  border: "2px solid #F3BA2F",
+                  background: "#FEF9E7", color: "#92400e",
+                  fontWeight: 800, fontSize: 15, cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                <svg viewBox="0 0 32 32" width="22" height="22">
+                  <circle cx="16" cy="16" r="16" fill="#F3BA2F"/>
+                  <path d="M12.116 14.404L16 10.52l3.886 3.886 2.26-2.26L16 6l-6.144 6.144 2.26 2.26zM6 16l2.26-2.26L10.52 16l-2.26 2.26L6 16zm6.116 1.596L16 21.48l3.886-3.886 2.26 2.259L16 26l-6.144-6.144-.003-.003 2.263-2.257zM21.48 16l2.26-2.26L26 16l-2.26 2.26L21.48 16zm-3.188-.002h.002L16 13.706l-1.773 1.773-.001.001-.228.228-.002.003.003-.003.228-.228L16 17.294l2.294-2.294-.002-.002z" fill="white"/>
+                </svg>
+                <svg viewBox="0 0 32 32" width="22" height="22">
+                  <circle cx="16" cy="16" r="16" fill="#26A17B"/>
+                  <path d="M17.922 17.383v-.002c-.11.008-.677.042-1.942.042-1.01 0-1.721-.03-1.971-.042v.003c-3.888-.171-6.79-.848-6.79-1.658 0-.809 2.902-1.486 6.79-1.66v2.644c.254.018.982.061 1.988.061 1.207 0 1.812-.05 1.925-.06v-2.643c3.88.173 6.775.85 6.775 1.658 0 .81-2.895 1.485-6.775 1.657m0-3.59v-2.366h5.414V7.819H8.595v3.608h5.414v2.365c-4.4.202-7.709 1.074-7.709 2.127 0 1.053 3.309 1.924 7.709 2.126v7.608h3.913v-7.61c4.393-.202 7.694-1.073 7.694-2.124 0-1.052-3.301-1.923-7.694-2.126" fill="#fff"/>
+                </svg>
+                Payer en Crypto — USDT / BNB
+              </button>
+            )}
+
+            {/* ── Modal crypto Nexora Academy ── */}
+            <CryptoPaymentModal
+              isOpen={cryptoModalOpen}
+              onClose={() => setCryptoModalOpen(false)}
+              onSuccess={(_paymentId) => {
+                setCryptoModalOpen(false);
+                // Rediriger vers la formation après paiement confirmé
+                window.open(FORMATION_URL, "_blank");
+              }}
+              wallets={NEXORA_CRYPTO_WALLETS}
+              orderId={`NEXORA-ACADEMY-${Date.now()}`}
+              productName="NEXORA Academy — Formation complète"
+              priceUSD={85}
+            />
+
             <div className="na-trust-row" style={{ marginTop: 28 }}>
               <div className="na-trust-badge">
                 <span className="na-trust-icon">⚡</span>
