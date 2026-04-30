@@ -235,7 +235,9 @@ export default function ProduitDetailPage() {
 
   const handleAcheter = () => {
     if (!produit || !slug) return;
-    navigate(buildAcheterUrl(slug, produit.slug));
+    // Utiliser le slug SEO si disponible, sinon fallback sur l'UUID
+    const produitIdentifiant = produit.slug || produit.id;
+    navigate(buildAcheterUrl(slug, produitIdentifiant));
   };
 
   if (loading) {
