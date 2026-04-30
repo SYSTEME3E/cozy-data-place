@@ -154,22 +154,24 @@ export default function AbonnementPage() {
           return;
         }
 
-        // ✅ Admin exempt d'abonnement — accès complet sans payer
-        if (user.is_admin || isNexoraAdmin()) {
+        // Lire le plan directement en DB pour être sûr (source de vérité)
+        const { data: userData } = await supabase
+          .from("nexora_users" as any)
+          .select("plan, badge_premium, is_admin")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const planDB = (userData as any)?.plan ?? "gratuit";
+        const isAdminDB = (userData as any)?.is_admin === true;
+
+        // ✅ Admin exempt d'abonnement — accès complet sans payer (vérifié en DB)
+        if (isAdminDB) {
           setIsAdmin(true);
           setPlanReel("admin");
           setCheckingPlan(false);
           return;
         }
 
-        // Lire le plan directement en DB pour être sûr
-        const { data: userData } = await supabase
-          .from("nexora_users" as any)
-          .select("plan, badge_premium")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        const planDB = (userData as any)?.plan ?? "gratuit";
         setPlanReel(planDB);
 
         // ✅ FIX 3 : Mettre à jour le localStorage avec le vrai plan DB
@@ -179,6 +181,7 @@ export default function AbonnementPage() {
           const parsed = JSON.parse(rawUser);
           parsed.plan = planDB;
           parsed.badge_premium = (userData as any)?.badge_premium ?? false;
+          parsed.is_admin = isAdminDB;
           storage.setItem(NEXORA_USER_KEY, JSON.stringify(parsed));
         }
 
