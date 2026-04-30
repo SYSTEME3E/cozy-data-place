@@ -6,7 +6,6 @@
  * - Étapes : formulaire → paiement → confirmation
  * - Champs masqués dynamiquement → 0 perte de données
  * - Sauvegarde localStorage automatique
- * - Paiement Mobile Money + Crypto (NOWPayments)
  */
 
 import { useEffect, useState } from "react";
@@ -22,8 +21,6 @@ import { useCart } from "@/lib/cart-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrix } from "@/lib/devise-utils";
 import PhoneInputComponent, { COUNTRIES, type CountryOption, getCountryByCode } from "@/components/PhoneInputComponent";
-import CryptoPaymentModal from "@/components/CryptoPaymentModal";
-import { getCryptoWallets, hasCryptoEnabled } from "@/lib/cryptoPayment";
 
 interface BoutiqueInfo {
   id: string; nom: string; slug: string; devise: string;
@@ -78,8 +75,6 @@ export default function CheckoutPage() {
   const [selectedReseau, setSelectedReseau] = useState<number | null>(null);
   const [savedSubtotal, setSavedSubtotal] = useState<number>(0);
 
-  // ── Crypto payment ──────────────────────────────────────────────────────────
-  const [cryptoModalOpen, setCryptoModalOpen] = useState(false);
 
   // ── Données sauvegardées avant vidage du panier (pour étape paiement) ──
   const [savedHasDigital, setSavedHasDigital] = useState(false);
@@ -87,8 +82,6 @@ export default function CheckoutPage() {
   const [savedUniqueMoyens, setSavedUniqueMoyens] = useState<Array<{ reseau: string; numero: string; nom_titulaire: string }>>([]);
   const [savedExternalLink, setSavedExternalLink] = useState<string | null>(null);
   const [savedPaiementReception, setSavedPaiementReception] = useState(false);
-  const [savedCryptoWallets, setSavedCryptoWallets] = useState<ReturnType<typeof getCryptoWallets>>([]);
-  const [savedCryptoEnabled, setSavedCryptoEnabled] = useState(false);
 
   // ── Champs formulaire ──
   const [nom, setNom]               = useState("");
@@ -171,10 +164,6 @@ export default function CheckoutPage() {
     (mp, idx, arr) => arr.findIndex(m => m.reseau === mp.reseau && m.numero === mp.numero) === idx
   );
 
-  // ── Paiement Crypto (NOWPayments) — wallets depuis les produits du panier ──
-  const allProduitsMoyens = items.flatMap(it => it.produit.moyens_paiement || []);
-  const cryptoWallets = getCryptoWallets(allProduitsMoyens);
-  const cryptoEnabled = hasCryptoEnabled(allProduitsMoyens);
 
   // ── NEXORA Pay désactivé — uniquement lien externe ──
   const firstNexoraPaylink = null; // Nexora Pay désactivé
@@ -265,8 +254,6 @@ export default function CheckoutPage() {
     setSavedUniqueMoyens(uniqueMoyens);
     setSavedExternalLink(firstExternalLink);
     setSavedPaiementReception(hasPaiementReception);
-    setSavedCryptoWallets(cryptoWallets);
-    setSavedCryptoEnabled(cryptoEnabled);
 
     clearCartItems();
     setCommandeRef(ref);
@@ -282,8 +269,6 @@ export default function CheckoutPage() {
   const displayExternalLink    = etape === "paiement" ? savedExternalLink    : firstExternalLink;
   const displayPaiementReception = etape === "paiement" ? savedPaiementReception : hasPaiementReception;
   const displayHasPaiementOptions = !!displayExternalLink || displayUniqueMoyens.length > 0 || displayPaiementReception;
-  const displayCryptoWallets = etape === "paiement" ? savedCryptoWallets : cryptoWallets;
-  const displayCryptoEnabled = etape === "paiement" ? savedCryptoEnabled : cryptoEnabled;
   const etapes: Etape[] = ["formulaire", "paiement", "confirmation"];
   const etapeLabels = ["Informations", "Paiement", "Confirmé"];
 
@@ -707,34 +692,8 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* ── Paiement Crypto ── */}
-              {displayCryptoEnabled && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-gray-700">Cryptomonnaie :</p>
-                  <button
-                    type="button"
-                    onClick={() => setCryptoModalOpen(true)}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 transition-all text-left shadow-sm"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-black text-lg flex-shrink-0">
-                      ₿
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-black text-sm text-gray-900">Payer en Crypto</p>
-                      <p className="text-xs text-gray-500">USDT TRC-20 · BNB — Via NOWPayments</p>
-                    </div>
-                    <div className="flex-shrink-0 px-3 py-1 bg-yellow-400 rounded-full">
-                      <span className="text-xs font-black text-yellow-900">Payer</span>
-                    </div>
-                  </button>
-                  <p className="text-xs text-gray-400 text-center">
-                    ⏱ L'adresse de paiement expire après <strong>10 minutes</strong>
-                  </p>
-                </div>
-              )}
-
               {/* Aucun moyen configuré */}
-              {!displayHasPaiementOptions && !displayCryptoEnabled && (
+              {!displayHasPaiementOptions && (
                 <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4">
                   <Info className="w-4 h-4 text-[#305CDE] mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-[#305CDE]">
@@ -743,32 +702,6 @@ export default function CheckoutPage() {
                 </div>
               )}
             </div>
-
-            {/* ── Modal Paiement Crypto ── */}
-            <CryptoPaymentModal
-              isOpen={cryptoModalOpen}
-              onClose={() => setCryptoModalOpen(false)}
-              onSuccess={async (paymentId) => {
-                setCryptoModalOpen(false);
-                // Mettre à jour le statut de la commande
-                if (commandeId) {
-                  await (supabase as any)
-                    .from("commandes")
-                    .update({
-                      statut_paiement: "paye",
-                      statut: "confirmee",
-                      crypto_payment_id: paymentId,
-                      moyen_paiement: "crypto",
-                    })
-                    .eq("id", commandeId);
-                }
-                setEtape("confirmation");
-              }}
-              wallets={displayCryptoWallets}
-              orderId={commandeRef}
-              productName={`Commande ${commandeRef}`}
-              priceUSD={displayCryptoWallets[0]?.prix_usdt || 0}
-            />
 
             {/* Bouton confirmer */}
             <button
