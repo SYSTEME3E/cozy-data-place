@@ -1,4 +1,5 @@
 /**
+import CryptoWalletConfig from "@/components/CryptoWalletConfig";
  * NouveauProduitPage — Page dédiée à l'ajout et à la modification d'un produit physique
  * Accès : /boutique/produits/nouveau (création) ou /boutique/produits/modifier/:id (édition)
  */
@@ -1030,6 +1031,15 @@ export default function NouveauProduitPage() {
                   </button>
                 </div>
               ))}
+
+              {/* ── Crypto section ── */}
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <CryptoWalletConfig
+                  moyensPaiement={form.moyens_paiement || []}
+                  onChange={(newMoyens) => setForm((prev) => ({ ...prev, moyens_paiement: newMoyens }))}
+                  className=""
+                />
+              </div>
 
               <div className="border-2 border-dashed border-[#1D4ED8] rounded-2xl p-4 space-y-3 bg-[#1D4ED8]/5">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Ajouter Mobile Money</p>
