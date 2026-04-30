@@ -80,7 +80,7 @@ const FAQ_ITEMS = [
 
 // ─── Composant principal ───────────────────────────────────────────────────────
 export default function DigitalProductPublicPage() {
-  const { slug, produitId } = useParams<{ slug: string; produitId: string }>();
+  const { slug, produitId: produitSlug } = useParams<{ slug: string; produitId: string }>();
   const navigate = useNavigate();
 
   const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null);
@@ -95,7 +95,7 @@ export default function DigitalProductPublicPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!slug || !produitId) return;
+      if (!slug || !produitSlug) return;
       setLoading(true);
 
       const { data: b } = await supabase
@@ -105,18 +105,26 @@ export default function DigitalProductPublicPage() {
       if (!b) { setLoading(false); return; }
       setBoutique(b as unknown as BoutiqueInfo);
 
-      const baseQuery = supabase
+      const baseQuery = () => supabase
         .from("produits" as any).select("*")
-        .eq("boutique_id", (b as any).id);
-      const produitQuery = isUUID(produitSlug)
-        ? baseQuery.eq("id", produitSlug)
-        : baseQuery.eq("slug", produitSlug);
-      const { data: p } = await produitQuery
-        .eq("type", "numerique").maybeSingle();
-      // Redirect legacy UUID → slug
-      if (p && isUUID(produitSlug) && (p as any).slug) {
-        navigate(`/shop/${slug}/digital/${(p as any).slug}`, { replace: true });
-        return;
+        .eq("boutique_id", (b as any).id)
+        .eq("type", "numerique");
+
+      let p: any = null;
+
+      if (isUUID(produitSlug)) {
+        // Recherche directe par UUID → fiable même si slug est null en BDD
+        const { data } = await baseQuery().eq("id", produitSlug).maybeSingle();
+        p = data;
+        // Rediriger vers slug uniquement si le slug BDD est défini ET non-null
+        if (p && (p as any).slug) {
+          navigate(`/shop/${slug}/digital/${(p as any).slug}`, { replace: true });
+          return;
+        }
+      } else {
+        // Recherche par slug SEO
+        const { data } = await baseQuery().eq("slug", produitSlug).maybeSingle();
+        p = data;
       }
 
       if (p) {
@@ -135,12 +143,12 @@ export default function DigitalProductPublicPage() {
         // Track vue
         await supabase.from("produits" as any)
           .update({ vues: ((p as any).vues || 0) + 1 })
-          .eq("id", (p as any).id); // use internal id for update
+          .eq("id", (p as any).id);
       }
       setLoading(false);
     };
     load();
-  }, [slug, produitId]);
+  }, [slug, produitSlug]);
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
