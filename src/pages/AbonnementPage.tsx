@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { openKkiapay, onKkiapaySuccess, onKkiapayFailed, removeKkiapayListeners } from "@/lib/kkiapay";
 import {
   Crown, Check, X, Zap, Star, Sparkles,
-  TrendingUp, Store,
+  TrendingUp, Store, Shield,
   BadgeCheck, ChevronDown, ChevronUp, RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -51,22 +51,24 @@ const FEATURES_COMPARE = [
     categorie: "Fonctionnalités gratuites",
     icon: TrendingUp,
     items: [
-      { label: "Tableau de bord",        gratuit: true,  premium: true },
-      { label: "Nexora Transfert",       gratuit: true,  premium: true },
-      { label: "Historique transactions",gratuit: true,  premium: true },
-      { label: "Produits digitaux",      gratuit: true,  premium: true },
-      { label: "Nexora Academy",         gratuit: true,  premium: true },
-      { label: "Entrées & Dépenses",     gratuit: true,  premium: true },
-      { label: "Contacts WhatsApp",      gratuit: true,  premium: true },
+      { label: "Tableau de bord",          gratuit: true,  premium: true },
+      { label: "Nexora Transfert",         gratuit: true,  premium: true },
+      { label: "Produits digitaux",        gratuit: true,  premium: true },
+      { label: "Nexora Academy",           gratuit: true,  premium: true },
+      { label: "Pay Link (liens de paiement)", gratuit: true, premium: true },
+      { label: "Marché Immobilier (consultation)", gratuit: true, premium: true },
     ],
   },
   {
     categorie: "Fonctionnalités Premium uniquement",
     icon: Store,
     items: [
-      { label: "Marché Immobilier (publication)", gratuit: false, premium: true },
-      { label: "Boutique — Produits physiques",   gratuit: false, premium: true },
-      { label: "Factures",                        gratuit: false, premium: true },
+      { label: "Boutique — Produits physiques",        gratuit: false, premium: true },
+      { label: "Marché Immobilier (publication)",       gratuit: false, premium: true },
+      { label: "Coffre-fort sécurisé",                 gratuit: false, premium: true },
+      { label: "Prêts & Gestion crédit",               gratuit: false, premium: true },
+      { label: "Formations (accès complet)",           gratuit: false, premium: true },
+      { label: "Contacts WhatsApp (avancé)",           gratuit: false, premium: true },
     ],
   },
 ];
@@ -119,6 +121,9 @@ function FAQItem({ question, reponse }: { question: string; reponse: string }) {
 export default function AbonnementPage() {
   const navigate = useNavigate();
 
+  // ✅ ADMIN BYPASS — l'administrateur n'a jamais à payer
+  const [isAdmin, setIsAdmin] = useState(false);
+
   // ✅ FIX 1 : plan chargé depuis la DB — pas uniquement depuis le localStorage
   const [planReel, setPlanReel]         = useState<string | null>(null); // null = chargement en cours
   const [abonnementInfo, setAbonnementInfo] = useState<{
@@ -155,11 +160,16 @@ export default function AbonnementPage() {
         // Lire le plan directement en DB pour être sûr
         const { data: userData } = await supabase
           .from("nexora_users" as any)
-          .select("plan, badge_premium")
+          .select("plan, badge_premium, is_admin")
           .eq("id", user.id)
           .maybeSingle();
 
-        const planDB = (userData as any)?.plan ?? "gratuit";
+        // ✅ ADMIN CHECK — si is_admin, bypass total du paiement
+        const rawPlan = (userData as any)?.plan ?? "gratuit";
+        const adminFlag = (userData as any)?.is_admin === true || rawPlan === "admin";
+        setIsAdmin(adminFlag);
+
+        const planDB = adminFlag ? "admin" : rawPlan;
         setPlanReel(planDB);
 
         // ✅ FIX 3 : Mettre à jour le localStorage avec le vrai plan DB
@@ -168,12 +178,13 @@ export default function AbonnementPage() {
         if (rawUser) {
           const parsed = JSON.parse(rawUser);
           parsed.plan = planDB;
+          parsed.is_admin = adminFlag;
           parsed.badge_premium = (userData as any)?.badge_premium ?? false;
           storage.setItem(NEXORA_USER_KEY, JSON.stringify(parsed));
         }
 
-        // Charger les infos de l'abonnement actif si premium
-        if (planDB !== "gratuit") {
+        // Charger les infos de l'abonnement actif si premium (non-admin)
+        if (planDB !== "gratuit" && planDB !== "admin") {
           const { data: abo } = await supabase
             .from("nexora_abonnements" as any)
             .select("date_fin, duree_mois")
@@ -203,8 +214,8 @@ export default function AbonnementPage() {
     chargerPlanReel();
   }, []);
 
-  // ✅ isPremium basé sur le plan DB — pas le plan localStorage figé
-  const isPremium = planReel !== null && planReel !== "gratuit";
+  // ✅ isPremium basé sur le plan DB — admin a tous les droits sans payer
+  const isPremium = planReel !== null && (planReel !== "gratuit" || isAdmin);
 
   const planChoisi    = PLANS_DUREE[dureeIdx];
   const montantXOF    = calcMontantXOF(planChoisi.mois, planChoisi.remise);
@@ -216,6 +227,30 @@ export default function AbonnementPage() {
   const handleUpgrade = async () => {
     const user = getNexoraUser();
     if (!user?.id) { setError("Vous devez être connecté pour souscrire."); return; }
+
+    // ✅ SÉCURITÉ : L'admin ne doit JAMAIS passer par le paiement
+    if (isAdmin || user.is_admin || planReel === "admin") {
+      setError("Les administrateurs ont un accès complet sans abonnement payant.");
+      return;
+    }
+
+    // ✅ SÉCURITÉ : Vérification côté DB avant d'ouvrir KKiaPay (anti-double-paiement)
+    const { data: freshUser } = await supabase
+      .from("nexora_users" as any)
+      .select("plan, is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if ((freshUser as any)?.is_admin === true || (freshUser as any)?.plan === "admin") {
+      setError("Accès administrateur détecté. Aucun paiement requis.");
+      return;
+    }
+    if ((freshUser as any)?.plan && (freshUser as any).plan !== "gratuit") {
+      setError("Vous avez déjà un abonnement actif. Rechargez la page.");
+      await refreshNexoraSession();
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -303,8 +338,21 @@ export default function AbonnementPage() {
           </div>
         )}
 
+        {/* ✅ BANNER ADMIN — accès complet sans paiement */}
+        {!checkingPlan && isAdmin && (
+          <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl px-5 py-4 flex items-start gap-4">
+            <Shield className="w-6 h-6 text-indigo-400 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-black text-indigo-400 uppercase">Compte Administrateur 🛡️</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                En tant qu'administrateur, vous bénéficiez de tous les accès Premium sans frais d'abonnement.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ✅ BANNER PLAN ACTIF — affiché seulement si vraiment premium en DB */}
-        {!checkingPlan && isPremium && (
+        {!checkingPlan && isPremium && !isAdmin && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-5 py-4 flex items-start gap-4">
             <BadgeCheck className="w-6 h-6 text-emerald-400 mt-0.5 shrink-0" />
             <div className="flex-1">
@@ -407,24 +455,28 @@ export default function AbonnementPage() {
             {/* ✅ BOUTON — état basé sur planReel (DB), pas localStorage */}
             <button
               onClick={handleUpgrade}
-              disabled={isPremium || loading || checkingPlan}
+              disabled={isPremium || isAdmin || loading || checkingPlan}
               className={`w-full py-4 font-black rounded-xl transition-all flex items-center justify-center gap-2 mt-3 ${
                 checkingPlan
                   ? "bg-white/10 text-white/40 cursor-wait"
-                  : isPremium
-                    ? "bg-emerald-500/20 text-emerald-300 cursor-default border border-emerald-500/30"
-                    : loading
-                      ? "bg-white/20 text-white/60 cursor-wait"
-                      : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
+                  : isAdmin
+                    ? "bg-indigo-500/20 text-indigo-300 cursor-default border border-indigo-500/30"
+                    : isPremium
+                      ? "bg-emerald-500/20 text-emerald-300 cursor-default border border-emerald-500/30"
+                      : loading
+                        ? "bg-white/20 text-white/60 cursor-wait"
+                        : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:scale-[1.02] shadow-lg shadow-orange-500/20"
               }`}
             >
               {checkingPlan
                 ? <><RefreshCw className="w-4 h-4 animate-spin" /> Vérification...</>
-                : isPremium
-                  ? <><BadgeCheck className="w-4 h-4" /> Abonnement Actif</>
-                  : loading
-                    ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Paiement en cours...</>
-                    : <><Zap className="w-4 h-4" /> Souscrire — {planChoisi.label}</>
+                : isAdmin
+                  ? <><Shield className="w-4 h-4" /> Accès Admin — Gratuit</>
+                  : isPremium
+                    ? <><BadgeCheck className="w-4 h-4" /> Abonnement Actif</>
+                    : loading
+                      ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Paiement en cours...</>
+                      : <><Zap className="w-4 h-4" /> Souscrire — {planChoisi.label}</>
               }
             </button>
 
