@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import CryptoWalletConfig from "@/components/CryptoWalletConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -603,6 +604,21 @@ function SectionEditor({ sectionKey, form, setForm, boutique, onSave, onBack, up
               <p className="text-xs text-amber-700 dark:text-amber-300">
                 💰 Commission NEXORA : <strong>6%</strong> prélevée sur chaque vente réussie. Le solde net est crédité dans votre portefeuille.
               </p>
+            </div>
+
+            {/* ── Séparateur ── */}
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Autres modes</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {/* ── Section Crypto ── */}
+            <div className="bg-gray-900 rounded-2xl p-5 border border-white/8">
+              <CryptoWalletConfig
+                moyensPaiement={form.moyens_paiement || []}
+                onChange={(newMoyens) => setForm((p: any) => ({ ...p, moyens_paiement: newMoyens }))}
+              />
             </div>
           </div>
         )}
