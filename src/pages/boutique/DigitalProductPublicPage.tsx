@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 
 
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PaymentMethod { reseau: string; numero: string; nom_titulaire: string; instructions?: string; }
 interface BoutiqueInfo { id: string; nom: string; slug: string; devise: string; logo?: string; description?: string; user_id: string; }
