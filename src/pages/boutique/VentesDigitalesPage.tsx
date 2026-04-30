@@ -152,10 +152,15 @@ export default function VentesDigitalesPage() {
         .from("commandes" as any)
         .select("*")
         .eq("boutique_id", (b as any).id)
-        .eq("product_type", "numerique")
         .order("created_at", { ascending: false });
 
-      setVentes(data as Vente[] || []);
+      // Filtrer les commandes contenant au moins un article numérique
+      const filtered = (data as any[] || []).filter(cmd => {
+        const items = cmd.items || [];
+        return items.some((item: any) => item.type === "numerique");
+      });
+
+      setVentes(filtered as Vente[]);
     }
 
     setLoading(false);
