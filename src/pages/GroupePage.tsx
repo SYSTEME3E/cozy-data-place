@@ -169,11 +169,26 @@ export default function GroupePage() {
   if (!estMembre) {
     return (
       <div className="min-h-screen bg-[#111b21] flex flex-col items-center justify-center gap-6 px-6">
-        <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-[#305CDE]/40 shadow-2xl">
-          <img src={config?.logo_url} alt="logo" className="w-full h-full object-cover" />
+        <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-[#305CDE]/40 shadow-2xl bg-[#1f2c34]">
+          {config?.logo_url ? (
+            <img
+              src={config.logo_url}
+              alt="logo"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Users className="w-10 h-10 text-gray-500" />
+            </div>
+          )}
         </div>
         <div className="text-center">
-          <h1 className="text-white font-black text-2xl leading-tight">{config?.nom}</h1>
+          <h1 className="text-white font-black text-2xl leading-tight">
+            {config?.nom || "Groupe Nexora"}
+          </h1>
           <p className="text-gray-400 text-sm mt-2">Groupe de discussion Nexora</p>
         </div>
         <div className="flex items-center gap-4">
@@ -192,7 +207,8 @@ export default function GroupePage() {
         )}
         <button
           onClick={rejoindre}
-          className="w-full max-w-xs py-4 rounded-2xl bg-[#25d366] text-white font-black text-base shadow-lg hover:bg-[#25d366]/90 active:scale-95 transition-all"
+          disabled={!user}
+          className="w-full max-w-xs py-4 rounded-2xl bg-[#25d366] text-white font-black text-base shadow-lg hover:bg-[#25d366]/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Rejoindre le groupe
         </button>
