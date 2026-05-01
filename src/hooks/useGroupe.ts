@@ -10,6 +10,7 @@ export interface GroupeConfig {
   est_ouvert: boolean;
 }
 
+
 export interface GroupeMembre {
   id: string;
   user_id: string;
