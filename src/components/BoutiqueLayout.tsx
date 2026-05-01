@@ -5,6 +5,8 @@ import {
   Eye, ChevronRight, Menu, X, ArrowLeft, Store, Sun, Moon, BarChart3, Zap, Users, Wallet, Megaphone, Receipt, Leaf, TrendingUp, MessageCircle
 } from "lucide-react";
 import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
+import { supabase } from "@/integrations/supabase/client";
+import { getNexoraUser } from "@/lib/nexora-auth";
 
 // ⚠️ "Finances & Retraits" retiré du menu utilisateur (désactivé côté vendeur)
 const boutiqueNav = [
@@ -45,10 +47,36 @@ export default function BoutiqueLayout({ children, boutiqueName = "Ma Boutique",
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   useEffect(() => {
     initTheme();
     setDarkMode(getTheme() === "dark");
+  }, []);
+
+  // ── Point rouge messages non lus ──────────────────────────────────────────
+  useEffect(() => {
+    const checkUnread = async () => {
+      const user = getNexoraUser();
+      if (!user) return;
+      const { data: boutique } = await (supabase as any)
+        .from("boutiques").select("id").eq("user_id", user.id).maybeSingle();
+      if (!boutique?.id) return;
+      const { data: discs } = await (supabase as any)
+        .from("discussions").select("id").eq("boutique_id", boutique.id);
+      if (!discs?.length) { setHasUnreadMessages(false); return; }
+      const ids = discs.map((d: any) => d.id);
+      const { count } = await (supabase as any)
+        .from("messages_discussion")
+        .select("id", { count: "exact", head: true })
+        .eq("expediteur", "acheteur")
+        .eq("lu", false)
+        .in("discussion_id", ids);
+      setHasUnreadMessages((count ?? 0) > 0);
+    };
+    checkUnread();
+    const timer = setInterval(checkUnread, 10000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleToggleTheme = () => {
@@ -128,14 +156,24 @@ export default function BoutiqueLayout({ children, boutiqueName = "Ma Boutique",
                   }
                 `}
               >
-                <div className={`
-                  flex items-center justify-center rounded-lg flex-shrink-0
-                  ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}
-                  ${active ? "bg-[#305CDE]" : "bg-gray-100 dark:bg-gray-800"}
-                `}>
-                  <Icon className={`flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"} ${active ? "text-white" : "text-gray-600 dark:text-gray-300"}`} />
+                {/* Icône avec point rouge pour Messages */}
+                <div className="relative flex-shrink-0">
+                  <div className={`
+                    flex items-center justify-center rounded-lg
+                    ${sidebarOpen ? "w-7 h-7" : "w-9 h-9"}
+                    ${active ? "bg-[#305CDE]" : "bg-gray-100 dark:bg-gray-800"}
+                  `}>
+                    <Icon className={`flex-shrink-0 ${sidebarOpen ? "w-4 h-4" : "w-5 h-5"} ${active ? "text-white" : "text-gray-600 dark:text-gray-300"}`} />
+                  </div>
+                  {/* Point rouge si messages non lus */}
+                  {path === "/boutique/messages-vendeur" && hasUnreadMessages && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-900" />
+                  )}
                 </div>
                 {sidebarOpen && <span className="text-sm truncate">{label}</span>}
+                {sidebarOpen && path === "/boutique/messages-vendeur" && hasUnreadMessages && !active && (
+                  <span className="ml-auto w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
+                )}
                 {sidebarOpen && active && <ChevronRight className="w-3.5 h-3.5 ml-auto text-[#305CDE]" />}
               </Link>
             );
