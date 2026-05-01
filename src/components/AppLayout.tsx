@@ -29,6 +29,7 @@ const getNavItems = (isAdmin: boolean) => {
     { path: "/nexora-shop",      icon: ShoppingBag,     label: "Shopping Public",      color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/support",          icon: Headphones,      label: "Support",              color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/communaute",       icon: Users,           label: "Communauté",           color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    { path: "/groupe",           icon: Users,           label: "Groupe Nexora",        color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
     { path: "/a-propos",         icon: Info,            label: "À propos",             color: "text-gray-700 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
   ];
   if (isAdmin) {
