@@ -66,6 +66,7 @@ import DigitalPaymentCallbackPage from "@/pages/DigitalPaymentCallbackPage";
 import PortefeuillePage from "@/pages/boutique/PortefeuillePage";
 import AcheterPage from "@/pages/boutique/AcheterPage";
 import ClientsPage from "@/pages/boutique/ClientsPage";
+import MessagesBoutiquePage from "@/pages/boutique/MessagesBoutiquePage";
 import CommandeTrackingPage from "@/pages/boutique/CommandeTrackingPage";
 import CampagnesPage from "@/pages/boutique/CampagnesPage";
 import CampagneAnalyticsPage from "@/pages/boutique/CampagneAnalyticsPage";
@@ -256,6 +257,7 @@ const App = () => {
               <Route path="/boutique/prix-interet" element={<ProtectedPage><PrixInteretPage /></ProtectedPage>} />
               <Route path="/boutique/ventes-digitales"  element={<ProtectedPage><VentesDigitalesPage /></ProtectedPage>} />
               <Route path="/boutique/clients"     element={<ProtectedPage><ClientsPage /></ProtectedPage>} />
+              <Route path="/boutique/messages"    element={<ProtectedPage><MessagesBoutiquePage /></ProtectedPage>} />
               <Route path="/boutique/performance" element={<ProtectedPage><PerformancePage /></ProtectedPage>} />
               <Route path="/boutique/parametres"  element={<ProtectedPage><BoutiqueParametresPage /></ProtectedPage>} />
               <Route path="/boutique/portefeuille" element={<ProtectedPage><PortefeuillePage /></ProtectedPage>} />
