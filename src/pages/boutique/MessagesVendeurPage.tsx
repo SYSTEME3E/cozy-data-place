@@ -235,13 +235,23 @@ export default function MessagesVendeurPage() {
   useEffect(() => { if (boutiqueId) loadDiscussions(); }, [boutiqueId]);
 
   // ── Charger messages ──────────────────────────────────────────────────────
-  const loadMessages = async (discId: string, scrollToBottom = false) => {
-    setLoadingMsgs(true);
+  const loadMessages = async (discId: string, scrollToBottom = false, silent = false) => {
+    if (!silent) setLoadingMsgs(true);
     const { data } = await (supabase as any)
       .from("messages_discussion").select("*")
       .eq("discussion_id", discId).order("created_at", { ascending: true });
-    setMessages((data as Message[]) || []);
-    setLoadingMsgs(false);
+    // Ne remplacer les messages que si le contenu a réellement changé
+    setMessages(prev => {
+      const newData = (data as Message[]) || [];
+      if (
+        prev.length === newData.length &&
+        (newData.length === 0 || prev[prev.length - 1]?.id === newData[newData.length - 1]?.id)
+      ) {
+        return prev; // Rien de nouveau → évite le re-render inutile
+      }
+      return newData;
+    });
+    if (!silent) setLoadingMsgs(false);
 
     await (supabase as any).from("discussions").update({ lu_vendeur: true }).eq("id", discId);
     await (supabase as any).from("messages_discussion")
@@ -257,7 +267,7 @@ export default function MessagesVendeurPage() {
   useEffect(() => {
     if (!activeId) return;
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => loadMessages(activeId, false), 5000);
+    intervalRef.current = setInterval(() => loadMessages(activeId, false, true), 5000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [activeId]);
 
