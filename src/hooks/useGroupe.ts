@@ -70,7 +70,18 @@ export function useGroupe() {
       db.from("groupe_membres").select("*").order("rejoint_le", { ascending: true }),
     ]);
 
-    if (cfg)  setConfig(cfg);
+    if (cfg) {
+      setConfig(cfg);
+    } else {
+      // Aucune config trouvée : créer une configuration par défaut automatiquement
+      const { data: newCfg } = await db.from("groupe_config").insert({
+        nom: "Groupe Nexora",
+        description: "Groupe de discussion Nexora",
+        logo_url: "https://i.postimg.cc/MGrfm9b1/file-00000000f168720aaa88f3276382f694.png",
+        est_ouvert: true,
+      }).select().single();
+      if (newCfg) setConfig(newCfg);
+    }
     setMessages(msgs || []);
     const membresList = mbrs || [];
     setMembres(membresList);
