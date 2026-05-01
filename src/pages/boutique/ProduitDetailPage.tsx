@@ -13,6 +13,7 @@ import {
   ArrowLeft, ShoppingCart, MessageCircle, Send, X, ChevronLeft,
   ChevronRight, Star, Package, Shield, Truck, RefreshCw, Share2,
   Heart, Check, Plus, Minus, ImageIcon, Loader2, ZoomIn,
+  Mic, MicOff, Play, Pause, Square,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart-context";
@@ -89,6 +90,57 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 }
 
+function formatDuration(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// ─── Lecteur audio acheteur ────────────────────────────────────────────────────
+function AudioPlayer({ url, isMe }: { url: string; isMe: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying]   = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) { audioRef.current.pause(); setPlaying(false); }
+    else         { audioRef.current.play();  setPlaying(true);  }
+  };
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl min-w-[180px] shadow-sm ${
+      isMe
+        ? "bg-[#305CDE] text-white rounded-br-sm"
+        : "bg-white border border-neutral-100 rounded-bl-sm"
+    }`}>
+      <audio
+        ref={audioRef}
+        src={url}
+        onTimeUpdate={() => {
+          if (audioRef.current)
+            setProgress((audioRef.current.currentTime / (audioRef.current.duration || 1)) * 100);
+        }}
+        onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
+        onEnded={() => setPlaying(false)}
+      />
+      <button onClick={toggle} className="flex-shrink-0">
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+      </button>
+      <div className={`flex-1 h-1.5 rounded-full relative ${isMe ? "bg-white/30" : "bg-neutral-200"}`}>
+        <div
+          className={`absolute left-0 top-0 h-1.5 rounded-full transition-all ${isMe ? "bg-white" : "bg-[#305CDE]"}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <span className={`text-[10px] flex-shrink-0 tabular-nums ${isMe ? "text-white/80" : "text-neutral-400"}`}>
+        {formatDuration(duration)}
+      </span>
+    </div>
+  );
+}
+
 // ─── Composant principal ───────────────────────────────────────────────────────
 
 export default function ProduitDetailsPage() {
@@ -123,6 +175,19 @@ export default function ProduitDetailsPage() {
   const [sending, setSending]             = useState(false);
   const [chatLoading, setChatLoading]     = useState(false);
   const [uploadFile, setUploadFile]       = useState<File | null>(null);
+
+  // Audio recording
+  const [recording, setRecording]             = useState(false);
+  const [audioBlob, setAudioBlob]             = useState<Blob | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [recordSeconds, setRecordSeconds]     = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef   = useRef<Blob[]>([]);
+  const recordTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Unread notification for buyer
+  const [hasUnread, setHasUnread] = useState(false);
+
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const chatBottomRef   = useRef<HTMLDivElement>(null);
   const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -221,27 +286,35 @@ export default function ProduitDetailsPage() {
 
   // ─── Chat ─────────────────────────────────────────────────────────────────
 
-  const loadMessages = async (discId: string) => {
+  const loadMessages = async (discId: string, scrollToBottom = false) => {
     const { data } = await (supabase as any)
       .from("messages_discussion")
       .select("*")
       .eq("discussion_id", discId)
       .order("created_at", { ascending: true });
-    setMessages((data as Message[]) || []);
-    setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
-    // Marquer lu côté acheteur
+    const msgs = (data as Message[]) || [];
+    setMessages(msgs);
+    if (scrollToBottom) {
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+    }
+    // Marquer lu côté acheteur + détecter messages non lus du vendeur
+    const vendeurUnread = msgs.filter(m => m.expediteur === "vendeur" && !m.lu);
+    if (vendeurUnread.length > 0 && !chatOpen) {
+      setHasUnread(true);
+    }
     await (supabase as any)
       .from("messages_discussion")
       .update({ lu: true })
       .eq("discussion_id", discId)
       .eq("expediteur", "vendeur");
+    if (chatOpen) setHasUnread(false);
   };
 
   useEffect(() => {
     if (!discussionId) return;
-    loadMessages(discussionId);
+    loadMessages(discussionId, true);
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => loadMessages(discussionId), 4000);
+    pollRef.current = setInterval(() => loadMessages(discussionId, false), 4000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [discussionId]);
 
@@ -278,17 +351,55 @@ export default function ProduitDetailsPage() {
     const max = file.type.startsWith("video") ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > max) { toast({ title: "Fichier trop volumineux", variant: "destructive" }); return; }
     setUploadFile(file);
+    setAudioBlob(null); setAudioPreviewUrl(null);
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioBlob(blob);
+        setAudioPreviewUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start();
+      setRecording(true);
+      setRecordSeconds(0);
+      recordTimerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
+    } catch { toast({ title: "Microphone non accessible", variant: "destructive" }); }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+  };
+
+  const cancelAudio = () => { setAudioBlob(null); setAudioPreviewUrl(null); setRecordSeconds(0); };
+
   const sendMessage = async () => {
-    if (!discussionId || (!newMsg.trim() && !uploadFile)) return;
+    if (!discussionId || (!newMsg.trim() && !uploadFile && !audioBlob)) return;
     setSending(true);
 
     let fichierUrl: string | null = null;
     let fichierType: string | null = null;
     let fichierNom: string | null = null;
 
-    if (uploadFile) {
+    if (audioBlob) {
+      const fileName = `audio_${Date.now()}.webm`;
+      const path = `discussions/${discussionId}/${fileName}`;
+      const { error } = await supabase.storage.from("medias").upload(path, audioBlob, { upsert: true });
+      if (!error) {
+        const { data: pub } = supabase.storage.from("medias").getPublicUrl(path);
+        fichierUrl = pub.publicUrl; fichierType = "audio"; fichierNom = fileName;
+      }
+      setAudioBlob(null); setAudioPreviewUrl(null);
+    } else if (uploadFile) {
       const ext = uploadFile.name.split(".").pop();
       const path = `discussions/${discussionId}/${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from("discussion-attachments").upload(path, uploadFile, { upsert: true });
@@ -312,9 +423,14 @@ export default function ProduitDetailsPage() {
       fichier_nom:   fichierNom,
     });
 
+    // Notifier vendeur → lu_vendeur = false
+    await (supabase as any).from("discussions")
+      .update({ updated_at: new Date().toISOString(), lu_vendeur: false })
+      .eq("id", discussionId);
+
     setNewMsg("");
     setSending(false);
-    await loadMessages(discussionId);
+    await loadMessages(discussionId, true);
   };
 
   // ─── Photos ───────────────────────────────────────────────────────────────
@@ -601,12 +717,13 @@ export default function ProduitDetailsPage() {
               </button>
 
               <button
-                onClick={() => setChatOpen(true)}
-                className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-white text-[#305CDE] font-bold text-sm border-2 border-[#305CDE]/30 rounded-2xl hover:bg-[#305CDE]/5 transition-all"
+                onClick={() => { setChatOpen(true); setHasUnread(false); }}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-white text-[#305CDE] font-bold text-sm border-2 border-[#305CDE]/30 rounded-2xl hover:bg-[#305CDE]/5 transition-all relative"
               >
                 <MessageCircle className="w-4 h-4" />
                 Contacter le vendeur
-                {discussionId && <span className="w-2 h-2 bg-green-500 rounded-full" />}
+                {hasUnread && <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />}
+                {!hasUnread && discussionId && <span className="w-2 h-2 bg-green-500 rounded-full" />}
               </button>
             </div>
 
@@ -747,6 +864,12 @@ export default function ProduitDetailsPage() {
                             {msg.fichier_url && msg.fichier_type === "image" && (
                               <img src={msg.fichier_url} alt="img" className="max-w-[180px] rounded-xl object-cover cursor-pointer" onClick={() => window.open(msg.fichier_url!, "_blank")} />
                             )}
+                            {msg.fichier_url && msg.fichier_type === "video" && (
+                              <video src={msg.fichier_url} controls className="max-w-[180px] rounded-xl" />
+                            )}
+                            {msg.fichier_url && msg.fichier_type === "audio" && (
+                              <AudioPlayer url={msg.fichier_url} isMe={isMe} />
+                            )}
                             {msg.contenu && (
                               <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${isMe ? "bg-[#305CDE] text-white rounded-br-sm" : "bg-white text-neutral-800 border border-neutral-100 rounded-bl-sm"}`}>
                                 {msg.contenu}
@@ -761,6 +884,7 @@ export default function ProduitDetailsPage() {
                   <div ref={chatBottomRef} />
                 </div>
 
+                {/* Aperçu fichier */}
                 {uploadFile && (
                   <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center gap-2">
                     {uploadFile.type.startsWith("image") ? (
@@ -771,12 +895,56 @@ export default function ProduitDetailsPage() {
                   </div>
                 )}
 
+                {/* Aperçu audio prêt */}
+                {audioPreviewUrl && !recording && (
+                  <div className="px-4 py-2 bg-[#305CDE]/5 border-t border-[#305CDE]/10 flex items-center gap-3">
+                    <audio src={audioPreviewUrl} controls className="h-8 flex-1 max-w-[220px]" />
+                    <button onClick={cancelAudio} className="p-1 rounded-full hover:bg-[#305CDE]/10">
+                      <X className="w-4 h-4 text-neutral-400" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Enregistrement en cours */}
+                {recording && (
+                  <div className="px-4 py-2 bg-red-50 border-t border-red-100 flex items-center gap-3">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+                    <span className="text-sm text-red-600 font-semibold flex-1">
+                      Enregistrement… {formatDuration(recordSeconds)}
+                    </span>
+                    <button
+                      onClick={stopRecording}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-colors"
+                    >
+                      <Square className="w-3 h-3" /> Arrêter
+                    </button>
+                  </div>
+                )}
+
                 <div className="p-3 border-t border-neutral-100 bg-white">
                   <div className="flex items-end gap-2">
                     <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileChange} />
-                    <button onClick={() => fileInputRef.current?.click()} className="p-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 transition-colors">
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 transition-colors flex-shrink-0">
                       <ImageIcon className="w-4 h-4 text-neutral-400" />
                     </button>
+                    {/* Micro */}
+                    {!recording ? (
+                      <button
+                        onClick={startRecording}
+                        disabled={!!audioBlob}
+                        className="p-2.5 rounded-xl border border-neutral-200 hover:bg-[#305CDE]/10 hover:border-[#305CDE]/40 transition-colors flex-shrink-0 disabled:opacity-40"
+                        title="Enregistrer un audio"
+                      >
+                        <Mic className="w-4 h-4 text-[#305CDE]" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={stopRecording}
+                        className="p-2.5 rounded-xl border border-red-300 bg-red-50 transition-colors flex-shrink-0 animate-pulse"
+                      >
+                        <MicOff className="w-4 h-4 text-red-500" />
+                      </button>
+                    )}
                     <textarea
                       value={newMsg}
                       onChange={e => setNewMsg(e.target.value)}
@@ -788,8 +956,8 @@ export default function ProduitDetailsPage() {
                     />
                     <button
                       onClick={sendMessage}
-                      disabled={sending || (!newMsg.trim() && !uploadFile)}
-                      className="p-2.5 bg-[#305CDE] text-white rounded-xl hover:bg-[#2449c7] transition-colors disabled:opacity-50"
+                      disabled={sending || (!newMsg.trim() && !uploadFile && !audioBlob)}
+                      className="p-2.5 bg-[#305CDE] text-white rounded-xl hover:bg-[#2449c7] transition-colors disabled:opacity-50 flex-shrink-0"
                     >
                       {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     </button>
