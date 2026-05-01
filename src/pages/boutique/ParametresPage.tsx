@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
 import ThemeVitrineConfig from "@/components/ThemeVitrineConfig";
+import PixelFacebookTab, { type PixelConfig } from "@/components/PixelFacebookTab";
 import { getNexoraUser } from "@/lib/nexora-auth";
 import {
   Store, Globe, Facebook, Bell, Save,
@@ -53,6 +54,7 @@ interface Boutique {
   email: string; whatsapp: string; telephone: string;
   adresse: string; pays: string; ville: string; devise: string;
   pixel_facebook_id: string; pixel_actif: boolean;
+  pixels_config?: PixelConfig[] | null;
   api_conversion_token: string; api_conversion_actif: boolean;
   domaine_personnalise: string; domaine_actif: boolean;
   notifications_actives: boolean; actif: boolean;
@@ -66,6 +68,7 @@ const defaultBoutique: Boutique = {
   email: "", whatsapp: "", telephone: "",
   adresse: "", pays: "Bénin", ville: "", devise: "XOF",
   pixel_facebook_id: "", pixel_actif: false,
+  pixels_config: [],
   api_conversion_token: "", api_conversion_actif: false,
   domaine_personnalise: "", domaine_actif: false,
   notifications_actives: true, actif: true,
@@ -400,85 +403,11 @@ export default function BoutiqueParametresPage() {
 
         {/* ── TAB Pixel Facebook ── */}
         {activeTab === "pixel" && (
-          <div className="space-y-4">
-            <div className={cardCls}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-[#305CDE]/40 flex items-center justify-center">
-                  <Facebook className="w-5 h-5 text-[#305CDE]" />
-                </div>
-                <div>
-                  <p className="font-bold text-sm text-gray-800 dark:text-gray-100">Pixel Facebook</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">Tracking navigateur côté client</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-[#305CDE] rounded-xl">
-                <div>
-                  <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Activer le Pixel</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">Tracking navigateur</p>
-                </div>
-                <button onClick={() => setBoutique(prev => ({ ...prev, pixel_actif: !prev.pixel_actif }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.pixel_actif ? "bg-[#305CDE]" : "bg-gray-300 dark:bg-gray-600"}`}>
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.pixel_actif ? "left-7" : "left-1"}`} />
-                </button>
-              </div>
-              <div>
-                <label className={labelCls}>ID Pixel Facebook</label>
-                <Input value={boutique.pixel_facebook_id}
-                  onChange={e => setBoutique(prev => ({ ...prev, pixel_facebook_id: e.target.value }))}
-                  placeholder="123456789012345" className={`font-mono ${inputCls}`} />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Trouvez-le dans Facebook Events Manager</p>
-              </div>
-            </div>
-
-            <div className={cardCls}>
-              <div>
-                <p className="font-bold text-sm text-[#305CDE] dark:text-[#305CDE]">API Conversions (CAPI)</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Plus fiable que le Pixel — contourne les bloqueurs de publicité et les limitations iOS.</p>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-[#305CDE] rounded-xl">
-                <div>
-                  <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Activer l'API Conversions</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">Tracking serveur</p>
-                </div>
-                <button onClick={() => setBoutique(prev => ({ ...prev, api_conversion_actif: !prev.api_conversion_actif }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${boutique.api_conversion_actif ? "bg-[#305CDE]" : "bg-gray-300 dark:bg-gray-600"}`}>
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${boutique.api_conversion_actif ? "left-7" : "left-1"}`} />
-                </button>
-              </div>
-              <div>
-                <label className={labelCls}>Token d'accès API</label>
-                <div className="flex gap-2 mt-1">
-                  <Input type={showToken ? "text" : "password"}
-                    value={boutique.api_conversion_token}
-                    onChange={e => setBoutique(prev => ({ ...prev, api_conversion_token: e.target.value }))}
-                    placeholder="EAAxxxxxxxx..." className={`font-mono flex-1 ${inputCls}`} />
-                  <button onClick={() => setShowToken(!showToken)}
-                    className="px-3 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300">
-                    {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-[#305CDE] rounded-xl p-4">
-                <p className="text-xs font-bold text-[#305CDE] dark:text-[#305CDE] mb-2">Événements trackés :</p>
-                <div className="space-y-1.5">
-                  {[
-                    { name: "PageView", desc: "visite boutique", ok: true },
-                    { name: "ViewContent", desc: "vue produit", ok: true },
-                    { name: "AddToCart", desc: "ajout panier", ok: true },
-                    { name: "InitiateCheckout", desc: "début commande", ok: true },
-                    { name: "Purchase", desc: "commande confirmée", ok: true },
-                  ].map(ev => (
-                    <div key={ev.name} className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ev.ok ? "bg-[#008000]" : "bg-red-400"}`} />
-                      <span className="text-xs text-[#305CDE] dark:text-[#305CDE]">
-                        <strong>{ev.name}</strong> — {ev.desc}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <PixelFacebookTab
+            boutiqueId={boutique.id}
+            initialPixels={(boutique as any).pixels_config || []}
+            onChange={(pixels) => setBoutique(prev => ({ ...prev, pixels_config: pixels } as any))}
+          />
         )}
 
         {/* ── TAB Domaine ── */}
