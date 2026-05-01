@@ -7,7 +7,6 @@
  *   - Stock en temps réel par combinaison
  */
 
-
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -395,21 +394,27 @@ export default function ProduitDetailsPage() {
       const fileName = `audio_${Date.now()}.webm`;
       const path = `discussions/${discussionId}/${fileName}`;
       const { error } = await supabase.storage.from("medias").upload(path, audioBlob, { upsert: true });
-      if (!error) {
-        const { data: pub } = supabase.storage.from("medias").getPublicUrl(path);
-        fichierUrl = pub.publicUrl; fichierType = "audio"; fichierNom = fileName;
+      if (error) {
+        toast({ title: "Erreur upload audio : " + error.message, variant: "destructive" });
+        setSending(false);
+        return; // NE PAS effacer l'audio si erreur
       }
-      setAudioBlob(null); setAudioPreviewUrl(null);
+      const { data: pub } = supabase.storage.from("medias").getPublicUrl(path);
+      fichierUrl = pub.publicUrl; fichierType = "audio"; fichierNom = fileName;
+      setAudioBlob(null); setAudioPreviewUrl(null); // effacer seulement si succès
     } else if (uploadFile) {
       const ext = uploadFile.name.split(".").pop();
       const path = `discussions/${discussionId}/${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from("discussion-attachments").upload(path, uploadFile, { upsert: true });
-      if (!error) {
-        const { data: pub } = supabase.storage.from("discussion-attachments").getPublicUrl(path);
-        fichierUrl  = pub.publicUrl;
-        fichierType = uploadFile.type.startsWith("video") ? "video" : "image";
-        fichierNom  = uploadFile.name;
+      if (error) {
+        toast({ title: "Erreur upload fichier : " + error.message, variant: "destructive" });
+        setSending(false);
+        return;
       }
+      const { data: pub } = supabase.storage.from("discussion-attachments").getPublicUrl(path);
+      fichierUrl  = pub.publicUrl;
+      fichierType = uploadFile.type.startsWith("video") ? "video" : "image";
+      fichierNom  = uploadFile.name;
       setUploadFile(null);
     }
 
