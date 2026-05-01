@@ -165,6 +165,8 @@ export default function ProduitDetailPage() {
   const [selectedImage,    setSelectedImage]    = useState(0);
   const [quantite,         setQuantite]         = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string>>({});
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   useEffect(() => { document.documentElement.classList.remove('dark'); }, []);
 
