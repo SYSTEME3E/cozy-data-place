@@ -6,6 +6,7 @@ import {
 import type { GroupeMembre } from "@/hooks/useGroupe";
 import { supabase } from "@/integrations/supabase/client";
 
+
 interface Participant {
   user_id: string;
   nom_prenom: string;
