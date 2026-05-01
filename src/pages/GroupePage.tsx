@@ -241,7 +241,7 @@ export default function GroupePage() {
   }
 
   // ── Interface principale ─────────────────────────────────────────────────────
-  const visibleMessages = messages.filter(m => !m.supprime || isAdmin || m.user_id === monProfil!.user_id);
+  const visibleMessages = messages.filter(m => !m.supprime || isAdmin || m.user_id === monProfil?.user_id);
 
   return (
     <div className="flex flex-col h-screen bg-[#0b141a] overflow-hidden relative">
