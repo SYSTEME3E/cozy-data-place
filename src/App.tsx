@@ -48,6 +48,7 @@ import VideoPlayerPage from "@/pages/VideoPlayerPage";
 import NexoraAcademy from "@/pages/NexoraAcademy";
 import SupportPage from "@/pages/SupportPage";
 import CommunautePage from "@/pages/CommunautePage";
+import GroupePage from "@/pages/GroupePage";
 import AProposPage from "@/pages/AProposPage";
 
 // Boutique
@@ -234,6 +235,7 @@ const App = () => {
               <Route path="/nexora-academy"  element={<NexoraAcademy />} />
               <Route path="/support"         element={<ProtectedPage><SupportPage /></ProtectedPage>} />
               <Route path="/communaute"      element={<ProtectedPage><CommunautePage /></ProtectedPage>} />
+              <Route path="/groupe"          element={<ProtectedPage><GroupePage /></ProtectedPage>} />
               <Route path="/a-propos"        element={<ProtectedPage><AProposPage /></ProtectedPage>} />
 
               {/* Callback Paiement */}
