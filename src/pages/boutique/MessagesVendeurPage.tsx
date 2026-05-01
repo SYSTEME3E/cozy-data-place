@@ -237,10 +237,19 @@ export default function MessagesVendeurPage() {
 
   const uploadMedia = async (file: File | Blob, forceName?: string) => {
     setUploading(true);
-    const fileName = forceName || (file instanceof File ? file.name : `audio_${Date.now()}.webm`);
-    const fileExt  = fileName.split(".").pop() || "bin";
-    const path = `discussions/${activeId}/${Date.now()}.${fileExt}`;
-    const { error } = await supabase.storage.from("medias").upload(path, file, { upsert: true });
+    // Déterminer l'extension selon le vrai type MIME du blob
+    const actualType = file instanceof File ? file.type : (file as Blob).type;
+    const ext = actualType.includes("mp4") ? "mp4"
+      : actualType.includes("ogg") ? "ogg"
+      : "webm";
+    const fileName = forceName
+      ? forceName.replace(/\.[^.]+$/, `.${ext}`) // remplacer extension par la vraie
+      : (file instanceof File ? file.name : `audio_${Date.now()}.${ext}`);
+    const path = `discussions/${activeId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("medias").upload(path, file, {
+      upsert: true,
+      contentType: actualType || "audio/webm",
+    });
     if (error) { setUploading(false); return null; }
     const { data: pub } = supabase.storage.from("medias").getPublicUrl(path);
     setUploading(false);
@@ -256,16 +265,28 @@ export default function MessagesVendeurPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mr = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "";
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       mediaRecorderRef.current = mr;
-      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        if (audioChunksRef.current.length === 0) {
+          alert("Enregistrement vide, réessayez.");
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || "audio/webm" });
         setAudioBlob(blob);
         setAudioPreviewUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
       };
-      mr.start();
+      mr.start(200); // timeslice 200ms — CRUCIAL pour mobile
       setRecording(true);
       setRecordSeconds(0);
       recordTimerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
