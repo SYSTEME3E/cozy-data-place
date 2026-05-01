@@ -16,6 +16,7 @@ import AppLayout from "@/components/AppLayout";
 import AIAssistant from "@/components/AIAssistant";
 import { useState, useEffect } from "react";
 
+
 // Auth
 import NexoraLoginPage from "@/pages/NexoraLoginPage";
 import NexoraRegisterPage from "@/pages/NexoraRegisterPage";
