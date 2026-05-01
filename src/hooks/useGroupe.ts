@@ -59,20 +59,22 @@ export function useGroupe() {
 
   // ── Charger config + membres + messages ──────────────────────────────────────
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const [{ data: cfg }, { data: msgs }, { data: mbrs }] = await Promise.all([
-      db.from("groupe_config").select("*").single(),
+      db.from("groupe_config").select("*").maybeSingle(),
       db.from("groupe_messages").select("*").order("created_at", { ascending: true }),
       db.from("groupe_membres").select("*").order("rejoint_le", { ascending: true }),
     ]);
 
     if (cfg)  setConfig(cfg);
-    if (msgs) setMessages(msgs);
-    if (mbrs) {
-      setMembres(mbrs);
-      setMonProfil(mbrs.find((m: GroupeMembre) => m.user_id === user.id) || null);
-    }
+    setMessages(msgs || []);
+    const membresList = mbrs || [];
+    setMembres(membresList);
+    setMonProfil(membresList.find((m: GroupeMembre) => m.user_id === user.id) || null);
     setLoading(false);
   }, [user?.id]);
 
@@ -80,7 +82,7 @@ export function useGroupe() {
   const rejoindre = useCallback(async () => {
     if (!user) return;
     const isAdmin = user.is_admin;
-    const { data } = await db.from("groupe_membres").upsert({
+    const { data, error } = await db.from("groupe_membres").upsert({
       user_id: user.id,
       nom_prenom: user.nom_prenom,
       username: user.username,
@@ -89,6 +91,10 @@ export function useGroupe() {
       est_en_ligne: true,
       derniere_activite: new Date().toISOString(),
     }, { onConflict: "user_id" }).select().single();
+    if (error) {
+      console.error("Erreur rejoindre:", error);
+      return;
+    }
     if (data) setMonProfil(data);
     await load();
   }, [user, load]);
