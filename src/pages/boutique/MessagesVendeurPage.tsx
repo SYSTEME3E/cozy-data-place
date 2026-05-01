@@ -9,7 +9,6 @@
  * • Responsive mobile / dark mode
  */
 
-
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getNexoraUser } from "@/lib/nexora-auth";
@@ -292,11 +291,21 @@ export default function MessagesVendeurPage() {
 
     if (audioBlob) {
       const res = await uploadMedia(audioBlob, `audio_${Date.now()}.webm`);
-      if (res) { fichierUrl = res.url; fichierType = "audio"; fichierNom = res.nom; }
-      setAudioBlob(null); setAudioPreviewUrl(null);
+      if (!res) {
+        alert("Erreur upload audio. Vérifiez que le bucket 'medias' existe dans Supabase Storage.");
+        setSending(false);
+        return; // NE PAS effacer l'audio si erreur
+      }
+      fichierUrl = res.url; fichierType = "audio"; fichierNom = res.nom;
+      setAudioBlob(null); setAudioPreviewUrl(null); // effacer seulement si succès
     } else if (uploadFile) {
       const res = await uploadMedia(uploadFile);
-      if (res) { fichierUrl = res.url; fichierType = res.type; fichierNom = res.nom; }
+      if (!res) {
+        alert("Erreur upload fichier.");
+        setSending(false);
+        return;
+      }
+      fichierUrl = res.url; fichierType = res.type; fichierNom = res.nom;
       setUploadFile(null);
     }
 
