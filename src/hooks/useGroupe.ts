@@ -83,21 +83,6 @@ export function useGroupe() {
     if (!user) return;
     const isAdmin = user.is_admin;
 
-    // Données optimistes immédiates pour éviter le délai
-    const membreOptimiste: GroupeMembre = {
-      id: `temp-${user.id}`,
-      user_id: user.id,
-      nom_prenom: user.nom_prenom,
-      username: user.username,
-      avatar_url: user.avatar_url || null,
-      role: isAdmin ? "admin" : "membre",
-      est_en_ligne: true,
-      derniere_activite: new Date().toISOString(),
-      rejoint_le: new Date().toISOString(),
-      micro_coupe: false,
-    };
-    setMonProfil(membreOptimiste);
-
     const { data, error } = await db.from("groupe_membres").upsert({
       user_id: user.id,
       nom_prenom: user.nom_prenom,
@@ -110,12 +95,33 @@ export function useGroupe() {
 
     if (error) {
       console.error("Erreur rejoindre:", error);
-      setMonProfil(null); // rollback
       return;
     }
-    if (data) setMonProfil(data);
-    await load();
-  }, [user, load]);
+
+    // On applique le profil réel retourné par Supabase (pas un temp id)
+    if (data) {
+      setMonProfil(data);
+      setMembres(prev => {
+        if (prev.find(m => m.user_id === data.user_id)) {
+          return prev.map(m => m.user_id === data.user_id ? data : m);
+        }
+        return [...prev, data];
+      });
+    }
+
+    // Recharger les messages et membres en arrière-plan sans toucher à monProfil
+    const [{ data: msgs }, { data: mbrs }] = await Promise.all([
+      db.from("groupe_messages").select("*").order("created_at", { ascending: true }),
+      db.from("groupe_membres").select("*").order("rejoint_le", { ascending: true }),
+    ]);
+    if (msgs) setMessages(msgs);
+    if (mbrs) {
+      setMembres(mbrs);
+      // Retrouver le profil dans la liste fraîche sans écraser si absent
+      const monMembreFrais = mbrs.find((m: GroupeMembre) => m.user_id === user.id);
+      if (monMembreFrais) setMonProfil(monMembreFrais);
+    }
+  }, [user]);
 
   // ── Quitter le groupe ────────────────────────────────────────────────────────
   const quitter = useCallback(async () => {
@@ -263,6 +269,8 @@ export function useGroupe() {
         event: "DELETE", schema: "public", table: "groupe_membres"
       }, (payload: any) => {
         setMembres(prev => prev.filter(m => m.id !== payload.old.id));
+        // Ne pas réinitialiser monProfil ici : c'est géré par quitter() explicitement
+        // pour éviter qu'un upsert (DELETE+INSERT interne) ferme la page
       })
       .on("postgres_changes", {
         event: "UPDATE", schema: "public", table: "groupe_config"
