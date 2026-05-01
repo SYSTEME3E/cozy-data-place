@@ -27,14 +27,17 @@ export default function GroupePage() {
   } = useGroupe();
 
   const [enJoignant, setEnJoignant] = useState(false);
+  const [erreurJoin, setErreurJoin] = useState<string | null>(null);
 
   const handleRejoindre = useCallback(async () => {
     if (!user || enJoignant) return;
     setEnJoignant(true);
+    setErreurJoin(null);
     try {
       await rejoindre();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur en rejoignant le groupe:", err);
+      setErreurJoin(err?.message || "Impossible de rejoindre le groupe. Vérifiez votre connexion.");
     } finally {
       setEnJoignant(false);
     }
@@ -233,6 +236,11 @@ export default function GroupePage() {
             "Rejoindre le groupe"
           )}
         </button>
+        {erreurJoin && (
+          <div className="w-full max-w-xs px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-2xl">
+            <p className="text-red-400 text-sm text-center">{erreurJoin}</p>
+          </div>
+        )}
         <button onClick={() => navigate(-1)} className="text-gray-500 text-sm hover:text-gray-300 transition-colors">
           Annuler
         </button>
