@@ -11,6 +11,7 @@ interface Props {
   onVueUnique: (id: string) => void;
 }
 
+
 function Avatar({ src, nom }: { src?: string | null; nom: string }) {
   const colors = ["#305CDE","#8B5CF6","#EC4899","#10B981","#F59E0B","#EF4444"];
   const color = colors[nom.charCodeAt(0) % colors.length];
