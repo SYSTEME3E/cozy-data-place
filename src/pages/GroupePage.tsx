@@ -12,7 +12,6 @@ import GroupeInfoPanel from "@/components/GroupeInfoPanel";
 import GroupeAppel from "@/components/GroupeAppel";
 import { getNexoraUser } from "@/lib/nexora-auth";
 
-
 export default function GroupePage() {
   const navigate = useNavigate();
   const user = getNexoraUser();
