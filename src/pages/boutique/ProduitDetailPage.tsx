@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Package, ShoppingCart, Tag, Star, Minus, Plus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Package, ShoppingCart, Tag, Star, Minus, Plus, Sparkles, Info, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast }  from '@/hooks/use-toast';
 import { useCart }   from '@/lib/cart-context';
@@ -15,6 +15,8 @@ import { useCampagneTracker } from '@/lib/campagneTracker';
 import { isUUID, buildAcheterUrl } from '@/lib/slugUtils';
 import VideoAutoplay from '@/components/VideoAutoplay';
 import { CountdownDisplay, CountdownConfig } from '@/components/ProductCountdown';
+import ProduitDetailsModal from '@/components/ProduitDetailsModal';
+import ChatVendeurModal from '@/components/ChatVendeurModal';
 
 interface Variation { nom: string; valeurs: string[]; }
 
@@ -163,6 +165,8 @@ export default function ProduitDetailPage() {
   const [selectedImage,    setSelectedImage]    = useState(0);
   const [quantite,         setQuantite]         = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string>>({});
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   useEffect(() => { document.documentElement.classList.remove('dark'); }, []);
 
@@ -451,10 +455,56 @@ export default function ProduitDetailPage() {
         <SectionReseauxSociaux reseaux={produit.reseaux_sociaux} />
       )}
 
+      {/* Boutons Détails + Discuter avec le vendeur */}
+      <div className="mx-3 mt-2 grid grid-cols-2 gap-2">
+        {produit.type === 'physique' && (
+          <button
+            onClick={() => setShowDetailsModal(true)}
+            className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-rose-300 text-gray-700 font-semibold py-3 rounded-xl transition shadow-sm"
+          >
+            <Info size={16} className="text-rose-500" />
+            Détails
+          </button>
+        )}
+        <button
+          onClick={() => setShowChatModal(true)}
+          className={`flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-rose-300 text-gray-700 font-semibold py-3 rounded-xl transition shadow-sm ${produit.type !== 'physique' ? 'col-span-2' : ''}`}
+        >
+          <MessageCircle size={16} className="text-rose-500" />
+          Discuter avec le vendeur
+        </button>
+      </div>
+
       {/* Avis */}
       <div className="mx-3 mt-2 mb-8">
         <SectionAvis produitId={produit.id} />
       </div>
+
+      {/* Modaux */}
+      {produit.type === 'physique' && (
+        <ProduitDetailsModal
+          open={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          produitNom={produit.nom}
+          produitDimensions={produit.dimensions}
+          produitPoids={produit.poids}
+          produitSku={produit.sku}
+          variations={(produit.variations_produit || []) as any}
+          devise={boutique?.devise}
+        />
+      )}
+
+      {boutique && (
+        <ChatVendeurModal
+          open={showChatModal}
+          onClose={() => setShowChatModal(false)}
+          boutiqueId={boutique.id}
+          boutiqueNom={boutique.nom}
+          produitId={produit.id}
+          produitNom={produit.nom}
+          produitImage={images[0]}
+        />
+      )}
     </div>
   );
 }
