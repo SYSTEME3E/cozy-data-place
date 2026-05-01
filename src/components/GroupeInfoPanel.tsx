@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import type { GroupeConfig, GroupeMembre } from "@/hooks/useGroupe";
 
+
 interface Props {
   config: GroupeConfig;
   membres: GroupeMembre[];
