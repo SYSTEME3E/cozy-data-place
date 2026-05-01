@@ -279,6 +279,7 @@ export function useGroupe() {
       })
       .subscribe();
 
+    
     channelRef.current = channel;
 
     // Heartbeat online
