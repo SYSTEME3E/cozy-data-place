@@ -94,7 +94,7 @@ export function useGroupe() {
     if (!user) return;
     const isAdmin = user.is_admin;
 
-    const { data, error } = await db.from("groupe_membres").upsert({
+    const payload = {
       user_id: user.id,
       nom_prenom: user.nom_prenom,
       username: user.username,
@@ -102,11 +102,33 @@ export function useGroupe() {
       role: isAdmin ? "admin" : "membre",
       est_en_ligne: true,
       derniere_activite: new Date().toISOString(),
-    }, { onConflict: "user_id" }).select().single();
+    };
+
+    // Essayer d'abord un INSERT. Si conflit (déjà membre), faire un UPDATE.
+    let data: any = null;
+    let error: any = null;
+
+    const insertResult = await db.from("groupe_membres").insert(payload).select().single();
+    if (insertResult.error) {
+      // Code 23505 = unique_violation (déjà membre) → on update
+      if (insertResult.error.code === "23505" || insertResult.status === 409) {
+        const updateResult = await db.from("groupe_membres")
+          .update({ est_en_ligne: true, derniere_activite: new Date().toISOString() })
+          .eq("user_id", user.id)
+          .select()
+          .single();
+        data = updateResult.data;
+        error = updateResult.error;
+      } else {
+        error = insertResult.error;
+      }
+    } else {
+      data = insertResult.data;
+    }
 
     if (error) {
       console.error("Erreur rejoindre:", error);
-      return;
+      throw new Error(error.message || "Impossible de rejoindre le groupe");
     }
 
     // On applique le profil réel retourné par Supabase (pas un temp id)
