@@ -99,8 +99,10 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           if (response.ok) {
+            // Clone AVANT tout usage asynchrone pour éviter "body already used"
+            const cloned = response.clone();
             caches.open(CACHE_VERSION).then((cache) => {
-              cache.put(OFFLINE_URL, response.clone());
+              cache.put(OFFLINE_URL, cloned);
             });
           }
           return response;
@@ -157,7 +159,9 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           if (response && response.status === 200) {
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
+            // Clone AVANT tout usage asynchrone
+            const cloned = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, cloned));
           }
           return response;
         })
@@ -176,7 +180,9 @@ self.addEventListener("fetch", (event) => {
       const networkFetch = fetch(request)
         .then((response) => {
           if (response && response.status === 200 && response.type !== "opaque") {
-            cache.put(request, response.clone());
+            // Clone AVANT tout usage asynchrone
+            const cloned = response.clone();
+            cache.put(request, cloned);
           }
           return response;
         })
