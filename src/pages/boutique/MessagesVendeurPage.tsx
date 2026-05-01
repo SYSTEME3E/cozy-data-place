@@ -191,7 +191,7 @@ export default function MessagesVendeurPage() {
   useEffect(() => { if (boutiqueId) loadDiscussions(); }, [boutiqueId]);
 
   // ── Charger messages ──────────────────────────────────────────────────────
-  const loadMessages = async (discId: string) => {
+  const loadMessages = async (discId: string, scrollToBottom = false) => {
     setLoadingMsgs(true);
     const { data } = await (supabase as any)
       .from("messages_discussion").select("*")
@@ -205,23 +205,23 @@ export default function MessagesVendeurPage() {
     setDiscussions(prev =>
       prev.map(d => d.id === discId ? { ...d, lu_vendeur: true, nbNonLus: 0 } : d)
     );
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    if (scrollToBottom) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    }
   };
 
   useEffect(() => {
     if (!activeId) return;
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => loadMessages(activeId), 5000);
+    intervalRef.current = setInterval(() => loadMessages(activeId, false), 5000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [activeId]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Supprimé: useEffect sur [messages] qui causait le scroll intempestif
 
   const openDiscussion = (id: string) => {
     setActiveId(id);
-    loadMessages(id);
+    loadMessages(id, true);
     setMobileView("chat");
   };
 
@@ -317,7 +317,7 @@ export default function MessagesVendeurPage() {
 
     setNewMsg("");
     setSending(false);
-    await loadMessages(activeId);
+    await loadMessages(activeId, true);
     await loadDiscussions();
   };
 
