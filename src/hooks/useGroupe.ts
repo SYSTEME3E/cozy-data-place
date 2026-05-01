@@ -82,6 +82,22 @@ export function useGroupe() {
   const rejoindre = useCallback(async () => {
     if (!user) return;
     const isAdmin = user.is_admin;
+
+    // Données optimistes immédiates pour éviter le délai
+    const membreOptimiste: GroupeMembre = {
+      id: `temp-${user.id}`,
+      user_id: user.id,
+      nom_prenom: user.nom_prenom,
+      username: user.username,
+      avatar_url: user.avatar_url || null,
+      role: isAdmin ? "admin" : "membre",
+      est_en_ligne: true,
+      derniere_activite: new Date().toISOString(),
+      rejoint_le: new Date().toISOString(),
+      micro_coupe: false,
+    };
+    setMonProfil(membreOptimiste);
+
     const { data, error } = await db.from("groupe_membres").upsert({
       user_id: user.id,
       nom_prenom: user.nom_prenom,
@@ -91,8 +107,10 @@ export function useGroupe() {
       est_en_ligne: true,
       derniere_activite: new Date().toISOString(),
     }, { onConflict: "user_id" }).select().single();
+
     if (error) {
       console.error("Erreur rejoindre:", error);
+      setMonProfil(null); // rollback
       return;
     }
     if (data) setMonProfil(data);
