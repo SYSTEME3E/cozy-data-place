@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Package, ShoppingBag, Settings,
-  Eye, ChevronRight, Menu, X, ArrowLeft, Store, Sun, Moon, BarChart3, Zap, Users, Wallet, Megaphone, Receipt, Leaf, TrendingUp
+  Eye, ChevronRight, Menu, X, ArrowLeft, Store, Sun, Moon, BarChart3, Zap, Users, Wallet, Megaphone, Receipt, Leaf, TrendingUp, MessageCircle
 } from "lucide-react";
 import { initTheme, toggleTheme, getTheme } from "@/lib/theme";
 
@@ -17,6 +17,7 @@ const boutiqueNav = [
   { path: "/boutique/portefeuille", icon: Wallet,          label: "Portefeuille", color: "text-violet-400", bg: "bg-violet-400/10" },
   { path: "/boutique/commandes",    icon: ShoppingBag,     label: "Commandes",    color: "text-orange-400", bg: "bg-orange-400/10" },
   { path: "/boutique/clients",      icon: Users,           label: "Mes Clients",  color: "text-[#305CDE]",   bg: "bg-[#305CDE]/10"   },
+  { path: "/boutique/messages-vendeur", icon: MessageCircle, label: "Messages",   color: "text-emerald-500", bg: "bg-emerald-500/10" },
   { path: "/boutique/campagnes",    icon: Megaphone,       label: "Campagnes",    color: "text-rose-400",   bg: "bg-rose-400/10"   },
   { path: "/boutique/bien-etre-yupi", icon: Leaf,          label: "BIEN-ÊTRE YUPI", color: "text-[#008000]", bg: "bg-[#008000]/10"  },
   { path: "/boutique/parametres",   icon: Settings,        label: "Paramètres",   color: "text-gray-400",   bg: "bg-gray-400/10"   },
