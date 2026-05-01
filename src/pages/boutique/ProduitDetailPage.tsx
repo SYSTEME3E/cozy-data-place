@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Package, ShoppingCart, Tag, Star, Minus, Plus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Package, ShoppingCart, Tag, Star, Minus, Plus, Sparkles, Info, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast }  from '@/hooks/use-toast';
 import { useCart }   from '@/lib/cart-context';
@@ -15,6 +15,8 @@ import { useCampagneTracker } from '@/lib/campagneTracker';
 import { isUUID, buildAcheterUrl } from '@/lib/slugUtils';
 import VideoAutoplay from '@/components/VideoAutoplay';
 import { CountdownDisplay, CountdownConfig } from '@/components/ProductCountdown';
+import ProduitDetailsModal from '@/components/ProduitDetailsModal';
+import ChatVendeurModal from '@/components/ChatVendeurModal';
 
 interface Variation { nom: string; valeurs: string[]; }
 
