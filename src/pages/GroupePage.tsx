@@ -26,6 +26,20 @@ export default function GroupePage() {
     ouvrirFermerGroupe, couperMicro,
   } = useGroupe();
 
+  const [enJoignant, setEnJoignant] = useState(false);
+
+  const handleRejoindre = useCallback(async () => {
+    if (!user || enJoignant) return;
+    setEnJoignant(true);
+    try {
+      await rejoindre();
+    } catch (err) {
+      console.error("Erreur en rejoignant le groupe:", err);
+    } finally {
+      setEnJoignant(false);
+    }
+  }, [user, enJoignant, rejoindre]);
+
   const [texte, setTexte]             = useState("");
   const [showEmoji, setShowEmoji]     = useState(false);
   const [showAttach, setShowAttach]   = useState(false);
@@ -206,11 +220,18 @@ export default function GroupePage() {
           <p className="text-gray-400 text-sm text-center max-w-xs">{config.description}</p>
         )}
         <button
-          onClick={rejoindre}
-          disabled={!user}
-          className="w-full max-w-xs py-4 rounded-2xl bg-[#25d366] text-white font-black text-base shadow-lg hover:bg-[#25d366]/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleRejoindre}
+          disabled={!user || enJoignant}
+          className="w-full max-w-xs py-4 rounded-2xl bg-[#25d366] text-white font-black text-base shadow-lg hover:bg-[#25d366]/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Rejoindre le groupe
+          {enJoignant ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Connexion...
+            </>
+          ) : (
+            "Rejoindre le groupe"
+          )}
         </button>
         <button onClick={() => navigate(-1)} className="text-gray-500 text-sm hover:text-gray-300 transition-colors">
           Annuler
