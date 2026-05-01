@@ -1070,6 +1070,57 @@ export type Database = {
           },
         ]
       }
+      conversations_boutique: {
+        Row: {
+          acheteur_contact: string
+          acheteur_nom: string
+          acheteur_session_id: string
+          boutique_id: string
+          created_at: string | null
+          dernier_message: string | null
+          dernier_message_at: string | null
+          id: string
+          non_lus_acheteur: number | null
+          non_lus_vendeur: number | null
+          produit_id: string | null
+          produit_image: string | null
+          produit_nom: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          acheteur_contact: string
+          acheteur_nom: string
+          acheteur_session_id: string
+          boutique_id: string
+          created_at?: string | null
+          dernier_message?: string | null
+          dernier_message_at?: string | null
+          id?: string
+          non_lus_acheteur?: number | null
+          non_lus_vendeur?: number | null
+          produit_id?: string | null
+          produit_image?: string | null
+          produit_nom?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          acheteur_contact?: string
+          acheteur_nom?: string
+          acheteur_session_id?: string
+          boutique_id?: string
+          created_at?: string | null
+          dernier_message?: string | null
+          dernier_message_at?: string | null
+          id?: string
+          non_lus_acheteur?: number | null
+          non_lus_vendeur?: number | null
+          produit_id?: string | null
+          produit_image?: string | null
+          produit_nom?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       crypto_offers: {
         Row: {
           allowed_countries: Json
@@ -2774,6 +2825,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_affiliate_stats"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      messages_boutique: {
+        Row: {
+          contenu: string | null
+          conversation_id: string
+          created_at: string | null
+          expediteur: string
+          id: string
+          is_read: boolean | null
+          media_type: string | null
+          media_url: string | null
+        }
+        Insert: {
+          contenu?: string | null
+          conversation_id: string
+          created_at?: string | null
+          expediteur: string
+          id?: string
+          is_read?: boolean | null
+          media_type?: string | null
+          media_url?: string | null
+        }
+        Update: {
+          contenu?: string | null
+          conversation_id?: string
+          created_at?: string | null
+          expediteur?: string
+          id?: string
+          is_read?: boolean | null
+          media_type?: string | null
+          media_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_boutique_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations_boutique"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4508,24 +4600,45 @@ export type Database = {
       }
       variations_produit: {
         Row: {
+          code_couleur: string | null
           created_at: string
+          description: string | null
           id: string
+          image_url: string | null
           nom: string
+          prix_supplement: number | null
           produit_id: string
+          stock_disponible: number | null
+          type_variation: string | null
+          valeur_principale: string | null
           valeurs: Json
         }
         Insert: {
+          code_couleur?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          image_url?: string | null
           nom: string
+          prix_supplement?: number | null
           produit_id: string
+          stock_disponible?: number | null
+          type_variation?: string | null
+          valeur_principale?: string | null
           valeurs?: Json
         }
         Update: {
+          code_couleur?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          image_url?: string | null
           nom?: string
+          prix_supplement?: number | null
           produit_id?: string
+          stock_disponible?: number | null
+          type_variation?: string | null
+          valeur_principale?: string | null
           valeurs?: Json
         }
         Relationships: [
