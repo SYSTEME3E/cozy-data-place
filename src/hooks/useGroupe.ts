@@ -75,8 +75,8 @@ export function useGroupe() {
     } else {
       // Aucune config trouvée : créer une configuration par défaut automatiquement
       const { data: newCfg } = await db.from("groupe_config").insert({
-        nom: "Groupe Nexora",
-        description: "Groupe de discussion Nexora",
+        nom: "Nexora Membres",
+        description: "Le groupe officiel de la communauté Nexora",
         logo_url: "https://i.postimg.cc/MGrfm9b1/file-00000000f168720aaa88f3276382f694.png",
         est_ouvert: true,
       }).select().single();
@@ -85,7 +85,37 @@ export function useGroupe() {
     setMessages(msgs || []);
     const membresList = mbrs || [];
     setMembres(membresList);
-    setMonProfil(membresList.find((m: GroupeMembre) => m.user_id === user.id) || null);
+    const monMembreTrouve = membresList.find((m: GroupeMembre) => m.user_id === user.id) || null;
+    setMonProfil(monMembreTrouve);
+
+    // ── AUTO-JOIN pour l'admin : s'il n'est pas encore membre, on l'ajoute automatiquement
+    if (user.is_admin && !monMembreTrouve) {
+      const payload = {
+        user_id: user.id,
+        nom_prenom: user.nom_prenom,
+        username: user.username,
+        avatar_url: user.avatar_url || null,
+        role: "admin",
+        est_en_ligne: true,
+        derniere_activite: new Date().toISOString(),
+      };
+      const insertResult = await db.from("groupe_membres").insert(payload).select().single();
+      if (insertResult.data) {
+        setMonProfil(insertResult.data);
+        setMembres((prev: GroupeMembre[]) => [...prev, insertResult.data]);
+      } else if (insertResult.error?.code === "23505") {
+        // Déjà présent (conflit unique) → récupérer le profil existant
+        const { data: existing } = await db.from("groupe_membres")
+          .select("*").eq("user_id", user.id).single();
+        if (existing) {
+          setMonProfil(existing);
+          setMembres((prev: GroupeMembre[]) =>
+            prev.find((m) => m.user_id === existing.user_id) ? prev : [...prev, existing]
+          );
+        }
+      }
+    }
+
     setLoading(false);
   }, [user?.id]);
 
