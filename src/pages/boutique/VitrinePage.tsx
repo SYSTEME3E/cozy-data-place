@@ -28,6 +28,10 @@ interface Boutique {
   pixel_actif: boolean;
   api_conversion_actif?: boolean;
   api_conversion_token?: string;
+  pixels_config?: Array<{
+    id: string; nom: string; pixel_id: string; pixel_actif: boolean;
+    capi_token?: string; capi_actif?: boolean;
+  }> | null;
   theme_couleur_principale?: string;
   theme_couleur_secondaire?: string;
   theme_style?: string;
@@ -74,13 +78,21 @@ function genNumeroCommande(): string {
 }
 
 function fbTrack(boutique: Boutique | null, event: string, params?: any) {
-  if (!boutique?.pixel_actif || !boutique?.pixel_facebook_id) return;
-  if (typeof window !== "undefined" && (window as any).fbq) {
+  if (typeof window === "undefined" || !(window as any).fbq) return;
+  const pixels = (boutique?.pixels_config || []).filter(
+    (p: any) => p.pixel_actif && p.pixel_id
+  );
+  if (pixels.length > 0) {
+    pixels.forEach((p: any) => {
+      (window as any).fbq("trackSingle", p.pixel_id, event, params);
+    });
+  } else if (boutique?.pixel_actif && boutique?.pixel_facebook_id) {
+    // Rétrocompatibilité ancien système
     (window as any).fbq("track", event, params);
   }
 }
 
-// ── CAPI : appel serveur pour les événements clés (évite les bloqueurs iOS/AdBlock)
+// ── CAPI : appel serveur multi-pixels (évite les bloqueurs iOS/AdBlock)
 // Dédupliqué avec le Pixel via event_id partagé
 async function fbCapi(
   boutique: Boutique | null,
@@ -92,23 +104,38 @@ async function fbCapi(
     event_source_url?: string;
   } = {}
 ) {
-  if (!boutique?.api_conversion_actif || !boutique?.slug) return;
+  if (!boutique?.slug) return;
   const CAPI_URL = import.meta.env.VITE_CAPI_URL || "";
   if (!CAPI_URL) return;
-  try {
-    await fetch(`${CAPI_URL}/capi/event`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        boutique_slug: boutique.slug,
-        event_name,
-        event_source_url: typeof window !== "undefined" ? window.location.href : "",
-        ...opts,
-      }),
+
+  // Pixels avec CAPI actif depuis pixels_config
+  const capiPixels = (boutique?.pixels_config || []).filter(
+    (p: any) => p.capi_actif && p.capi_token
+  );
+  // Rétrocompatibilité si pas de pixels_config
+  if (capiPixels.length === 0 && boutique?.api_conversion_actif && boutique?.api_conversion_token) {
+    capiPixels.push({
+      id: "legacy", nom: "Legacy", pixel_id: boutique.pixel_facebook_id,
+      pixel_actif: true, capi_token: boutique.api_conversion_token, capi_actif: true,
     });
-  } catch {
-    // Silencieux — le Pixel navigateur reste le fallback
   }
+  if (capiPixels.length === 0) return;
+
+  await Promise.allSettled(
+    capiPixels.map((p: any) =>
+      fetch(`${CAPI_URL}/capi/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boutique_slug: boutique.slug,
+          pixel_id: p.pixel_id,
+          event_name,
+          event_source_url: typeof window !== "undefined" ? window.location.href : "",
+          ...opts,
+        }),
+      }).catch(() => null)
+    )
+  );
 }
 
 // ── Génère un event_id partagé entre Pixel et CAPI (déduplication Meta)
@@ -188,7 +215,16 @@ export default function VitrinePage() {
       const cats = [...new Set(list.map((p: any) => p.categorie).filter(Boolean))] as string[];
       setCategories(cats);
 
-      if ((b as any).pixel_actif && (b as any).pixel_facebook_id) {
+      // ── Injection multi-pixels Facebook ──────────────────────────────
+      const pixelsConfig: Array<{
+        id: string; pixel_id: string; pixel_actif: boolean;
+      }> = (b as any).pixels_config || [];
+      // Rétrocompatibilité : si pixels_config vide, utiliser l'ancien champ
+      if (pixelsConfig.length === 0 && (b as any).pixel_actif && (b as any).pixel_facebook_id) {
+        pixelsConfig.push({ id: "legacy", pixel_id: (b as any).pixel_facebook_id, pixel_actif: true });
+      }
+      const activePixels = pixelsConfig.filter(p => p.pixel_actif && p.pixel_id);
+      if (activePixels.length > 0) {
         const script = document.createElement("script");
         script.innerHTML = `
           !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -196,7 +232,7 @@ export default function VitrinePage() {
           n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
           t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
           document,'script','https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init', '${(b as any).pixel_facebook_id}');
+          ${activePixels.map(p => `fbq('init', '${p.pixel_id}');`).join(" ")}
           fbq('track', 'PageView');
         `;
         document.head.appendChild(script);
