@@ -91,6 +91,7 @@ function timeAgo(iso: string): string {
 }
 
 function formatDuration(sec: number) {
+  if (!sec || !isFinite(sec) || isNaN(sec)) return "0:00";
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
@@ -99,9 +100,11 @@ function formatDuration(sec: number) {
 // ─── Lecteur audio acheteur ────────────────────────────────────────────────────
 function AudioPlayer({ url, isMe }: { url: string; isMe: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying]   = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [playing, setPlaying]         = useState(false);
+  const [played, setPlayed]           = useState(false);
+  const [progress, setProgress]       = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration]       = useState(0);
 
   const toggle = () => {
     if (!audioRef.current) return;
@@ -109,33 +112,62 @@ function AudioPlayer({ url, isMe }: { url: string; isMe: boolean }) {
     else         { audioRef.current.play();  setPlaying(true);  }
   };
 
+  const onTimeUpdate = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    const dur = isFinite(a.duration) ? a.duration : 0;
+    setCurrentTime(a.currentTime);
+    setProgress(dur > 0 ? (a.currentTime / dur) * 100 : 0);
+    if (dur > 0 && duration === 0) setDuration(dur);
+  };
+
+  const onLoaded = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (isFinite(a.duration) && a.duration > 0) setDuration(a.duration);
+  };
+
+  const onEnded = () => {
+    setPlaying(false);
+    setPlayed(true);
+    setProgress(0);
+    setCurrentTime(0);
+    if (audioRef.current) audioRef.current.currentTime = 0;
+  };
+
+  // isMe (acheteur) = vert non écouté → gris foncé après écoute
+  // vendeur = bleu roi
+  const bgColor = isMe
+    ? "bg-[#305CDE] text-white rounded-br-sm"
+    : played
+      ? "bg-gray-700 text-white rounded-bl-sm"
+      : "bg-[#25D366] text-white rounded-bl-sm";
+
+  const displayTime = playing ? currentTime : (played ? 0 : duration);
+
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl min-w-[180px] shadow-sm ${
-      isMe
-        ? "bg-[#305CDE] text-white rounded-br-sm"
-        : "bg-white border border-neutral-100 rounded-bl-sm"
-    }`}>
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl min-w-[200px] max-w-[260px] shadow-sm ${bgColor}`}>
       <audio
         ref={audioRef}
         src={url}
-        onTimeUpdate={() => {
-          if (audioRef.current)
-            setProgress((audioRef.current.currentTime / (audioRef.current.duration || 1)) * 100);
-        }}
-        onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
-        onEnded={() => setPlaying(false)}
+        preload="metadata"
+        onTimeUpdate={onTimeUpdate}
+        onLoadedMetadata={onLoaded}
+        onCanPlay={onLoaded}
+        onDurationChange={onLoaded}
+        onEnded={onEnded}
       />
-      <button onClick={toggle} className="flex-shrink-0">
+      <button onClick={toggle} className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
         {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
       </button>
-      <div className={`flex-1 h-1.5 rounded-full relative ${isMe ? "bg-white/30" : "bg-neutral-200"}`}>
+      <div className="flex-1 h-1.5 rounded-full relative bg-white/30">
         <div
-          className={`absolute left-0 top-0 h-1.5 rounded-full transition-all ${isMe ? "bg-white" : "bg-[#305CDE]"}`}
+          className="absolute left-0 top-0 h-1.5 rounded-full transition-all bg-white"
           style={{ width: `${progress}%` }}
         />
       </div>
-      <span className={`text-[10px] flex-shrink-0 tabular-nums ${isMe ? "text-white/80" : "text-neutral-400"}`}>
-        {formatDuration(duration)}
+      <span className="text-[11px] flex-shrink-0 tabular-nums font-medium text-white/80">
+        {formatDuration(displayTime)}
       </span>
     </div>
   );
