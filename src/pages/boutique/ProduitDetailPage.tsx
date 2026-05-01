@@ -1,509 +1,814 @@
 /**
- * NEXORA — ProduitDetailPage (v2 — slug SEO)
+ * NEXORA — ProduitDetailsPage
+ * Page publique de détail produit avec :
+ *   - Galerie photos interactive
+ *   - Sélecteur couleurs / tailles / options visuels
+ *   - Discussion intégrée acheteur ↔ vendeur (sans compte requis)
+ *   - Stock en temps réel par combinaison
  */
 
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Package, ShoppingCart, Tag, Star, Minus, Plus, Sparkles, Info, MessageCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast }  from '@/hooks/use-toast';
-import { useCart }   from '@/lib/cart-context';
-import ProductActionButtons from '@/components/ProductActionButtons';
-import SectionAvis from '@/pages/boutique/SectionAvis';
-import { formatPrix } from '@/lib/devise-utils';
-import { useCampagneTracker } from '@/lib/campagneTracker';
-import { isUUID, buildAcheterUrl } from '@/lib/slugUtils';
-import VideoAutoplay from '@/components/VideoAutoplay';
-import { CountdownDisplay, CountdownConfig } from '@/components/ProductCountdown';
-import ProduitDetailsModal from '@/components/ProduitDetailsModal';
-import ChatVendeurModal from '@/components/ChatVendeurModal';
+import { useEffect, useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft, ShoppingCart, MessageCircle, Send, X, ChevronLeft,
+  ChevronRight, Star, Package, Shield, Truck, RefreshCw, Share2,
+  Heart, Check, Plus, Minus, ImageIcon, Loader2, ZoomIn,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/lib/cart-context";
+import { useToast } from "@/hooks/use-toast";
+import { formatPrix } from "@/lib/devise-utils";
+import { isUUID } from "@/lib/slugUtils";
 
-interface Variation { nom: string; valeurs: string[]; }
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-
-interface ReseauxSociaux {
-  instagram?: string;
-  tiktok?: string;
-  facebook?: string;
-  youtube?: string;
-  whatsapp?: string;
-  site_web?: string;
+interface OptionProduit {
+  id: string;
+  type_option: "couleur" | "taille" | "matiere" | "style" | "autre";
+  label: string;
+  valeur: string;
+  code_hex?: string | null;
+  image_url?: string | null;
+  prix_supplement: number;
+  stock: number;
+  stock_illimite: boolean;
 }
 
 interface ProduitDetail {
-  id: string; boutique_id: string; nom: string; slug: string;
-  description: string | null; prix: number; prix_promo: number | null;
-  type: string; categorie: string | null; photos: string[] | null;
-  stock: number; stock_illimite: boolean; vedette: boolean;
-  poids: string | null; dimensions: string | null; sku: string | null;
-  politique_remboursement: string | null; politique_confidentialite: string | null;
-  paiement_reception: boolean; paiement_lien: string | null;
-  moyens_paiement: Array<{ reseau: string; numero: string; nom_titulaire: string }>;
-  type_digital: string | null; variations_produit?: Variation[];
-  reseaux_sociaux?: ReseauxSociaux | null;
+  id: string;
+  boutique_id: string;
+  nom: string;
+  slug: string;
+  description: string | null;
+  prix: number;
+  prix_promo: number | null;
+  photos: string[] | null;
+  stock: number;
+  stock_illimite: boolean;
+  categorie: string | null;
+  poids: string | null;
+  dimensions: string | null;
+  sku: string | null;
+  politique_remboursement: string | null;
+  type_produit: string;
 }
 
-interface BoutiqueInfo { id: string; nom: string; slug: string; devise: string; }
+interface BoutiqueInfo {
+  id: string;
+  nom: string;
+  slug: string;
+  devise: string;
+}
 
-// ─── SVG Icons des réseaux sociaux ───────────────────────────────────────────
-const InstagramIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <defs>
-      <radialGradient id="ig2-grad" cx="30%" cy="107%" r="150%">
-        <stop offset="0%" stopColor="#fdf497"/>
-        <stop offset="5%" stopColor="#fdf497"/>
-        <stop offset="45%" stopColor="#fd5949"/>
-        <stop offset="60%" stopColor="#d6249f"/>
-        <stop offset="90%" stopColor="#285AEB"/>
-      </radialGradient>
-    </defs>
-    <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#ig2-grad)"/>
-    <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
-    <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
-  </svg>
-);
+interface Message {
+  id: string;
+  expediteur: "acheteur" | "vendeur";
+  contenu: string | null;
+  fichier_url: string | null;
+  fichier_type: string | null;
+  created_at: string;
+}
 
-const TikTokIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect width="24" height="24" rx="5.5" fill="#010101"/>
-    <path d="M17.5 7.5C16.3 7.1 15.4 6.1 15.1 4.8H13V15.6C13 16.7 12.1 17.6 11 17.6C9.9 17.6 9 16.7 9 15.6C9 14.5 9.9 13.6 11 13.6V11.5C8.8 11.5 7 13.3 7 15.6C7 17.9 8.8 19.6 11 19.6C13.2 19.6 15 17.8 15 15.6V10.1C15.9 10.8 17 11.2 18.2 11.2V9.2C17.9 9.2 17.7 9.1 17.5 7.5Z" fill="#69C9D0"/>
-    <path d="M17.5 7.5C16.3 7.1 15.4 6.1 15.1 4.8H13V15.6C13 16.7 12.1 17.6 11 17.6C9.9 17.6 9 16.7 9 15.6C9 14.5 9.9 13.6 11 13.6V11.5C8.8 11.5 7 13.3 7 15.6C7 17.9 8.8 19.6 11 19.6C13.2 19.6 15 17.8 15 15.6V10.1C15.9 10.8 17 11.2 18.2 11.2V9.2C17.9 9.2 17.7 9.1 17.5 7.5Z" fill="#EE1D52" fillOpacity="0.6" style={{ mixBlendMode: 'screen' }}/>
-  </svg>
-);
+// ─── Constantes ───────────────────────────────────────────────────────────────
+const SESSION_KEY = "nexora_chat_session_v2";
 
-const FacebookIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect width="24" height="24" rx="5.5" fill="#1877F2"/>
-    <path d="M13.2 19.8V13.2H15.3L15.6 10.8H13.2V9.3C13.2 8.6 13.4 8.1 14.4 8.1H15.7V5.9C15.5 5.9 14.7 5.8 13.8 5.8C11.9 5.8 10.6 6.9 10.6 9.1V10.8H8.5V13.2H10.6V19.8H13.2Z" fill="white"/>
-  </svg>
-);
+function getSessionId(): string {
+  let sid = localStorage.getItem(SESSION_KEY);
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, sid);
+  }
+  return sid;
+}
 
-const YouTubeIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect width="24" height="24" rx="5.5" fill="#FF0000"/>
-    <path d="M19.6 8.2C19.4 7.4 18.8 6.8 18 6.6C16.6 6.2 12 6.2 12 6.2C12 6.2 7.4 6.2 6 6.6C5.2 6.8 4.6 7.4 4.4 8.2C4 9.6 4 12 4 12C4 12 4 14.4 4.4 15.8C4.6 16.6 5.2 17.2 6 17.4C7.4 17.8 12 17.8 12 17.8C12 17.8 16.6 17.8 18 17.4C18.8 17.2 19.4 16.6 19.6 15.8C20 14.4 20 12 20 12C20 12 20 9.6 19.6 8.2Z" fill="white"/>
-    <path d="M10.2 14.4L14.4 12L10.2 9.6V14.4Z" fill="#FF0000"/>
-  </svg>
-);
+function timeAgo(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return "À l'instant";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+}
 
-const WhatsAppIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect width="24" height="24" rx="5.5" fill="#25D366"/>
-    <path d="M12 4.5C7.9 4.5 4.5 7.9 4.5 12C4.5 13.4 4.9 14.7 5.6 15.8L4.5 19.5L8.3 18.4C9.4 19 10.7 19.4 12 19.4C16.1 19.4 19.5 16 19.5 12C19.5 7.9 16.1 4.5 12 4.5Z" fill="white"/>
-    <path d="M9.1 8.5C8.9 8.5 8.6 8.6 8.4 8.8C8.2 9 7.6 9.6 7.6 10.8C7.6 12 8.5 13.2 8.6 13.4C8.7 13.6 10.4 16.2 13 17.2C15.1 18 15.5 17.8 16 17.8C16.5 17.7 17.5 17.1 17.7 16.5C17.9 15.9 17.9 15.4 17.8 15.3C17.7 15.2 17.5 15.1 17.2 15C16.9 14.9 15.7 14.3 15.5 14.2C15.3 14.1 15.1 14.1 14.9 14.3C14.7 14.5 14.2 15.1 14.1 15.3C14 15.5 13.8 15.5 13.6 15.4C13.4 15.3 12.7 15.1 11.8 14.3C11.1 13.6 10.6 12.8 10.5 12.6C10.4 12.4 10.5 12.2 10.6 12.1L11 11.6C11.1 11.5 11.2 11.3 11.3 11.1C11.4 11 11.3 10.8 11.3 10.7C11.2 10.6 10.7 9.4 10.5 8.9C10.3 8.6 10.1 8.5 9.9 8.5H9.1Z" fill="#25D366"/>
-  </svg>
-);
+// ─── Composant principal ───────────────────────────────────────────────────────
 
-const WebsiteIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <rect width="24" height="24" rx="5.5" fill="#6366F1"/>
-    <circle cx="12" cy="12" r="7" stroke="white" strokeWidth="1.5" fill="none"/>
-    <path d="M12 5C12 5 9.5 8 9.5 12C9.5 16 12 19 12 19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M12 5C12 5 14.5 8 14.5 12C14.5 16 12 19 12 19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M5 12H19" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M5.8 8.5H18.2" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
-    <path d="M5.8 15.5H18.2" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
-  </svg>
-);
+export default function ProduitDetailsPage() {
+  const { slug: boutiqueSlug, produitSlug } = useParams<{ slug: string; produitSlug: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { addToCart } = useCart();
 
-// Config des réseaux pour l'affichage
-const RESEAUX_CONFIG = [
-  { key: "instagram", label: "Instagram", Icon: InstagramIcon, bg: "bg-gradient-to-br from-[#305CDE] via-[#FF1A00] to-orange-400" },
-  { key: "tiktok",    label: "TikTok",    Icon: TikTokIcon,    bg: "bg-black" },
-  { key: "facebook",  label: "Facebook",  Icon: FacebookIcon,  bg: "bg-[#1877F2]" },
-  { key: "youtube",   label: "YouTube",   Icon: YouTubeIcon,   bg: "bg-[#FF0000]" },
-  { key: "whatsapp",  label: "WhatsApp",  Icon: WhatsAppIcon,  bg: "bg-[#25D366]" },
-  { key: "site_web",  label: "Site web",  Icon: WebsiteIcon,   bg: "bg-[#6366F1]" },
-];
+  // ── Data
+  const [produit, setProduit]       = useState<ProduitDetail | null>(null);
+  const [boutique, setBoutique]     = useState<BoutiqueInfo | null>(null);
+  const [options, setOptions]       = useState<OptionProduit[]>([]);
+  const [loading, setLoading]       = useState(true);
 
-// ─── Composant SectionReseauxSociaux ─────────────────────────────────────────
-function SectionReseauxSociaux({ reseaux }: { reseaux: ReseauxSociaux }) {
-  const liens = RESEAUX_CONFIG.filter((r) => !!(reseaux as any)[r.key]?.trim());
-  if (liens.length === 0) return null;
+  // ── Galerie
+  const [photoIndex, setPhotoIndex]     = useState(0);
+  const [zoomOpen, setZoomOpen]         = useState(false);
 
-  return (
-    <div className="mx-3 mt-2 bg-white rounded-2xl p-4 shadow-sm">
-      <p className="text-sm font-bold text-gray-700 mb-3">Retrouvez le vendeur sur</p>
-      <div className="flex flex-wrap gap-2.5">
-        {liens.map(({ key, label, Icon, bg }) => {
-          const url = (reseaux as any)[key] as string;
-          // WhatsApp : numéro → construire le lien wa.me
-          const href = key === "whatsapp"
-            ? `https://wa.me/${url.replace(/\D/g, "")}`
-            : url;
+  // ── Sélection options
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, OptionProduit>>({});
+  const [quantity, setQuantity]               = useState(1);
+  const [wishlist, setWishlist]               = useState(false);
 
-          return (
-            <a
-              key={key}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-gray-100 active:scale-95 transition-all shadow-sm"
-            >
-              <Icon size={22} />
-              <span className="text-sm font-semibold text-gray-800">{label}</span>
-            </a>
-          );
-        })}
+  // ── Chat intégré
+  const [chatOpen, setChatOpen]           = useState(false);
+  const [chatStep, setChatStep]           = useState<"info" | "chat">("info");
+  const [acheteurNom, setAcheteurNom]     = useState("");
+  const [acheteurContact, setAcheteurContact] = useState("");
+  const [discussionId, setDiscussionId]   = useState<string | null>(null);
+  const [messages, setMessages]           = useState<Message[]>([]);
+  const [newMsg, setNewMsg]               = useState("");
+  const [sending, setSending]             = useState(false);
+  const [chatLoading, setChatLoading]     = useState(false);
+  const [uploadFile, setUploadFile]       = useState<File | null>(null);
+  const fileInputRef    = useRef<HTMLInputElement>(null);
+  const chatBottomRef   = useRef<HTMLDivElement>(null);
+  const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ─── Charger produit & boutique ───────────────────────────────────────────
+
+  useEffect(() => {
+    (async () => {
+      if (!boutiqueSlug || !produitSlug) return;
+      setLoading(true);
+
+      // 1. Boutique
+      const boutiqueQuery = isUUID(boutiqueSlug)
+        ? (supabase as any).from("boutiques").select("id,nom,slug,devise").eq("id", boutiqueSlug)
+        : (supabase as any).from("boutiques").select("id,nom,slug,devise").eq("slug", boutiqueSlug);
+      const { data: boutiqueData } = await boutiqueQuery.maybeSingle();
+      if (!boutiqueData) { setLoading(false); return; }
+      setBoutique(boutiqueData);
+
+      // 2. Produit
+      const produitQuery = isUUID(produitSlug)
+        ? (supabase as any).from("produits").select("*").eq("id", produitSlug)
+        : (supabase as any).from("produits").select("*").eq("slug", produitSlug).eq("boutique_id", boutiqueData.id);
+      const { data: produitData } = await produitQuery.maybeSingle();
+      if (!produitData) { setLoading(false); return; }
+      setProduit(produitData);
+
+      // 3. Options (couleurs, tailles…)
+      const { data: optionsData } = await (supabase as any)
+        .from("options_produit")
+        .select("*")
+        .eq("produit_id", produitData.id)
+        .eq("actif", true)
+        .order("position");
+      setOptions((optionsData as OptionProduit[]) || []);
+
+      // 4. Discussion existante (via session)
+      const sessionId = getSessionId();
+      const { data: existingDisc } = await (supabase as any)
+        .from("discussions")
+        .select("id")
+        .eq("acheteur_session_id", sessionId)
+        .eq("produit_id", produitData.id)
+        .maybeSingle();
+      if (existingDisc?.id) {
+        setDiscussionId(existingDisc.id);
+        setChatStep("chat");
+        // Pré-remplir nom/contact depuis localStorage
+        const stored = localStorage.getItem("nexora_acheteur_info");
+        if (stored) {
+          try { const info = JSON.parse(stored); setAcheteurNom(info.nom || ""); setAcheteurContact(info.contact || ""); } catch {}
+        }
+      }
+
+      setLoading(false);
+    })();
+  }, [boutiqueSlug, produitSlug]);
+
+  // ─── Options groupées par type ─────────────────────────────────────────────
+
+  const optionsByType = options.reduce<Record<string, OptionProduit[]>>((acc, opt) => {
+    if (!acc[opt.type_option]) acc[opt.type_option] = [];
+    acc[opt.type_option].push(opt);
+    return acc;
+  }, {});
+
+  const typeLabels: Record<string, string> = {
+    couleur: "Couleur",
+    taille:  "Taille",
+    matiere: "Matière",
+    style:   "Style",
+    autre:   "Option",
+  };
+
+  // ─── Prix calculé (avec suppléments des options sélectionnées) ─────────────
+
+  const prixBase = produit ? (produit.prix_promo ?? produit.prix) : 0;
+  const prixSupplement = Object.values(selectedOptions).reduce((sum, o) => sum + (o.prix_supplement || 0), 0);
+  const prixFinal = prixBase + prixSupplement;
+
+  // ─── Panier ───────────────────────────────────────────────────────────────
+
+  const handleAddToCart = () => {
+    if (!produit || !boutique) return;
+    addToCart({
+      id:         produit.id,
+      boutique_id: produit.boutique_id,
+      nom:        produit.nom,
+      prix:       prixFinal,
+      photo:      (produit.photos || [])[0] || "",
+      quantity,
+      options:    Object.values(selectedOptions).map(o => `${o.label}: ${o.valeur}`).join(", ") || undefined,
+    });
+    toast({ title: "Ajouté au panier ✓", description: produit.nom });
+  };
+
+  // ─── Chat ─────────────────────────────────────────────────────────────────
+
+  const loadMessages = async (discId: string) => {
+    const { data } = await (supabase as any)
+      .from("messages_discussion")
+      .select("*")
+      .eq("discussion_id", discId)
+      .order("created_at", { ascending: true });
+    setMessages((data as Message[]) || []);
+    setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+    // Marquer lu côté acheteur
+    await (supabase as any)
+      .from("messages_discussion")
+      .update({ lu: true })
+      .eq("discussion_id", discId)
+      .eq("expediteur", "vendeur");
+  };
+
+  useEffect(() => {
+    if (!discussionId) return;
+    loadMessages(discussionId);
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => loadMessages(discussionId), 4000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [discussionId]);
+
+  const startDiscussion = async () => {
+    if (!acheteurNom.trim() || !acheteurContact.trim() || !produit || !boutique) return;
+    setChatLoading(true);
+    const sessionId = getSessionId();
+    localStorage.setItem("nexora_acheteur_info", JSON.stringify({ nom: acheteurNom, contact: acheteurContact }));
+
+    const { data: disc } = await (supabase as any)
+      .from("discussions")
+      .insert({
+        boutique_id:         boutique.id,
+        produit_id:          produit.id,
+        acheteur_nom:        acheteurNom.trim(),
+        acheteur_tel:        acheteurContact.includes("@") ? null : acheteurContact.trim(),
+        acheteur_email:      acheteurContact.includes("@") ? acheteurContact.trim() : null,
+        acheteur_session_id: sessionId,
+        statut:              "ouvert",
+      })
+      .select("id")
+      .single();
+
+    if (disc?.id) {
+      setDiscussionId(disc.id);
+      setChatStep("chat");
+    }
+    setChatLoading(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const max = file.type.startsWith("video") ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > max) { toast({ title: "Fichier trop volumineux", variant: "destructive" }); return; }
+    setUploadFile(file);
+  };
+
+  const sendMessage = async () => {
+    if (!discussionId || (!newMsg.trim() && !uploadFile)) return;
+    setSending(true);
+
+    let fichierUrl: string | null = null;
+    let fichierType: string | null = null;
+    let fichierNom: string | null = null;
+
+    if (uploadFile) {
+      const ext = uploadFile.name.split(".").pop();
+      const path = `discussions/${discussionId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("discussion-attachments").upload(path, uploadFile, { upsert: true });
+      if (!error) {
+        const { data: pub } = supabase.storage.from("discussion-attachments").getPublicUrl(path);
+        fichierUrl  = pub.publicUrl;
+        fichierType = uploadFile.type.startsWith("video") ? "video" : "image";
+        fichierNom  = uploadFile.name;
+      }
+      setUploadFile(null);
+    }
+
+    if (!newMsg.trim() && !fichierUrl) { setSending(false); return; }
+
+    await (supabase as any).from("messages_discussion").insert({
+      discussion_id: discussionId,
+      expediteur:    "acheteur",
+      contenu:       newMsg.trim() || null,
+      fichier_url:   fichierUrl,
+      fichier_type:  fichierType,
+      fichier_nom:   fichierNom,
+    });
+
+    setNewMsg("");
+    setSending(false);
+    await loadMessages(discussionId);
+  };
+
+  // ─── Photos ───────────────────────────────────────────────────────────────
+
+  const photos = produit?.photos || [];
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-3 border-[#305CDE] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-neutral-400 font-medium">Chargement du produit…</p>
       </div>
     </div>
   );
-}
 
-// ─── Page principale ──────────────────────────────────────────────────────────
-export default function ProduitDetailPage() {
-  const { slug, produitSlug } = useParams<{ slug: string; produitSlug: string }>();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { setSlug: setCartSlug } = useCart();
-
-  const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null);
-  const [produit,  setProduit]  = useState<ProduitDetail | null>(null);
-
-  useCampagneTracker(boutique?.id ?? undefined);
-  const [loading, setLoading] = useState(true);
-  const [selectedImage,    setSelectedImage]    = useState(0);
-  const [quantite,         setQuantite]         = useState(1);
-  const [selectedVariations, setSelectedVariations] = useState<Record<string, string>>({});
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
-
-  useEffect(() => { document.documentElement.classList.remove('dark'); }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!slug || !produitSlug) return;
-      setLoading(true);
-
-      const { data: boutiqueData } = await (supabase as any)
-        .from('boutiques').select('id, nom, slug, devise')
-        .eq('slug', slug).or('actif.eq.true,actif.is.null').maybeSingle();
-
-      if (!boutiqueData) { setLoading(false); return; }
-      setBoutique(boutiqueData as BoutiqueInfo);
-      if (slug) setCartSlug(slug);
-
-      let produitData: any = null;
-
-      if (isUUID(produitSlug)) {
-        const { data } = await (supabase as any)
-          .from('produits').select('*, variations_produit(*)')
-          .eq('id', produitSlug)
-          .eq('boutique_id', boutiqueData.id)
-          .or('actif.eq.true,actif.is.null').maybeSingle();
-
-        // Rediriger vers slug uniquement s'il est défini en BDD
-        if (data?.slug) {
-          navigate(`/shop/${slug}/produit/${data.slug}`, { replace: true });
-          return;
-        }
-        produitData = data;
-      } else {
-        const { data } = await (supabase as any)
-          .from('produits').select('*, variations_produit(*)')
-          .eq('slug', produitSlug)
-          .eq('boutique_id', boutiqueData.id)
-          .or('actif.eq.true,actif.is.null').maybeSingle();
-        produitData = data;
-      }
-
-      if (produitData) {
-        setProduit({
-          ...(produitData as any),
-          moyens_paiement:    (produitData as any).moyens_paiement || [],
-          variations_produit: (produitData as any).variations_produit || [],
-          photos:             (produitData as any).photos || [],
-          reseaux_sociaux:    (produitData as any).reseaux_sociaux || null,
-        });
-      }
-      setLoading(false);
-    };
-    load();
-  }, [slug, produitSlug, navigate]);
-
-  useEffect(() => {
-    if (!produit?.variations_produit?.length) return;
-    const defaults = produit.variations_produit.reduce<Record<string, string>>((acc, v) => {
-      acc[v.nom] = v.valeurs?.[0] || ''; return acc;
-    }, {});
-    setSelectedVariations(defaults);
-  }, [produit]);
-
-  const images     = useMemo(() => produit?.photos?.length ? produit.photos : [], [produit]);
-  const prixActuel = produit?.prix_promo ?? produit?.prix ?? 0;
-  const enRupture  = !!produit && !produit.stock_illimite && produit.type === 'physique' && produit.stock <= 0;
-  const pctPromo   = produit?.prix_promo
-    ? Math.round(((produit.prix - produit.prix_promo) / produit.prix) * 100)
-    : 0;
-  const typeLabel  = produit?.type === 'numerique' ? 'Produit digital'
-    : produit?.type === 'service' ? 'Service' : 'Produit physique';
-
-  const handleAcheter = () => {
-    if (!produit || !slug) return;
-    // Utiliser le slug SEO si disponible, sinon fallback sur l'UUID
-    const produitIdentifiant = produit.slug || produit.id;
-    navigate(buildAcheterUrl(slug, produitIdentifiant));
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f8]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-4 border-rose-500 border-t-transparent animate-spin" />
-          <p className="text-sm text-gray-400 font-medium">Chargement du produit…</p>
-        </div>
+  if (!produit || !boutique) return (
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="text-center">
+        <Package className="w-12 h-12 text-neutral-200 mx-auto mb-3" />
+        <p className="text-neutral-500 font-semibold">Produit introuvable</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!produit) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-gray-500">
-        <Package size={40} className="text-gray-300" />
-        <p className="font-semibold">Produit introuvable</p>
-        <button
-          onClick={() => navigate(`/shop/${slug ?? ''}`)}
-          className="px-4 py-2 rounded-xl bg-[#FF1A00] text-white text-sm font-semibold"
-        >
-          Retour à la boutique
-        </button>
-      </div>
-    );
-  }
+  const hasPromo = produit.prix_promo && produit.prix_promo < produit.prix;
+  const discountPct = hasPromo ? Math.round((1 - produit.prix_promo! / produit.prix) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#f7f7f8]">
-      {/* En-tête */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100 transition">
-          <ArrowLeft size={20} className="text-gray-600" />
-        </button>
-        <h1 className="flex-1 font-bold text-gray-800 truncate">{produit.nom}</h1>
+    <div className="min-h-screen bg-neutral-50 font-sans">
+      {/* ── Topbar ── */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-neutral-100 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-800 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">{boutique.nom}</span>
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigator.share?.({ title: produit.nom, url: window.location.href })}
+              className="p-2 rounded-xl hover:bg-neutral-100 transition-colors"
+            >
+              <Share2 className="w-4 h-4 text-neutral-500" />
+            </button>
+            <button
+              onClick={() => setWishlist(w => !w)}
+              className={`p-2 rounded-xl transition-colors ${wishlist ? "text-red-500 bg-red-50" : "hover:bg-neutral-100 text-neutral-500"}`}
+            >
+              <Heart className={`w-4 h-4 ${wishlist ? "fill-current" : ""}`} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Images + Vidéo */}
-      {(images.length > 0 || (produit as any).video_url) && (
-        <div className="bg-white">
-          {(produit as any).video_url && (
-            <div className="relative">
-              <VideoAutoplay
-                videoUrl={(produit as any).video_url}
-                poster={images[0]}
-                mode="fiche"
-                className="w-full"
-                aspectRatio="video"
-              />
-              <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
-                🎥 Démonstration
-              </div>
-            </div>
-          )}
-          {images.length > 0 && (
-            <>
-              {!(produit as any).video_url && (
+      <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+
+          {/* ── Colonne gauche : Galerie ── */}
+          <div className="space-y-3">
+            {/* Photo principale */}
+            <div className="relative aspect-square bg-white rounded-3xl overflow-hidden shadow-md group cursor-zoom-in" onClick={() => setZoomOpen(true)}>
+              {photos.length > 0 ? (
                 <img
-                  src={images[selectedImage]}
+                  src={photos[photoIndex]}
                   alt={produit.nom}
-                  className="w-full max-h-80 object-cover"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-              )}
-              {images.length > 1 && (
-                <div className="flex gap-2 p-3 overflow-x-auto">
-                  {images.map((img, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedImage(i)}
-                      className={`w-14 h-14 rounded-xl overflow-hidden border-2 flex-shrink-0 transition ${
-                        i === selectedImage ? 'border-rose-500' : 'border-gray-200'
-                      }`}
-                    >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-neutral-100">
+                  <Package className="w-16 h-16 text-neutral-300" />
                 </div>
               )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Compte à rebours */}
-      {produit.countdown_actif && produit.countdown_fin && (() => {
-        const cdConfig: CountdownConfig = {
-          countdown_actif: produit.countdown_actif,
-          countdown_fin: produit.countdown_fin,
-          countdown_titre: produit.countdown_titre ?? null,
-          countdown_bg_couleur: produit.countdown_bg_couleur ?? "#ef4444",
-          countdown_texte_couleur: produit.countdown_texte_couleur ?? "#ffffff",
-          countdown_style: produit.countdown_style ?? "banner",
-          countdown_message_fin: produit.countdown_message_fin ?? null,
-        };
-        return (
-          <div className="mx-3 mt-2">
-            <CountdownDisplay config={cdConfig} />
-          </div>
-        );
-      })()}
-
-      {/* Infos produit */}
-      <div className="p-4 bg-white mt-2 rounded-2xl mx-3 shadow-sm">
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="text-xl font-bold text-gray-900 flex-1">{produit.nom}</h2>
-          {produit.vedette && (
-            <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
-              <Sparkles size={12} /> Vedette
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 mt-2">
-          <span className="text-2xl font-extrabold text-[#FF1A00]">
-            {formatPrix(prixActuel, boutique?.devise)}
-          </span>
-          {produit.prix_promo && (
-            <>
-              <span className="text-sm text-gray-400 line-through">
-                {formatPrix(produit.prix, boutique?.devise)}
-              </span>
-              <span className="text-xs font-bold text-[#008000] bg-emerald-50 px-2 py-0.5 rounded-full">
-                -{pctPromo}%
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 mt-2">
-          <Tag size={14} className="text-gray-400" />
-          <span className="text-xs text-gray-500">{typeLabel}</span>
-          {produit.categorie && (
-            <span className="text-xs text-gray-400">· {produit.categorie}</span>
-          )}
-        </div>
-
-        {produit.description && (
-          <div
-            className="mt-3 text-sm text-gray-600 leading-relaxed prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: produit.description }}
-          />
-        )}
-      </div>
-
-      {/* Variations */}
-      {produit.variations_produit && produit.variations_produit.length > 0 && (
-        <div className="mx-3 mt-2 bg-white rounded-2xl p-4 shadow-sm">
-          {produit.variations_produit.map((variation) => (
-            <div key={variation.nom} className="mb-3 last:mb-0">
-              <p className="text-sm font-semibold text-gray-700 mb-2">{variation.nom}</p>
-              <div className="flex flex-wrap gap-2">
-                {variation.valeurs.map((valeur) => (
+              {hasPromo && (
+                <div className="absolute top-4 left-4 bg-red-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow">
+                  -{discountPct}%
+                </div>
+              )}
+              {photos.length > 1 && (
+                <>
                   <button
-                    key={valeur}
-                    onClick={() =>
-                      setSelectedVariations((prev) => ({ ...prev, [variation.nom]: valeur }))
-                    }
-                    className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition ${
-                      selectedVariations[variation.nom] === valeur
-                        ? 'bg-[#FF1A00] text-white border-rose-500'
-                        : 'bg-white text-gray-700 border-gray-200 hover:border-rose-300'
-                    }`}
+                    onClick={e => { e.stopPropagation(); setPhotoIndex(i => (i - 1 + photos.length) % photos.length); }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 rounded-full shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    {valeur}
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setPhotoIndex(i => (i + 1) % photos.length); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 rounded-full shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              <div className="absolute bottom-3 right-3 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <ZoomIn className="w-3.5 h-3.5 text-neutral-600" />
+              </div>
+            </div>
+
+            {/* Miniatures */}
+            {photos.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {photos.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPhotoIndex(i)}
+                    className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${i === photoIndex ? "border-[#305CDE] shadow-md shadow-[#305CDE]/20" : "border-transparent hover:border-neutral-300"}`}
+                  >
+                    <img src={url} alt="" className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            )}
 
-      {/* Quantité + bouton achat */}
-      {produit.type === 'physique' && (
-        <div className="mx-3 mt-2 bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
-          <span className="text-sm font-semibold text-gray-700">Quantité</span>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setQuantite((q) => Math.max(1, q - 1))}
-              className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center"
-            >
-              <Minus size={14} />
-            </button>
-            <span className="font-bold text-lg w-6 text-center">{quantite}</span>
-            <button
-              onClick={() => setQuantite((q) => q + 1)}
-              className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center"
-            >
-              <Plus size={14} />
-            </button>
+            {/* Badges info */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { icon: Truck,  label: "Livraison" },
+                { icon: Shield, label: "Sécurisé" },
+                { icon: RefreshCw, label: "Retours" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-2xl border border-neutral-100">
+                  <Icon className="w-4 h-4 text-[#305CDE]" />
+                  <span className="text-[10px] font-semibold text-neutral-500">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Colonne droite : Infos & options ── */}
+          <div className="space-y-5">
+            {/* Catégorie & titre */}
+            {produit.categorie && (
+              <span className="inline-block text-xs font-bold text-[#305CDE] bg-[#305CDE]/10 px-3 py-1 rounded-full">
+                {produit.categorie}
+              </span>
+            )}
+            <h1 className="text-2xl lg:text-3xl font-black text-neutral-900 leading-tight">{produit.nom}</h1>
+
+            {/* Avis fictif (placeholder visuel) */}
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[1,2,3,4,5].map(s => <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />)}
+              </div>
+              <span className="text-xs text-neutral-400 font-medium">Nouveau produit</span>
+            </div>
+
+            {/* Prix */}
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-black text-neutral-900">
+                {formatPrix(prixFinal, boutique.devise)}
+              </span>
+              {hasPromo && (
+                <span className="text-lg text-neutral-400 line-through font-medium">
+                  {formatPrix(produit.prix + prixSupplement, boutique.devise)}
+                </span>
+              )}
+              {prixSupplement > 0 && (
+                <span className="text-sm text-[#305CDE] font-semibold">
+                  +{formatPrix(prixSupplement, boutique.devise)} options
+                </span>
+              )}
+            </div>
+
+            {/* ── Options (couleurs, tailles…) ── */}
+            {Object.entries(optionsByType).map(([type, opts]) => (
+              <div key={type} className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-neutral-700">
+                    {typeLabels[type] || type}
+                    {selectedOptions[type] && (
+                      <span className="ml-2 font-normal text-neutral-500">— {selectedOptions[type].valeur}</span>
+                    )}
+                  </p>
+                </div>
+
+                {type === "couleur" ? (
+                  /* Swatch couleurs */
+                  <div className="flex flex-wrap gap-2">
+                    {opts.map(opt => {
+                      const isSelected = selectedOptions[type]?.id === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => setSelectedOptions(prev => ({
+                            ...prev,
+                            [type]: isSelected ? (delete prev[type], { ...prev })[type] : opt,
+                          }))}
+                          className={`relative group transition-all ${isSelected ? "scale-110" : "hover:scale-105"}`}
+                          title={opt.valeur}
+                        >
+                          {opt.image_url ? (
+                            <div className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-all ${isSelected ? "border-[#305CDE] shadow-lg shadow-[#305CDE]/30" : "border-transparent hover:border-neutral-300"}`}>
+                              <img src={opt.image_url} alt={opt.valeur} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div
+                              className={`w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center ${isSelected ? "border-[#305CDE] shadow-lg shadow-[#305CDE]/30" : "border-neutral-200 hover:border-neutral-400"}`}
+                              style={{ backgroundColor: opt.code_hex || "#e5e7eb" }}
+                            >
+                              {isSelected && <Check className="w-4 h-4 text-white drop-shadow" />}
+                            </div>
+                          )}
+                          {opt.prix_supplement > 0 && (
+                            <span className="absolute -top-1 -right-1 text-[9px] bg-[#305CDE] text-white rounded-full px-1 font-bold">
+                              +{opt.prix_supplement}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Boutons texte (tailles, matières…) */
+                  <div className="flex flex-wrap gap-2">
+                    {opts.map(opt => {
+                      const isSelected = selectedOptions[type]?.id === opt.id;
+                      const epuise = !opt.stock_illimite && opt.stock === 0;
+                      return (
+                        <button
+                          key={opt.id}
+                          disabled={epuise}
+                          onClick={() => setSelectedOptions(prev => ({
+                            ...prev,
+                            [type]: isSelected ? (delete prev[type], { ...prev })[type] : opt,
+                          }))}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all relative
+                            ${epuise ? "opacity-40 cursor-not-allowed line-through border-neutral-200 text-neutral-400" : ""}
+                            ${isSelected && !epuise ? "bg-[#305CDE] text-white border-[#305CDE] shadow-lg shadow-[#305CDE]/30" : ""}
+                            ${!isSelected && !epuise ? "border-neutral-200 text-neutral-700 hover:border-[#305CDE] hover:text-[#305CDE]" : ""}
+                          `}
+                        >
+                          {opt.valeur}
+                          {opt.prix_supplement > 0 && !epuise && (
+                            <span className="absolute -top-1.5 -right-1.5 text-[9px] bg-amber-400 text-white rounded-full px-1 font-bold">
+                              +{opt.prix_supplement}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Quantité */}
+            <div className="flex items-center gap-4">
+              <p className="text-sm font-bold text-neutral-700">Quantité</p>
+              <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1">
+                <button
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white hover:shadow transition-all"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-10 text-center font-black text-neutral-800">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(q => q + 1)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white hover:shadow transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {!produit.stock_illimite && (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${produit.stock > 5 ? "bg-green-50 text-green-600" : produit.stock > 0 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"}`}>
+                  {produit.stock > 0 ? `${produit.stock} en stock` : "Rupture de stock"}
+                </span>
+              )}
+            </div>
+
+            {/* Boutons action */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                onClick={handleAddToCart}
+                disabled={!produit.stock_illimite && produit.stock === 0}
+                className="w-full flex items-center justify-center gap-2.5 py-4 bg-[#305CDE] text-white font-black text-base rounded-2xl shadow-lg shadow-[#305CDE]/30 hover:bg-[#2449c7] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Ajouter au panier — {formatPrix(prixFinal * quantity, boutique.devise)}
+              </button>
+
+              <button
+                onClick={() => setChatOpen(true)}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-white text-[#305CDE] font-bold text-sm border-2 border-[#305CDE]/30 rounded-2xl hover:bg-[#305CDE]/5 transition-all"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Contacter le vendeur
+                {discussionId && <span className="w-2 h-2 bg-green-500 rounded-full" />}
+              </button>
+            </div>
+
+            {/* Description */}
+            {produit.description && (
+              <div className="bg-white rounded-2xl border border-neutral-100 p-5 space-y-2">
+                <h3 className="font-bold text-sm text-neutral-700">Description</h3>
+                <p className="text-sm text-neutral-600 leading-relaxed whitespace-pre-line">{produit.description}</p>
+              </div>
+            )}
+
+            {/* Détails techniques */}
+            {(produit.poids || produit.dimensions || produit.sku) && (
+              <div className="bg-white rounded-2xl border border-neutral-100 p-5 space-y-3">
+                <h3 className="font-bold text-sm text-neutral-700">Caractéristiques</h3>
+                <div className="space-y-2">
+                  {produit.sku && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">SKU</span>
+                      <span className="font-semibold text-neutral-800 font-mono">{produit.sku}</span>
+                    </div>
+                  )}
+                  {produit.poids && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Poids</span>
+                      <span className="font-semibold text-neutral-800">{produit.poids}</span>
+                    </div>
+                  )}
+                  {produit.dimensions && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Dimensions</span>
+                      <span className="font-semibold text-neutral-800">{produit.dimensions}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Politique retour */}
+            {produit.politique_remboursement && (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-800">
+                <p className="font-bold mb-1 flex items-center gap-1.5"><Shield className="w-4 h-4" />Politique de retour</p>
+                <p className="leading-relaxed">{produit.politique_remboursement}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Modal Chat intégré ─────────────────────────────────────────────── */}
+      {chatOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setChatOpen(false)}>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative w-full sm:max-w-md bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+            style={{ maxHeight: "90vh", minHeight: "420px" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 p-4 border-b border-neutral-100 bg-gradient-to-r from-[#305CDE] to-[#4a76f5]">
+              <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-black text-sm truncate">{boutique.nom}</p>
+                <p className="text-white/70 text-xs truncate">{produit.nom}</p>
+              </div>
+              <button onClick={() => setChatOpen(false)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+
+            {chatStep === "info" ? (
+              /* ── Étape 1 : Saisir nom & contact ── */
+              <div className="flex-1 p-6 flex flex-col gap-4">
+                <div className="text-center space-y-1">
+                  <p className="font-black text-neutral-800">Avant de commencer</p>
+                  <p className="text-sm text-neutral-500">Dites-nous qui vous êtes pour que le vendeur puisse vous répondre.</p>
+                </div>
+                {/* Produit mini */}
+                <div className="flex items-center gap-3 p-3 bg-[#305CDE]/5 rounded-2xl border border-[#305CDE]/10">
+                  {photos[0] && <img src={photos[0]} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
+                  <div className="min-w-0">
+                    <p className="text-xs text-neutral-500 font-medium">Demande à propos de :</p>
+                    <p className="text-sm font-bold text-neutral-800 truncate">{produit.nom}</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-neutral-600 mb-1.5 block">Votre nom *</label>
+                    <input
+                      value={acheteurNom}
+                      onChange={e => setAcheteurNom(e.target.value)}
+                      placeholder="Ex: Jean Dupont"
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#305CDE]/30 bg-neutral-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-neutral-600 mb-1.5 block">Téléphone ou Email *</label>
+                    <input
+                      value={acheteurContact}
+                      onChange={e => setAcheteurContact(e.target.value)}
+                      placeholder="Ex: +229 97 00 00 00 ou email@..."
+                      className="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#305CDE]/30 bg-neutral-50"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={startDiscussion}
+                  disabled={!acheteurNom.trim() || !acheteurContact.trim() || chatLoading}
+                  className="w-full py-3.5 bg-[#305CDE] text-white font-black rounded-xl hover:bg-[#2449c7] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                  Démarrer la conversation
+                </button>
+              </div>
+            ) : (
+              /* ── Étape 2 : Chat ── */
+              <>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-neutral-50">
+                  {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-32 text-center">
+                      <MessageCircle className="w-8 h-8 text-neutral-200 mb-2" />
+                      <p className="text-sm text-neutral-400">Envoyez votre premier message !</p>
+                      <p className="text-xs text-neutral-300 mt-1">Le vendeur vous répondra très bientôt.</p>
+                    </div>
+                  ) : (
+                    messages.map(msg => {
+                      const isMe = msg.expediteur === "acheteur";
+                      return (
+                        <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                          {!isMe && (
+                            <div className="w-7 h-7 rounded-full bg-[#305CDE] flex items-center justify-center text-white text-xs font-black mr-2 flex-shrink-0 self-end">
+                              V
+                            </div>
+                          )}
+                          <div className={`max-w-[78%] space-y-1 ${isMe ? "items-end" : "items-start"} flex flex-col`}>
+                            {msg.fichier_url && msg.fichier_type === "image" && (
+                              <img src={msg.fichier_url} alt="img" className="max-w-[180px] rounded-xl object-cover cursor-pointer" onClick={() => window.open(msg.fichier_url!, "_blank")} />
+                            )}
+                            {msg.contenu && (
+                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${isMe ? "bg-[#305CDE] text-white rounded-br-sm" : "bg-white text-neutral-800 border border-neutral-100 rounded-bl-sm"}`}>
+                                {msg.contenu}
+                              </div>
+                            )}
+                            <p className="text-[10px] text-neutral-400 px-1">{timeAgo(msg.created_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                {uploadFile && (
+                  <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center gap-2">
+                    {uploadFile.type.startsWith("image") ? (
+                      <img src={URL.createObjectURL(uploadFile)} className="w-10 h-10 rounded-lg object-cover" />
+                    ) : <ImageIcon className="w-5 h-5 text-[#305CDE]" />}
+                    <p className="flex-1 text-xs text-neutral-600 truncate">{uploadFile.name}</p>
+                    <button onClick={() => setUploadFile(null)}><X className="w-4 h-4 text-neutral-400" /></button>
+                  </div>
+                )}
+
+                <div className="p-3 border-t border-neutral-100 bg-white">
+                  <div className="flex items-end gap-2">
+                    <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileChange} />
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 transition-colors">
+                      <ImageIcon className="w-4 h-4 text-neutral-400" />
+                    </button>
+                    <textarea
+                      value={newMsg}
+                      onChange={e => setNewMsg(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                      placeholder="Votre message…"
+                      rows={1}
+                      className="flex-1 px-3 py-2.5 text-sm bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#305CDE]/30 resize-none"
+                      style={{ minHeight: "40px", maxHeight: "100px" }}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={sending || (!newMsg.trim() && !uploadFile)}
+                      className="p-2.5 bg-[#305CDE] text-white rounded-xl hover:bg-[#2449c7] transition-colors disabled:opacity-50"
+                    >
+                      {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* Actions (partage, paiement…) */}
-      <div className="mx-3 mt-2">
-        <ProductActionButtons
-          produit={produit as any}
-          boutique={boutique as any}
-          quantite={quantite}
-          selectedVariations={selectedVariations}
-          enRupture={enRupture}
-          onAcheter={handleAcheter}
-        />
-      </div>
-
-      {/* ── Réseaux sociaux du vendeur ── */}
-      {produit.reseaux_sociaux && (
-        <SectionReseauxSociaux reseaux={produit.reseaux_sociaux} />
-      )}
-
-      {/* Boutons Détails + Discuter avec le vendeur */}
-      <div className="mx-3 mt-2 grid grid-cols-2 gap-2">
-        {produit.type === 'physique' && (
-          <button
-            onClick={() => setShowDetailsModal(true)}
-            className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-rose-300 text-gray-700 font-semibold py-3 rounded-xl transition shadow-sm"
-          >
-            <Info size={16} className="text-rose-500" />
-            Détails
+      {/* ── Zoom photo ── */}
+      {zoomOpen && photos[photoIndex] && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setZoomOpen(false)}>
+          <button className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            <X className="w-5 h-5 text-white" />
           </button>
-        )}
-        <button
-          onClick={() => setShowChatModal(true)}
-          className={`flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-rose-300 text-gray-700 font-semibold py-3 rounded-xl transition shadow-sm ${produit.type !== 'physique' ? 'col-span-2' : ''}`}
-        >
-          <MessageCircle size={16} className="text-rose-500" />
-          Discuter avec le vendeur
-        </button>
-      </div>
-
-      {/* Avis */}
-      <div className="mx-3 mt-2 mb-8">
-        <SectionAvis produitId={produit.id} />
-      </div>
-
-      {/* Modaux */}
-      {produit.type === 'physique' && (
-        <ProduitDetailsModal
-          open={showDetailsModal}
-          onClose={() => setShowDetailsModal(false)}
-          produitNom={produit.nom}
-          produitDimensions={produit.dimensions}
-          produitPoids={produit.poids}
-          produitSku={produit.sku}
-          variations={(produit.variations_produit || []) as any}
-          devise={boutique?.devise}
-        />
-      )}
-
-      {boutique && (
-        <ChatVendeurModal
-          open={showChatModal}
-          onClose={() => setShowChatModal(false)}
-          boutiqueId={boutique.id}
-          boutiqueNom={boutique.nom}
-          produitId={produit.id}
-          produitNom={produit.nom}
-          produitImage={images[0]}
-        />
+          <img src={photos[photoIndex]} alt={produit.nom} className="max-w-full max-h-full object-contain rounded-xl" />
+        </div>
       )}
     </div>
   );
