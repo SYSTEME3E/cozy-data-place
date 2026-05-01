@@ -358,16 +358,30 @@ export default function ProduitDetailsPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mr = new MediaRecorder(stream);
+      // Détecter le format supporté par le navigateur
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "";
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       mediaRecorderRef.current = mr;
-      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      // timeslice=200ms → collecte les données régulièrement (obligatoire sur mobile)
+      mr.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        if (audioChunksRef.current.length === 0) {
+          toast({ title: "Enregistrement vide, réessayez", variant: "destructive" });
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || "audio/webm" });
         setAudioBlob(blob);
         setAudioPreviewUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
       };
-      mr.start();
+      mr.start(200); // timeslice 200ms — CRUCIAL pour mobile
       setRecording(true);
       setRecordSeconds(0);
       recordTimerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
@@ -391,9 +405,14 @@ export default function ProduitDetailsPage() {
     let fichierNom: string | null = null;
 
     if (audioBlob) {
-      const fileName = `audio_${Date.now()}.webm`;
+      const actualType = audioBlob.type || "audio/webm";
+      const ext = actualType.includes("mp4") ? "mp4" : actualType.includes("ogg") ? "ogg" : "webm";
+      const fileName = `audio_${Date.now()}.${ext}`;
       const path = `discussions/${discussionId}/${fileName}`;
-      const { error } = await supabase.storage.from("medias").upload(path, audioBlob, { upsert: true });
+      const { error } = await supabase.storage.from("medias").upload(path, audioBlob, {
+        upsert: true,
+        contentType: actualType,
+      });
       if (error) {
         toast({ title: "Erreur upload audio : " + error.message, variant: "destructive" });
         setSending(false);
@@ -781,7 +800,11 @@ export default function ProduitDetailsPage() {
 
       {/* ── Modal Chat intégré ─────────────────────────────────────────────── */}
       {chatOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setChatOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => {
+          // Ne pas fermer si enregistrement en cours ou audio prêt à envoyer
+          if (recording || audioBlob) return;
+          setChatOpen(false);
+        }}>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
           <div
             className="relative w-full sm:max-w-md bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
